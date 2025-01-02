@@ -1,7 +1,5 @@
-#include <Core.h>
+#include <Logger.h>
 
-
-#include <Windows.h>
 
 #include <sstream>
 
@@ -19,6 +17,11 @@ namespace eg
 		{
 			throw std::runtime_error("Logger is not null !");
 		}
+	}
+
+	void Logger::destroy()
+	{
+		sLogger.reset();
 	}
 
 	std::string Logger::formatMessage(const std::string& message, const char* callee, const char* level)
@@ -50,23 +53,5 @@ namespace eg
 	}
 
 
-	void VisualStudioLogger::trace(const std::string& message)
-	{
-		OutputDebugStringA(Logger::formatMessage(message, "Engine", "Trace").c_str());
-	}
-
-	void VisualStudioLogger::info(const std::string& message)
-	{
-		OutputDebugStringA(Logger::formatMessage(message, "Engine", "Trace").c_str());
-	}
-
-	void VisualStudioLogger::warn(const std::string& message)
-	{
-		OutputDebugStringA(Logger::formatMessage(message, "Engine", "Trace").c_str());
-	}
-
-	void VisualStudioLogger::error(const std::string& message)
-	{
-		OutputDebugStringA(Logger::formatMessage(message, "Engine", "Trace").c_str());
-	}
+	
 }

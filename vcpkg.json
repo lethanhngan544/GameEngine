@@ -1,6 +1,10 @@
 {
   "dependencies": [
     "glfw3",
-    "glm"
+    "glm",
+    "shaderc",
+    "vulkan",
+    "vulkan-memory-allocator-hpp",
+    "vulkan-memory-allocator"
   ]
 }

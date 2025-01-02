@@ -1,9 +1,10 @@
 project(engine)
 
 
-add_library(engine STATIC core/Window.cpp "core/Renderer.cpp" "core/Loggers/Logger.cpp")
-target_include_directories(engine PRIVATE ${CMAKE_SOURCE_DIR}/include $ENV{VULKAN_SDK}/Include)
-target_link_libraries(engine PRIVATE $ENV{VULKAN_SDK}/Lib/vulkan-1.lib)
+add_library(engine STATIC core/Window.cpp "core/Renderer/Renderer.cpp" "core/Loggers/Logger.cpp" "core/Loggers/FileLogger.cpp" "core/Loggers/VisualStudioLogger.cpp" "core/Renderer/VertexBuffer.cpp" "core/Renderer/DefaultPipeline.cpp" "core/Renderer/IndexBuffer.cpp")
+
+target_include_directories(engine PRIVATE ${CMAKE_SOURCE_DIR}/include)
+#target_link_libraries(engine PRIVATE $ENV{VULKAN_SDK}/Lib/vulkan-1.lib)
 
 find_package(glfw3 CONFIG REQUIRED)
 target_link_libraries(engine PRIVATE glfw)
@@ -11,9 +12,19 @@ target_link_libraries(engine PRIVATE glfw)
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(engine PRIVATE glm::glm)
 
+find_package(Vulkan REQUIRED)
+target_link_libraries(engine PRIVATE Vulkan::Vulkan)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+target_link_libraries(engine PRIVATE GPUOpen::VulkanMemoryAllocator)
+find_package(unofficial-vulkan-memory-allocator-hpp CONFIG REQUIRED)
+target_link_libraries(engine PRIVATE unofficial::VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp)
+
+find_package(unofficial-shaderc CONFIG REQUIRED)
+target_link_libraries(engine PRIVATE unofficial::shaderc::shaderc)
+
 
 
 if(MSVC)
-  target_compile_options(engine PUBLIC "/ZI")
-  target_link_options(engine PUBLIC "/INCREMENTAL")
+  target_compile_options(engine PRIVATE "/ZI")
+  target_link_options(engine PRIVATE "/INCREMENTAL")
 endif()
