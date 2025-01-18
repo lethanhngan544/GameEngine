@@ -1,4 +1,5 @@
 #include <Core.h>
+#include <Data.h>
 #include <GLFW/glfw3.h>
 
 #include <limits>
@@ -10,6 +11,10 @@
 #include <vulkan-memory-allocator-hpp/vk_mem_alloc.hpp>
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
 namespace eg::Renderer
 {
 	struct FrameData
@@ -17,9 +22,9 @@ namespace eg::Renderer
 		vk::Semaphore presentSemaphore, renderSemaphore;
 		vk::Fence renderFence;
 		vk::CommandBuffer commandBuffer;
+		uint32_t swapchainIndex = 0;
 	};
 
-	
 	static shaderc::Compiler gShaderCompiler;
 	static shaderc::CompileOptions gShaderCompilerOptions;
 	static vk::Rect2D gDrawExtent;
@@ -44,10 +49,20 @@ namespace eg::Renderer
 	static FrameData gFrameData[gFrameCount];
 	static uint32_t gCurrentFrame = 0;
 
-	static std::optional<DefaultPipeline> gDefaultPipeline;
+	static vk::DescriptorPool gDescriptorPool;
+	static std::optional<GlobalUniformBuffer> gGlobalUniformBuffer;
 
-	static std::optional<VertexBuffer> gVertexBuffer;
-	static std::optional<IndexBuffer> gIndexBuffer;
+	//Global descriptor
+
+	//ImGUI's stuff
+	static vk::RenderPass gImGuiRenderPass;
+	static vk::Framebuffer gImGuiFramebuffer;
+
+
+	static std::optional<DefaultRenderPass> gDefaultRenderPass;
+	static std::optional<StaticModelPipeline> gDefaultPipeline;
+	static std::optional<AmbientLightPipeline> gAmbientLightPipeline;
+	static std::optional<PointLightPipeline> gPointLightPipeline;
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL gDebugCallbackFn(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -55,8 +70,14 @@ namespace eg::Renderer
 		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 		void* pUserData)
 	{
+		if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+			Logger::gError(std::string("Validation layer: ") + pCallbackData->pMessage);
+		else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+			Logger::gWarn(std::string("Validation layer: ") + pCallbackData->pMessage);
+		else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
+			Logger::gInfo(std::string("Validation layer: ") + pCallbackData->pMessage);
 
-		Logger::gInfo(std::string("Validation layer: ") + pCallbackData->pMessage);
+
 
 		return VK_FALSE;
 	}
@@ -76,8 +97,8 @@ namespace eg::Renderer
 
 
 		gShaderCompilerOptions.SetOptimizationLevel(shaderc_optimization_level_performance);
-		shaderc::SpvCompilationResult module = gShaderCompiler.CompileGlslToSpv(data, 
-			(shaderc_shader_kind)kind, 
+		shaderc::SpvCompilationResult module = gShaderCompiler.CompileGlslToSpv(data,
+			(shaderc_shader_kind)kind,
 			filePath.c_str(), gShaderCompilerOptions);
 
 		if (module.GetCompilationStatus() != shaderc_compilation_status_success)
@@ -109,6 +130,11 @@ namespace eg::Renderer
 		gDevice.freeCommandBuffers(gCommandPool, cmdBuffer);
 	}
 
+	void waitIdle()
+	{
+		gDevice.waitIdle();
+	}
+
 	void create(uint32_t width, uint32_t height)
 	{
 		gDrawExtent = vk::Rect2D{ {0, 0}, {width, height} };
@@ -130,8 +156,7 @@ namespace eg::Renderer
 		};
 		std::vector<const char*> deviceEnabledExtensions =
 		{
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-			VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME
 		};
 		std::vector<const char*> enabledLayers =
 		{
@@ -294,7 +319,7 @@ namespace eg::Renderer
 			.setImageColorSpace(gSurfaceFormat.colorSpace)
 			.setImageExtent(gDrawExtent.extent)
 			.setImageArrayLayers(1)
-			.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
+			.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst)
 			.setImageSharingMode(vk::SharingMode::eExclusive)
 			.setPreTransform(surfaceCapabilities.currentTransform)
 			.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
@@ -337,6 +362,7 @@ namespace eg::Renderer
 			FrameData& frameData = gFrameData[i];
 			vk::SemaphoreCreateInfo semaphoreCI{};
 			vk::FenceCreateInfo fenceCI{};
+			fenceCI.setFlags(vk::FenceCreateFlagBits::eSignaled);
 			vk::CommandPoolCreateInfo commandPoolCI{};
 			vk::CommandBufferAllocateInfo commandBufferAI{};
 			frameData.presentSemaphore = gDevice.createSemaphore(semaphoreCI);
@@ -350,22 +376,102 @@ namespace eg::Renderer
 			frameData.commandBuffer = gDevice.allocateCommandBuffers(commandBufferAI)[0];
 		}
 
-		gDefaultPipeline.emplace();
-
-
-		std::vector<DefaultPipeline::Vertex> vertices = {
-			{ {0.0f, -0.5f, 0.0f} },
-			{ {0.5f, 0.5f, 0.0f} },
-			{ {-0.5f, 0.5f, 0.0f} }
+		//Create descriptor pool
+		vk::DescriptorPoolSize poolSizes[] =
+		{
+			vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 1000},
+			vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 1000}
 		};
+		vk::DescriptorPoolCreateInfo descriptorPoolCI{};
+		descriptorPoolCI
+			.setPoolSizes(poolSizes)
+			.setMaxSets(1024)
+			.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
+		gDescriptorPool = gDevice.createDescriptorPool(descriptorPoolCI);
 
-		std::vector<uint32_t> indices = { 0, 1, 2 };
+		//Create global uniform buffers
+		gGlobalUniformBuffer.emplace(gFrameCount);
 
-		gVertexBuffer.emplace(vertices.data(), sizeof(DefaultPipeline::Vertex) * vertices.size());
-		gIndexBuffer.emplace(indices.data(), sizeof(uint32_t) * indices.size());
+
+		gDefaultRenderPass.emplace(width, height, gSurfaceFormat.format);
+		gDefaultPipeline.emplace(gDefaultRenderPass->getRenderPass(), gGlobalUniformBuffer->getLayout());
+		gAmbientLightPipeline.emplace(gDefaultRenderPass->getRenderPass(), gGlobalUniformBuffer->getLayout(),
+			gDefaultRenderPass->getPosition().getImageView(),
+			gDefaultRenderPass->getNormal().getImageView(),
+			gDefaultRenderPass->getAlbedo().getImageView());
+
+		gPointLightPipeline.emplace(gDefaultRenderPass->getRenderPass(), gGlobalUniformBuffer->getLayout(),
+			gDefaultRenderPass->getPosition().getImageView(),
+			gDefaultRenderPass->getNormal().getImageView(),
+			gDefaultRenderPass->getAlbedo().getImageView());
+
+
+		//Init imgui
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+		ImGui::StyleColorsDark();
+		ImGui_ImplGlfw_InitForVulkan(Window::getHandle(), true);
+		ImGui_ImplVulkan_InitInfo init_info = {};
+		init_info.Instance = gInstance;
+		init_info.PhysicalDevice = gPhysicalDevice;
+		init_info.Device = gDevice;
+		init_info.QueueFamily = gGraphicsQueueFamilyIndex;
+		init_info.Queue = gMainQueue;
+		init_info.PipelineCache = VK_NULL_HANDLE;
+		init_info.DescriptorPool = gDescriptorPool;
+		init_info.RenderPass = gDefaultRenderPass->getRenderPass();
+		init_info.Subpass = 1;
+		init_info.MinImageCount = surfaceCapabilities.minImageCount;
+		init_info.ImageCount = imageCount;
+		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+		init_info.CheckVkResultFn =
+			[](VkResult result) {
+			if (result != 0)
+				Logger::gError("[vulkan] Error: VkResult = %d\n");
+			};
+		ImGui_ImplVulkan_Init(&init_info);
+
+	}
+	void destory()
+	{
+		gDefaultPipeline.reset();
+		gAmbientLightPipeline.reset();
+		gPointLightPipeline.reset();
+		gDefaultRenderPass.reset();
+		gGlobalUniformBuffer.reset();
+
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+		ImGui::DestroyContext();
+		gAllocator.destroy();
+		gDevice.destroyDescriptorPool(gDescriptorPool);
+		for (size_t i = 0; i < gFrameCount; i++)
+		{
+			auto& frameData = gFrameData[i];
+			gDevice.destroySemaphore(frameData.presentSemaphore);
+			gDevice.destroySemaphore(frameData.renderSemaphore);
+			gDevice.destroyFence(frameData.renderFence);
+			gDevice.freeCommandBuffers(gCommandPool, frameData.commandBuffer);
+
+		}
+		gDevice.destroyCommandPool(gCommandPool);
+		for (auto imageView : gSwapchainImageViews)
+		{
+			gDevice.destroyImageView(imageView);
+		}
+		gDevice.destroySwapchainKHR(gSwapchain);
+		gDevice.destroy();
+		gInstance.destroySurfaceKHR(gSurface);
+		gInstance.destroyDebugUtilsMessengerEXT(gDbgMsg);
+		gInstance.destroy();
 	}
 
-	void drawTestTriangle()
+
+	vk::CommandBuffer begin(const Data::Camera& camera)
 	{
 		auto& frameData = gFrameData[gCurrentFrame];
 		if (gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000) != vk::Result::eSuccess)
@@ -373,9 +479,20 @@ namespace eg::Renderer
 			Logger::gWarn("Failed to wait for fence !");
 		}
 		gDevice.resetFences(frameData.renderFence);
-		uint32_t imageIndex = gDevice.acquireNextImageKHR(gSwapchain, 1000000000, frameData.presentSemaphore, nullptr).value;
+		frameData.swapchainIndex = gDevice.acquireNextImageKHR(gSwapchain, 1000000000, frameData.presentSemaphore, nullptr).value;
 
-		//Draw test triangle
+		//draw imgui
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+		ImGui::DockSpaceOverViewport(0, 0, ImGuiDockNodeFlags_PassthruCentralNode);
+
+		//Update global uniform buffer
+		GlobalUniformBuffer::Data GlobalUBOData;
+		GlobalUBOData.mProjection = camera.buildProjection(gDrawExtent.extent);
+		GlobalUBOData.mView = camera.buildView();
+		gGlobalUniformBuffer->update(GlobalUBOData, gCurrentFrame);
+
 		vk::CommandBuffer& cmd = frameData.commandBuffer;
 		vk::CommandBufferBeginInfo commandBufferBI{};
 		commandBufferBI.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
@@ -383,56 +500,52 @@ namespace eg::Renderer
 		cmd.begin(commandBufferBI);
 
 
-		//Transition image layout
-		vk::ImageMemoryBarrier imageMemoryBarrier{};
-		imageMemoryBarrier.setOldLayout(vk::ImageLayout::eUndefined)
-			.setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+
+		return cmd;
+	}
+
+	void end()
+	{
+		auto& frameData = gFrameData[gCurrentFrame];
+		vk::CommandBuffer& cmd = frameData.commandBuffer;
+
+
+		ImGui::Render();
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+		cmd.endRenderPass();
+
+		//Transition swapchain image to transfer destination optimal
+		vk::ImageMemoryBarrier barrier{};
+		barrier.setOldLayout(vk::ImageLayout::eUndefined)
+			.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
 			.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 			.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-			.setImage(gSwapchainImages[imageIndex])
-			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 })
-			.setSrcAccessMask(vk::AccessFlags{})
-			.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
-		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
-			vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags{},
-			nullptr, nullptr, imageMemoryBarrier);
+			.setImage(gSwapchainImages[frameData.swapchainIndex])
+			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
+		barrier.setSrcAccessMask(vk::AccessFlagBits{})
+			.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
+		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+			vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, {}, {}, { barrier });
 
-		vk::RenderingAttachmentInfo colorAttachmentInfo{};
-		colorAttachmentInfo.setImageView(gSwapchainImageViews[imageIndex])
-			.setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
-			.setLoadOp(vk::AttachmentLoadOp::eClear)
-			.setStoreOp(vk::AttachmentStoreOp::eStore);
-		vk::ClearValue clearColor = vk::ClearColorValue{ std::array<float, 4>{0.1f, 0.1f, 0.1f, 1.0f} };
-		colorAttachmentInfo.setClearValue(clearColor);
+		//Copy default renderpass's image to swapchain image
+		vk::ImageCopy copyRegion{};
+		copyRegion.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+			.setSrcOffset({ 0, 0, 0 })
+			.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+			.setDstOffset({ 0, 0, 0 })
+			.setExtent({ gDrawExtent.extent.width, gDrawExtent.extent.height, 1 });
+		cmd.copyImage(gDefaultRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
+			gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { copyRegion });
 
-		vk::RenderingInfo rendering{};
-		rendering.setLayerCount(1)
-			.setColorAttachments(colorAttachmentInfo)
-			.setRenderArea(gDrawExtent);
-		cmd.beginRendering(rendering);
-
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, gDefaultPipeline->getPipeline());
-		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(gDrawExtent.extent.width),
-			static_cast<float>(gDrawExtent.extent.height),
-			0.0f, 1.0f } });
-		cmd.setScissor(0, gDrawExtent);
-
-		cmd.bindVertexBuffers(0, { gVertexBuffer->getBuffer() }, {0});
-		cmd.bindIndexBuffer(gIndexBuffer->getBuffer(), 0, vk::IndexType::eUint32);
-		cmd.drawIndexed(3, 1, 0, 0, 0);
-
-
-		cmd.endRendering();
-
-		//Transition to present layout
-		imageMemoryBarrier.setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+		//Transition swapchain image to present source optimal
+		barrier.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
 			.setNewLayout(vk::ImageLayout::ePresentSrcKHR)
-			.setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite)
+			.setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
 			.setDstAccessMask(vk::AccessFlagBits::eMemoryRead);
-		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
-			vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags{},
-			nullptr, nullptr, imageMemoryBarrier);
+		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+			vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags{}, {}, {}, { barrier });
+
+
 
 		cmd.end();
 
@@ -452,45 +565,13 @@ namespace eg::Renderer
 			.setPWaitSemaphores(&frameData.renderSemaphore)
 			.setSwapchainCount(1)
 			.setPSwapchains(&gSwapchain)
-			.setPImageIndices(&imageIndex);
+			.setPImageIndices(&frameData.swapchainIndex);
 		if (gMainQueue.presentKHR(presentInfo) != vk::Result::eSuccess)
 		{
 			Logger::gWarn("Failed to present image !");
 		}
 		gCurrentFrame = (gCurrentFrame + 1) % gFrameCount;
-
 	}
-	void destory()
-	{
-		gDevice.waitIdle();
-
-		gVertexBuffer.reset();
-		gIndexBuffer.reset();
-
-		gAllocator.destroy();
-
-		gDefaultPipeline.reset();
-		for (size_t i = 0; i < gFrameCount; i++)
-		{
-			auto& frameData = gFrameData[i];
-			gDevice.destroySemaphore(frameData.presentSemaphore);
-			gDevice.destroySemaphore(frameData.renderSemaphore);
-			gDevice.destroyFence(frameData.renderFence);
-			gDevice.freeCommandBuffers(gCommandPool, frameData.commandBuffer);
-			
-		}
-		gDevice.destroyCommandPool(gCommandPool);
-		for (auto imageView : gSwapchainImageViews)
-		{
-			gDevice.destroyImageView(imageView);
-		}
-		gDevice.destroySwapchainKHR(gSwapchain);
-		gDevice.destroy();
-		gInstance.destroySurfaceKHR(gSurface);
-		gInstance.destroyDebugUtilsMessengerEXT(gDbgMsg);
-		gInstance.destroy();
-	}
-
 
 	vk::Instance getInstance()
 	{
@@ -501,10 +582,38 @@ namespace eg::Renderer
 	{
 		return gDevice;
 	}
-	
+
 	vma::Allocator getAllocator()
 	{
 		return gAllocator;
 	}
 
+	vk::DescriptorPool getDescriptorPool()
+	{
+		return gDescriptorPool;
+	}
+
+
+	const StaticModelPipeline& getStaticModelPipeline()
+	{
+		return *gDefaultPipeline;
+	}
+	const AmbientLightPipeline& getAmbientLightPipeline()
+	{
+		return *gAmbientLightPipeline;
+	}
+
+	const class PointLightPipeline& getPointLightPipeline()
+	{
+		return *gPointLightPipeline;
+	}
+	const DefaultRenderPass& getDefaultRenderPass()
+	{
+		return *gDefaultRenderPass;
+	}
+
+	vk::DescriptorSet getCurrentFrameGUBODescSet()
+	{
+		return gGlobalUniformBuffer->getDescriptorSet(gCurrentFrame).getSet();
+	}
 }

@@ -2,8 +2,13 @@
 
 project(Sandbox)
 
+
+
 add_executable(Sandbox WIN32 EntryPoint.cpp)
 target_include_directories(Sandbox PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+
+
 
 find_package(Vulkan REQUIRED)
 target_link_libraries(engine PRIVATE Vulkan::Vulkan)
@@ -16,7 +21,4 @@ target_link_libraries(Sandbox PRIVATE unofficial::VulkanMemoryAllocator-Hpp::Vul
 target_link_libraries(Sandbox PRIVATE engine)
 
 
-if(MSVC)
-  target_compile_options(Sandbox PRIVATE "/ZI")
-  target_link_options(Sandbox PRIVATE "/INCREMENTAL")
-endif()
+

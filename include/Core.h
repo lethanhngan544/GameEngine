@@ -1,11 +1,9 @@
 #pragma once
 
 
-#include <MyVulkan.h>
-
 #include "Logger.h"
 #include "Renderer.h"
-
+#include "Data.h"
 
 struct GLFWwindow;
 namespace eg::Window
