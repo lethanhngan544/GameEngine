@@ -38,44 +38,14 @@ namespace eg::Renderer
 	vk::DescriptorPool getDescriptorPool();
 
 	vk::DescriptorSet getCurrentFrameGUBODescSet();
+	vk::DescriptorSetLayout getGlobalDescriptorSet();
 
-	const class StaticModelPipeline& getStaticModelPipeline();
 	const class AmbientLightPipeline& getAmbientLightPipeline();
 	const class PointLightPipeline& getPointLightPipeline();
 	const class DefaultRenderPass& getDefaultRenderPass();
 
 	//Pipelines
-	class StaticModelPipeline
-	{
-	public:
-		struct Vertex
-		{
-			glm::vec3 pos;
-			glm::vec3 normal;
-			glm::vec2 uv;
-		};
-
-		struct VertexPushConstant
-		{
-			glm::mat4x4 model;
-		};
-
-	private:
-		vk::Pipeline mPipeline;
-		vk::PipelineLayout mPipelineLayout;
-		vk::DescriptorSetLayout mDescriptorLayout;
-	public:
-		StaticModelPipeline(vk::RenderPass pass, vk::DescriptorSetLayout globalDescriptorSetLayout);
-		~StaticModelPipeline();
-
-		void begin(const vk::CommandBuffer& cmd, vk::Rect2D drawExtent) const;
-
-
-		vk::Pipeline getPipeline() const { return mPipeline; }
-		vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout; };
-		vk::DescriptorSetLayout getDescriptorLayout() const { return mDescriptorLayout;  }
-	};
-
+	
 	class AmbientLightPipeline
 	{
 	private:

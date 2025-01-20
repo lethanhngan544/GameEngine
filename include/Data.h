@@ -83,7 +83,7 @@ namespace eg::Data
 		std::vector<Material> mMaterials;
 	public:
 		StaticModel() = default;
-		StaticModel(const std::string& filePath);
+		StaticModel(const std::string& filePath, vk::DescriptorSetLayout materialSetLayout);
 		~StaticModel();
 
 
@@ -98,7 +98,7 @@ namespace eg::Data
 			this->valid = true;
 
 			other.mRawMeshes.clear();
-			other.mImages	.clear();
+			other.mImages.clear();
 			other.mMaterials.clear();
 			other.valid = false;
 		}
@@ -117,13 +117,14 @@ namespace eg::Data
 
 			return *this;
 		}
-		
+
 
 		const std::vector<RawMesh>& getRawMeshes() const { return mRawMeshes; }
 		const std::vector<Material>& getMaterials() const { return mMaterials; }
 
 	};
 
+	//Entity
 
 	class Entity
 	{
@@ -171,5 +172,48 @@ namespace eg::Data
 		{
 			return get<T>().valid;
 		}
+	};
+
+	//Systems
+
+	class StaticModelRenderer
+	{
+	public:
+		struct VertexFormat
+		{
+			glm::vec3 pos;
+			glm::vec3 normal;
+			glm::vec2 uv;
+		};
+
+		struct VertexPushConstant
+		{
+			glm::mat4x4 model;
+		};
+	private:
+		vk::Device mDevice;
+		vk::Pipeline mPipeline;
+		vk::PipelineLayout mPipelineLayout;
+		vk::DescriptorSetLayout mDescriptorLayout;
+	public:
+		StaticModelRenderer(vk::Device device,
+			vk::RenderPass pass,
+			uint32_t subpassIndex,
+			vk::DescriptorSetLayout globalDescriptorSetLayout);
+		~StaticModelRenderer();
+
+		StaticModelRenderer(const StaticModelRenderer&) = delete;
+		StaticModelRenderer(StaticModelRenderer&&) noexcept = delete;
+
+		StaticModelRenderer operator=(const StaticModelRenderer&) = delete;
+		StaticModelRenderer& operator=(StaticModelRenderer&&) noexcept = delete;
+
+		void render(vk::CommandBuffer cmd,
+			vk::Rect2D drawExtent,
+			vk::DescriptorSet globalSet,
+			const Entity* filteredEntities, size_t entityCount) const;
+
+		vk::DescriptorSetLayout getMaterialSetLayout() const { return mDescriptorLayout; }
+
 	};
 }

@@ -60,7 +60,6 @@ namespace eg::Renderer
 
 
 	static std::optional<DefaultRenderPass> gDefaultRenderPass;
-	static std::optional<StaticModelPipeline> gDefaultPipeline;
 	static std::optional<AmbientLightPipeline> gAmbientLightPipeline;
 	static std::optional<PointLightPipeline> gPointLightPipeline;
 
@@ -394,7 +393,6 @@ namespace eg::Renderer
 
 
 		gDefaultRenderPass.emplace(width, height, gSurfaceFormat.format);
-		gDefaultPipeline.emplace(gDefaultRenderPass->getRenderPass(), gGlobalUniformBuffer->getLayout());
 		gAmbientLightPipeline.emplace(gDefaultRenderPass->getRenderPass(), gGlobalUniformBuffer->getLayout(),
 			gDefaultRenderPass->getPosition().getImageView(),
 			gDefaultRenderPass->getNormal().getImageView(),
@@ -438,7 +436,6 @@ namespace eg::Renderer
 	}
 	void destory()
 	{
-		gDefaultPipeline.reset();
 		gAmbientLightPipeline.reset();
 		gPointLightPipeline.reset();
 		gDefaultRenderPass.reset();
@@ -593,11 +590,6 @@ namespace eg::Renderer
 		return gDescriptorPool;
 	}
 
-
-	const StaticModelPipeline& getStaticModelPipeline()
-	{
-		return *gDefaultPipeline;
-	}
 	const AmbientLightPipeline& getAmbientLightPipeline()
 	{
 		return *gAmbientLightPipeline;
@@ -615,5 +607,10 @@ namespace eg::Renderer
 	vk::DescriptorSet getCurrentFrameGUBODescSet()
 	{
 		return gGlobalUniformBuffer->getDescriptorSet(gCurrentFrame).getSet();
+	}
+
+	vk::DescriptorSetLayout getGlobalDescriptorSet()
+	{
+		return gGlobalUniformBuffer->getLayout();
 	}
 }

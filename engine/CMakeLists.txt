@@ -1,7 +1,7 @@
 project(engine)
 
 
-add_library(engine STATIC core/Window.cpp "core/Renderer/Renderer.cpp" "core/Loggers/Logger.cpp" "core/Loggers/FileLogger.cpp" "core/Loggers/VisualStudioLogger.cpp" "core/Renderer/GPUBuffer.cpp" "core/Renderer/StaticModelPipeline.cpp"  "core/Renderer/Image.cpp" "core/Renderer/DefaultRenderPass.cpp" "core/Data/StaticModel.cpp" "core/Renderer/CPUBuffer.cpp" "core/Renderer/GlobalUniformBuffer.cpp" "core/Data/Camera.cpp"  "core/Renderer/AmbientLightPipeline.cpp" "core/Renderer/PointLightPipeline.cpp" "core/Data/PointLight.cpp")
+add_library(engine STATIC core/Window.cpp "core/Renderer/Renderer.cpp" "core/Loggers/Logger.cpp" "core/Loggers/FileLogger.cpp" "core/Loggers/VisualStudioLogger.cpp" "core/Renderer/GPUBuffer.cpp"   "core/Renderer/Image.cpp" "core/Renderer/DefaultRenderPass.cpp" "core/Data/StaticModel.cpp" "core/Renderer/CPUBuffer.cpp" "core/Renderer/GlobalUniformBuffer.cpp" "core/Data/Camera.cpp"  "core/Renderer/AmbientLightPipeline.cpp" "core/Renderer/PointLightPipeline.cpp" "core/Data/PointLight.cpp" "core/Data/StaticModelRenderer.cpp")
 
 target_include_directories(engine PRIVATE ${CMAKE_SOURCE_DIR}/include)
 #target_link_libraries(engine PRIVATE $ENV{VULKAN_SDK}/Lib/vulkan-1.lib)

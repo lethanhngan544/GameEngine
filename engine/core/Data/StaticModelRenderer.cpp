@@ -1,12 +1,18 @@
-#include <Renderer.h>
+#include <Data.h>
 
+#include <Renderer.h>
 #include <shaderc/shaderc.hpp>
 
-namespace eg::Renderer
-{
-	StaticModelPipeline::StaticModelPipeline(vk::RenderPass pass, vk::DescriptorSetLayout globalDescriptorSetLayout)
-	{
 
+namespace eg::Data
+{
+	StaticModelRenderer::StaticModelRenderer(vk::Device device,
+		vk::RenderPass pass,
+		uint32_t subpassIndex,
+		vk::DescriptorSetLayout globalDescriptorSetLayout) :
+		mDevice(device)
+	{
+		Logger::gTrace("Creating static model renderer !");
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
 		{
@@ -14,12 +20,12 @@ namespace eg::Renderer
 		};
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 		descLayoutCI.setBindings(descLayoutBindings);
-		
-		this->mDescriptorLayout = getDevice().createDescriptorSetLayout(descLayoutCI);
+
+		this->mDescriptorLayout = mDevice.createDescriptorSetLayout(descLayoutCI);
 
 		//Load shaders
-		auto vertexBinary = compileShaderFromFile("shaders/static_model_vs.glsl", shaderc_glsl_vertex_shader);
-		auto fragmentBinary = compileShaderFromFile("shaders/static_model_fs.glsl", shaderc_glsl_fragment_shader);
+		auto vertexBinary = Renderer::compileShaderFromFile("shaders/static_model_vs.glsl", shaderc_glsl_vertex_shader);
+		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/static_model_fs.glsl", shaderc_glsl_fragment_shader);
 
 		//Create shader modules
 		vk::ShaderModuleCreateInfo vertexShaderModuleCI{}, fragmentShaderModuleCI{};
@@ -28,8 +34,8 @@ namespace eg::Renderer
 		fragmentShaderModuleCI.setCodeSize(fragmentBinary.size() * sizeof(uint32_t));
 		fragmentShaderModuleCI.setPCode(fragmentBinary.data());
 
-		auto vertexShaderModule = getDevice().createShaderModule(vertexShaderModuleCI);
-		auto fragmentShaderModule = getDevice().createShaderModule(fragmentShaderModuleCI);
+		auto vertexShaderModule = mDevice.createShaderModule(vertexShaderModuleCI);
+		auto fragmentShaderModule = mDevice.createShaderModule(fragmentShaderModuleCI);
 
 
 		//Create pipeline layout
@@ -47,7 +53,7 @@ namespace eg::Renderer
 			.setSetLayouts(setLayouts)
 			.setPushConstantRanges(pushConstantRanges);
 
-		mPipelineLayout = getDevice().createPipelineLayout(pipelineLayoutCI);
+		mPipelineLayout = mDevice.createPipelineLayout(pipelineLayoutCI);
 
 		//Create graphics pipeline
 		vk::PipelineShaderStageCreateInfo shaderStages[] =
@@ -70,12 +76,12 @@ namespace eg::Renderer
 
 		//Create vertex layout
 		vk::VertexInputBindingDescription vertexBindingDescriptions[] = {
-			vk::VertexInputBindingDescription(0, sizeof(Vertex), vk::VertexInputRate::eVertex)
+			vk::VertexInputBindingDescription(0, sizeof(VertexFormat), vk::VertexInputRate::eVertex)
 		};
 		vk::VertexInputAttributeDescription vertexAttributeDescriptions[] = {
-			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos)),
-			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, normal)),
-			vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, uv))
+			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(VertexFormat, pos)),
+			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(VertexFormat, normal)),
+			vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(VertexFormat, uv))
 		};
 
 		vk::PipelineVertexInputStateCreateInfo vertexInputStateCI{};
@@ -133,33 +139,33 @@ namespace eg::Renderer
 				vk::ColorComponentFlagBits::eA),
 
 
-			//Normal
-			vk::PipelineColorBlendAttachmentState(false,
-				vk::BlendFactor::eOne,
-				vk::BlendFactor::eZero,
-				vk::BlendOp::eAdd,
-				vk::BlendFactor::eOne,
-				vk::BlendFactor::eOne,
-				vk::BlendOp::eAdd,
-				vk::ColorComponentFlagBits::eR |
-				vk::ColorComponentFlagBits::eG |
-				vk::ColorComponentFlagBits::eB |
-				vk::ColorComponentFlagBits::eA),
+				//Normal
+				vk::PipelineColorBlendAttachmentState(false,
+					vk::BlendFactor::eOne,
+					vk::BlendFactor::eZero,
+					vk::BlendOp::eAdd,
+					vk::BlendFactor::eOne,
+					vk::BlendFactor::eOne,
+					vk::BlendOp::eAdd,
+					vk::ColorComponentFlagBits::eR |
+					vk::ColorComponentFlagBits::eG |
+					vk::ColorComponentFlagBits::eB |
+					vk::ColorComponentFlagBits::eA),
 
-			//Albedo
-			vk::PipelineColorBlendAttachmentState(false,
-				vk::BlendFactor::eOne,
-				vk::BlendFactor::eZero,
-				vk::BlendOp::eAdd,
-				vk::BlendFactor::eOne,
-				vk::BlendFactor::eOne,
-				vk::BlendOp::eAdd,
-				vk::ColorComponentFlagBits::eR |
-				vk::ColorComponentFlagBits::eG |
-				vk::ColorComponentFlagBits::eB |
-				vk::ColorComponentFlagBits::eA)
+				//Albedo
+				vk::PipelineColorBlendAttachmentState(false,
+					vk::BlendFactor::eOne,
+					vk::BlendFactor::eZero,
+					vk::BlendOp::eAdd,
+					vk::BlendFactor::eOne,
+					vk::BlendFactor::eOne,
+					vk::BlendOp::eAdd,
+					vk::ColorComponentFlagBits::eR |
+					vk::ColorComponentFlagBits::eG |
+					vk::ColorComponentFlagBits::eB |
+					vk::ColorComponentFlagBits::eA)
 		};
-		
+
 
 		vk::PipelineColorBlendStateCreateInfo colorBlendStateCI{};
 		colorBlendStateCI.setLogicOpEnable(false)
@@ -201,7 +207,7 @@ namespace eg::Renderer
 			.setPColorBlendState(&colorBlendStateCI)
 			.setPDynamicState(&dynamicStateCI);
 
-		auto pipeLineResult = getDevice().createGraphicsPipeline(nullptr, pipelineCI);
+		auto pipeLineResult = mDevice.createGraphicsPipeline(nullptr, pipelineCI);
 		if (pipeLineResult.result != vk::Result::eSuccess)
 		{
 			throw std::runtime_error("Failed to create StaticModel pipeline !");
@@ -211,17 +217,28 @@ namespace eg::Renderer
 
 
 		//Destroy shader modules
-		getDevice().destroyShaderModule(vertexShaderModule);
-		getDevice().destroyShaderModule(fragmentShaderModule);
+		mDevice.destroyShaderModule(vertexShaderModule);
+		mDevice.destroyShaderModule(fragmentShaderModule);
+	}
+	StaticModelRenderer::~StaticModelRenderer()
+	{
+		mDevice.destroyPipeline(mPipeline);
+		mDevice.destroyPipelineLayout(mPipelineLayout);
+		mDevice.destroyDescriptorSetLayout(mDescriptorLayout);
 	}
 
-	void StaticModelPipeline::begin(const vk::CommandBuffer& cmd, vk::Rect2D drawExtent) const
+	void StaticModelRenderer::render(vk::CommandBuffer cmd,
+		vk::Rect2D drawExtent,
+		vk::DescriptorSet globalSet,
+		const Entity* filteredEntities, size_t entityCount) const
 	{
+		if (entityCount <= 0) return;
+
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mPipelineLayout,
 			0,
-			getCurrentFrameGUBODescSet(),
+			globalSet,
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
@@ -229,14 +246,31 @@ namespace eg::Renderer
 			static_cast<float>(drawExtent.extent.height),
 			0.0f, 1.0f } });
 		cmd.setScissor(0, drawExtent);
+
+		for (size_t i = 0; i < entityCount; i++)
+		{
+			const Entity& e = filteredEntities[i];
+			if (!e.has<StaticModel>()) continue;
+
+			//Build model matrix
+			VertexPushConstant ps{};
+			ps.model = glm::mat4(1.0f);
+			ps.model = glm::scale(ps.model, e.mScale);
+			ps.model *= glm::mat4_cast(e.mRotation);
+			ps.model = glm::translate(ps.model, e.mPosition);
+
+			const StaticModel& model = e.get<StaticModel>();
+			cmd.pushConstants(mPipelineLayout,
+				vk::ShaderStageFlagBits::eVertex, 0, sizeof(ps), &ps);
+			for (const auto& rawMesh : model.getRawMeshes())
+			{
+				cmd.bindVertexBuffers(0, { rawMesh.vertexBuffer.getBuffer() }, { 0 });
+				cmd.bindIndexBuffer(rawMesh.indexBuffer.getBuffer(), 0, vk::IndexType::eUint32);
+				cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+					mPipelineLayout,
+					1, { model.getMaterials().at(rawMesh.materialIndex).mSet }, {});
+				cmd.drawIndexed(rawMesh.vertexCount, 1, 0, 0, 0);
+			}
+		}
 	}
-
-	StaticModelPipeline::~StaticModelPipeline()
-	{
-		getDevice().destroyPipeline(mPipeline);
-		getDevice().destroyPipelineLayout(mPipelineLayout);
-		getDevice().destroyDescriptorSetLayout(mDescriptorLayout);
-	}
-
-
 }

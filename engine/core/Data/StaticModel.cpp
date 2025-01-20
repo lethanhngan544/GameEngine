@@ -11,7 +11,7 @@
 
 namespace eg::Data
 {
-	StaticModel::StaticModel(const std::string& filePath)
+	StaticModel::StaticModel(const std::string& filePath, vk::DescriptorSetLayout materialSetLayout)
 	{
 		tinygltf::Model model;
 		tinygltf::TinyGLTF loader;
@@ -34,7 +34,7 @@ namespace eg::Data
 
 		//Extract vertex datas
 		//mRawMeshes.reserve(model.meshes.size());
-		std::vector<Renderer::StaticModelPipeline::Vertex> vertices;
+		std::vector<StaticModelRenderer::VertexFormat> vertices;
 		std::vector<uint32_t> indices;
 		std::vector<glm::vec3> positions, normals;
 		std::vector<glm::vec2> uvs;
@@ -131,7 +131,7 @@ namespace eg::Data
 
 				RawMesh rawMesh{
 					Renderer::GPUBuffer(vertices.data(),
-					vertices.size() * sizeof(Renderer::StaticModelPipeline::Vertex),
+					vertices.size() * sizeof(StaticModelRenderer::VertexFormat),
 					vk::BufferUsageFlagBits::eVertexBuffer),
 
 					Renderer::GPUBuffer(indices.data(), indices.size() * sizeof(uint32_t),
@@ -180,7 +180,7 @@ namespace eg::Data
 			//Allocate descriptor set
 			vk::DescriptorSetLayout setLayouts[] =
 			{
-				Renderer::getStaticModelPipeline().getDescriptorLayout()
+				materialSetLayout
 			};
 			vk::DescriptorSetAllocateInfo ai{};
 			ai.setDescriptorPool(Renderer::getDescriptorPool())
