@@ -171,6 +171,7 @@ namespace eg::Renderer
 	{
 	private:
 		vk::Image mImage;
+		uint32_t mMipLevels;
 		vma::Allocation mAllocation;
 		vk::ImageView mImageView;
 	public:
@@ -206,7 +207,7 @@ namespace eg::Renderer
 
 
 
-
+		uint32_t getMipLevels() const { return mMipLevels; }
 		vk::Image getImage() const { return mImage; }
 		vk::ImageView getImageView() const { return mImageView; }
 	};

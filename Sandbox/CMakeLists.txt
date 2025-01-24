@@ -7,7 +7,7 @@ project(Sandbox)
 add_executable(Sandbox WIN32 EntryPoint.cpp)
 target_include_directories(Sandbox PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
-
+target_compile_definitions(Sandbox PRIVATE _WIN32_WINNT=0x0A00)
 
 
 find_package(Vulkan REQUIRED)
@@ -16,6 +16,8 @@ find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 target_link_libraries(Sandbox PRIVATE GPUOpen::VulkanMemoryAllocator)
 find_package(unofficial-vulkan-memory-allocator-hpp CONFIG REQUIRED)
 target_link_libraries(Sandbox PRIVATE unofficial::VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp)
+find_package(asio CONFIG REQUIRED)
+target_link_libraries(Sandbox PRIVATE asio::asio)
 
 
 target_link_libraries(Sandbox PRIVATE engine)

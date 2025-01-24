@@ -1,5 +1,5 @@
-#include <Core.h>
 #include <Data.h>
+#include <Window.h>
 #include <GLFW/glfw3.h>
 
 #include <limits>
@@ -563,9 +563,10 @@ namespace eg::Renderer
 			.setSwapchainCount(1)
 			.setPSwapchains(&gSwapchain)
 			.setPImageIndices(&frameData.swapchainIndex);
-		if (gMainQueue.presentKHR(presentInfo) != vk::Result::eSuccess)
+		vk::Result presentResult = gMainQueue.presentKHR(presentInfo);
+		if (presentResult != vk::Result::eSuccess)
 		{
-			Logger::gWarn("Failed to present image !");
+			Logger::gWarn("Failed to present image: " + vk::to_string(presentResult));
 		}
 		gCurrentFrame = (gCurrentFrame + 1) % gFrameCount;
 	}

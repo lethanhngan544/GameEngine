@@ -11,9 +11,10 @@
       ]
     },
     "shaderc",
+    "tinygltf",
     "vulkan",
     "vulkan-memory-allocator",
     "vulkan-memory-allocator-hpp",
-    "tinygltf"
+    "asio"
   ]
 }

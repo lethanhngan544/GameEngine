@@ -32,14 +32,7 @@ namespace eg
 
 
 
-	class VisualStudioLogger  final : public Logger
-	{
-	public:
-		virtual void trace(const std::string& message) final;
-		virtual void info(const std::string& message) final;
-		virtual void warn(const std::string& message) final;
-		virtual void error(const std::string& message) final;
-	};
+	
 
 	class FileLogger final : public Logger
 	{
