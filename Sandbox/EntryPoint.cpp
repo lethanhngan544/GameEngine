@@ -95,16 +95,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		InternalServer server;
 		server.start();
 
-		Client client;
+		/*Client client;
 		if (!client.connect("localhost", 1234))
 		{
 			Logger::gError("Failed to connect to server !");
-		}
+		}*/
 
 		Window::create(1600, 900, "Sandbox");
 		Renderer::create(1600, 900);
 
 		{
+			Data::LightRenderer lightRenderer(Renderer::getDevice(), Renderer::getDescriptorPool(), Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
+
 			Data::StaticModelRenderer staticModelRenderer(Renderer::getDevice(), Renderer::getDefaultRenderPass().getRenderPass(),
 				0, Renderer::getGlobalDescriptorSet());
 			Data::Camera camera;
@@ -119,13 +121,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			entities.at(1).mScale = { 0.01f, 0.01f, 0.01f };
 
-			Data::PointLight newLight;
+			Data::PointLight pointLights[] = 
+			{
+				Data::PointLight(lightRenderer.getPointLightPerDescLayout()),
+				Data::PointLight(lightRenderer.getPointLightPerDescLayout())
+			};
 
 
 			while (!Window::shouldClose())
 			{
 				server.update();
-				client.update();
+				//client.update();
 				auto cmd = Renderer::begin(camera);
 
 				ImGui::Begin("Debug");
@@ -133,15 +139,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				ImGui::DragFloat("Camera pitch", &camera.mPitch, 0.5f);
 				ImGui::DragFloat("Camera yaw", &camera.mYaw, 0.5f);
 
-				if (ImGui::Button("Send message"))
+				/*if (ImGui::Button("Send message"))
 				{
 					eg::Network::Packet packet;
 					packet.id = static_cast<uint32_t>(eg::Network::PacketType::ServerPing);
 					packet << 69;
 					client.sendToServer(packet);
-				}
+				}*/
 
-				ImGui::DragFloat3("Light position", &newLight.mUniformBuffer.position.x, 0.5f);
+				ImGui::DragFloat3("Light1 position", &pointLights[0].mUniformBuffer.position.x, 0.5f);
+				ImGui::DragFloat3("Light2 position", &pointLights[1].mUniformBuffer.position.x, 0.5f);
 				ImGui::End();
 
 
@@ -154,10 +161,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 				//Subpass 1
 				cmd.nextSubpass(vk::SubpassContents::eInline);
-				Renderer::getAmbientLightPipeline().begin(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }));
-				cmd.draw(3, 1, 0, 0);
-				Renderer::getPointLightPipeline().begin(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }));
-				Renderer::getPointLightPipeline().processPointLight(cmd, newLight);
+				lightRenderer.renderAmbient(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet());
+				lightRenderer.renderPointLights(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet(), pointLights, 2);
 
 				Renderer::end();
 				Window::poll();
@@ -179,7 +184,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		MessageBox(nullptr, "TODO", "Unknown exception", MB_ICONEXCLAMATION);
 	}
 
-	Logger::destroy();
 
 	return 0;
 }

@@ -51,8 +51,11 @@ namespace eg::Renderer
 
 	static vk::DescriptorPool gDescriptorPool;
 	static std::optional<GlobalUniformBuffer> gGlobalUniformBuffer;
-
-	//Global descriptor
+	
+	//Default resources
+	static std::optional<CombinedImageSampler2D> gDefaultWhiteImage;
+	static std::optional<CombinedImageSampler2D> gDefaultCheckerboardImage;
+	
 
 	//ImGUI's stuff
 	static vk::RenderPass gImGuiRenderPass;
@@ -60,8 +63,7 @@ namespace eg::Renderer
 
 
 	static std::optional<DefaultRenderPass> gDefaultRenderPass;
-	static std::optional<AmbientLightPipeline> gAmbientLightPipeline;
-	static std::optional<PointLightPipeline> gPointLightPipeline;
+
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL gDebugCallbackFn(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -92,8 +94,6 @@ namespace eg::Renderer
 		std::stringstream ss;
 		ss << file.rdbuf();
 		std::string data = ss.str();
-
-
 
 		gShaderCompilerOptions.SetOptimizationLevel(shaderc_optimization_level_performance);
 		shaderc::SpvCompilationResult module = gShaderCompiler.CompileGlslToSpv(data,
@@ -268,12 +268,8 @@ namespace eg::Renderer
 			}
 		};
 
-
-		vk::PhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
-		dynamicRenderingFeatures.setDynamicRendering(true);
 		vk::PhysicalDeviceFeatures2 features2{};
-		features2.setPNext(&dynamicRenderingFeatures);
-
+		features2.features.geometryShader = true;
 
 		vk::DeviceCreateInfo deviceCI{};
 		deviceCI.setQueueCreateInfos(queueCIs)
@@ -391,18 +387,16 @@ namespace eg::Renderer
 		//Create global uniform buffers
 		gGlobalUniformBuffer.emplace(gFrameCount);
 
+		//Create default resources
+		const uint8_t white[] = { 255, 255, 255, 255 };
+		const uint8_t checkerboard[] = { 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255 };
+		const uint8_t purpleCheckerboard[] = { 255, 0, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 0, 255, 255 };
+		gDefaultWhiteImage.emplace(1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, (void*)white, sizeof(white));
+		gDefaultCheckerboardImage.emplace(2, 2, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, (void*)purpleCheckerboard, sizeof(purpleCheckerboard));
+
+
 
 		gDefaultRenderPass.emplace(width, height, gSurfaceFormat.format);
-		gAmbientLightPipeline.emplace(gDefaultRenderPass->getRenderPass(), gGlobalUniformBuffer->getLayout(),
-			gDefaultRenderPass->getPosition().getImageView(),
-			gDefaultRenderPass->getNormal().getImageView(),
-			gDefaultRenderPass->getAlbedo().getImageView());
-
-		gPointLightPipeline.emplace(gDefaultRenderPass->getRenderPass(), gGlobalUniformBuffer->getLayout(),
-			gDefaultRenderPass->getPosition().getImageView(),
-			gDefaultRenderPass->getNormal().getImageView(),
-			gDefaultRenderPass->getAlbedo().getImageView());
-
 
 		//Init imgui
 		IMGUI_CHECKVERSION();
@@ -436,10 +430,11 @@ namespace eg::Renderer
 	}
 	void destory()
 	{
-		gAmbientLightPipeline.reset();
-		gPointLightPipeline.reset();
 		gDefaultRenderPass.reset();
 		gGlobalUniformBuffer.reset();
+
+		gDefaultWhiteImage.reset();
+		gDefaultCheckerboardImage.reset();
 
 		ImGui_ImplVulkan_Shutdown();
 		ImGui_ImplGlfw_Shutdown();
@@ -463,7 +458,10 @@ namespace eg::Renderer
 		gDevice.destroySwapchainKHR(gSwapchain);
 		gDevice.destroy();
 		gInstance.destroySurfaceKHR(gSurface);
+
+#ifndef NDEBUG
 		gInstance.destroyDebugUtilsMessengerEXT(gDbgMsg);
+#endif
 		gInstance.destroy();
 	}
 
@@ -488,6 +486,7 @@ namespace eg::Renderer
 		GlobalUniformBuffer::Data GlobalUBOData;
 		GlobalUBOData.mProjection = camera.buildProjection(gDrawExtent.extent);
 		GlobalUBOData.mView = camera.buildView();
+		GlobalUBOData.mCameraPosition = camera.mPosition;
 		gGlobalUniformBuffer->update(GlobalUBOData, gCurrentFrame);
 
 		vk::CommandBuffer& cmd = frameData.commandBuffer;
@@ -591,15 +590,6 @@ namespace eg::Renderer
 		return gDescriptorPool;
 	}
 
-	const AmbientLightPipeline& getAmbientLightPipeline()
-	{
-		return *gAmbientLightPipeline;
-	}
-
-	const class PointLightPipeline& getPointLightPipeline()
-	{
-		return *gPointLightPipeline;
-	}
 	const DefaultRenderPass& getDefaultRenderPass()
 	{
 		return *gDefaultRenderPass;
@@ -613,5 +603,13 @@ namespace eg::Renderer
 	vk::DescriptorSetLayout getGlobalDescriptorSet()
 	{
 		return gGlobalUniformBuffer->getLayout();
+	}
+	const CombinedImageSampler2D& getDefaultWhiteImage()
+	{
+		return *gDefaultWhiteImage;
+	}
+	const CombinedImageSampler2D& getDefaultCheckerboardImage()
+	{
+		return *gDefaultCheckerboardImage;
 	}
 }

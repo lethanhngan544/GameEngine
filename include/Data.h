@@ -45,12 +45,14 @@ namespace eg::Data
 		vk::DescriptorSet mSet;
 		Renderer::CPUBuffer	mBuffer;
 	public:
-		PointLight();
+		PointLight(vk::DescriptorSetLayout pointPerLightLayout);
 		~PointLight();
 
 		const Renderer::CPUBuffer& getBuffer() const { return mBuffer; }
 		vk::DescriptorSet getDescriptorSet() const { return mSet; }
 	};
+
+	
 
 	//Entity component system
 
@@ -74,12 +76,21 @@ namespace eg::Data
 
 		struct Material
 		{
-			int32_t albedo = -1;
+			struct UniformBuffer
+			{
+				uint32_t has_albedo = 0;
+				uint32_t has_normal = 0;
+				uint32_t has_mr = 0;
+			};
+			std::shared_ptr<Renderer::CPUBuffer> mUniformBuffer;
+			std::shared_ptr<Renderer::CombinedImageSampler2D> mAlbedo;
+			std::shared_ptr<Renderer::CombinedImageSampler2D> mNormal;
+			std::shared_ptr<Renderer::CombinedImageSampler2D> mMr;
 			vk::DescriptorSet mSet;
 		};
 
 		std::vector<RawMesh> mRawMeshes;
-		std::vector<Renderer::CombinedImageSampler2D> mImages;
+		std::vector<std::shared_ptr<Renderer::CombinedImageSampler2D>> mImages;
 		std::vector<Material> mMaterials;
 	public:
 		StaticModel() = default;
@@ -214,6 +225,57 @@ namespace eg::Data
 			const Entity* filteredEntities, size_t entityCount) const;
 
 		vk::DescriptorSetLayout getMaterialSetLayout() const { return mDescriptorLayout; }
+
+	};
+
+	class LightRenderer
+	{
+	private:
+		vk::Device mDevice;
+		vk::DescriptorPool mPool;
+
+		vk::Pipeline mAmbientPipeline;
+		vk::PipelineLayout mAmbientLayout;
+		vk::DescriptorSetLayout mAmbientDescLayout;
+		vk::DescriptorSet mAmbientSet;
+
+		vk::Pipeline mPointPipeline;
+		vk::PipelineLayout mPointLayout;
+		vk::DescriptorSetLayout mPointDescLayout;
+		vk::DescriptorSetLayout mPointPerDescLayout; //Per light data
+		vk::DescriptorSet mPointSet;
+
+
+		vk::Pipeline mDirectionalPipeline;
+		vk::PipelineLayout mDirectionalLayout;
+		vk::DescriptorSetLayout mDirectionalDescLayout;
+		vk::DescriptorSet mDirectionalSet;
+	public:
+		LightRenderer(vk::Device device,
+			vk::DescriptorPool pool,
+			const Renderer::DefaultRenderPass& renderpass,
+			vk::DescriptorSetLayout globalDescriptorSetLayout);
+		~LightRenderer();
+		LightRenderer(const LightRenderer&) = delete;
+		LightRenderer(LightRenderer&&) noexcept = delete;
+
+		LightRenderer operator=(const LightRenderer&) = delete;
+		LightRenderer& operator=(LightRenderer&&) noexcept = delete;
+
+		void renderAmbient(vk::CommandBuffer cmd,
+			vk::Rect2D drawExtent,
+			vk::DescriptorSet globalSet) const;
+
+		void renderPointLights(vk::CommandBuffer cmd,
+			vk::Rect2D drawExtent,
+			vk::DescriptorSet globalSet,
+			const PointLight* pointLights, size_t pointLightCount) const;
+
+		vk::DescriptorSetLayout getPointLightPerDescLayout() const { return mPointPerDescLayout; }
+	private:
+		void createAmbientPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
+		void createPointPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
+		void createDirectionalPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
 
 	};
 }

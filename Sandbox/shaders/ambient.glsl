@@ -3,6 +3,7 @@
 layout (input_attachment_index = 0, set = 1, binding = 0) uniform subpassInput subpass0Position;
 layout (input_attachment_index = 1, set = 1, binding = 1) uniform subpassInput subpass0Normal;
 layout (input_attachment_index = 2, set = 1, binding = 2) uniform subpassInput subpass0Albedo;
+layout (input_attachment_index = 3, set = 1, binding = 3) uniform subpassInput subpass0Mr;
 
 layout (location = 0) in vec2 fsUv;
 
@@ -14,7 +15,7 @@ void main()
 	vec3 fragPos = subpassLoad(subpass0Position).rgb;
 	vec3 normal = subpassLoad(subpass0Normal).rgb;
 	vec4 albedo = subpassLoad(subpass0Albedo);
-	
+	vec4 mr = subpassLoad(subpass0Mr);
 
 	// Ambient part
 	vec3 fragcolor  = albedo.rgb * 0.5;

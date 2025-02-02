@@ -42,7 +42,6 @@ namespace eg::Data
 		mRawMeshes.reserve(model.meshes.size());
 		for (const auto& mesh : model.meshes)
 		{
-			
 			for (const auto& primitive : mesh.primitives)
 			{
 				if (primitive.material < 0)
@@ -52,7 +51,7 @@ namespace eg::Data
 				positions.clear();
 				normals.clear();
 				uvs.clear();
-				
+
 				//Index buffer
 				{
 					uint32_t accessorIndex = primitive.indices;
@@ -144,25 +143,6 @@ namespace eg::Data
 				mRawMeshes.push_back(std::move(rawMesh));
 			}
 
-			
-		}
-
-		//Extract images
-		for (const auto& texture : model.textures)
-		{
-			//Default sampler
-			//TODO: implement a huge switch statement
-			const auto& sampler = model.samplers.at(texture.sampler);
-			
-			auto& image = model.images.at(texture.source);
-			if (image.mimeType.find("image/png") == std::string::npos &&
-				image.mimeType.find("image/jpeg") == std::string::npos)
-			{
-				throw std::runtime_error("Unsupported image format: should be png or jpeg");
-			}
-
-			mImages.emplace_back(image.width, image.height, vk::Format::eR8G8B8A8Srgb, vk::ImageUsageFlagBits::eSampled,
-				vk::ImageAspectFlagBits::eColor, image.image.data(), image.width* image.height* image.component);
 
 		}
 
@@ -170,12 +150,124 @@ namespace eg::Data
 		for (const auto& material : model.materials)
 		{
 			Material newMaterial{};
-			newMaterial.albedo = material.pbrMetallicRoughness.baseColorTexture.index;
-			Renderer::CombinedImageSampler2D& baseColor =  mImages.at(newMaterial.albedo);
+
+			
+			//Load albedo image
+			if (material.pbrMetallicRoughness.baseColorTexture.index > -1) {
+				if (material.pbrMetallicRoughness.baseColorTexture.index >= this->mImages.size())
+				{
+					//Load new texture
+					auto& image = model.images.at(material.pbrMetallicRoughness.baseColorTexture.index);
+					if (image.mimeType.find("image/png") == std::string::npos &&
+						image.mimeType.find("image/jpeg") == std::string::npos)
+					{
+						throw std::runtime_error("Unsupported image format: should be png or jpeg");
+					}
+
+					auto newImage = std::make_shared<Renderer::CombinedImageSampler2D>(
+						image.width, image.height,
+						vk::Format::eR8G8B8A8Srgb,
+						vk::ImageUsageFlagBits::eSampled,
+						vk::ImageAspectFlagBits::eColor,
+						image.image.data(), image.image.size());
+
+					this->mImages.push_back(newImage);
+					newMaterial.mAlbedo = newImage;
+				}
+				else //Texture already in the cache
+				{
+					newMaterial.mAlbedo = mImages.at(material.pbrMetallicRoughness.baseColorTexture.index);
+				}
+				
+			}
+
+			//Load normal image
+			if (material.normalTexture.index > -1) {
+				if (material.normalTexture.index >= this->mImages.size())
+				{
+					//Load new texture
+					auto& image = model.images.at(material.normalTexture.index);
+					if (image.mimeType.find("image/png") == std::string::npos &&
+						image.mimeType.find("image/jpeg") == std::string::npos)
+					{
+						throw std::runtime_error("Unsupported image format: should be png or jpeg");
+					}
+
+					auto newImage = std::make_shared<Renderer::CombinedImageSampler2D>(
+						image.width, image.height,
+						vk::Format::eR8G8B8A8Unorm,
+						vk::ImageUsageFlagBits::eSampled,
+						vk::ImageAspectFlagBits::eColor,
+						image.image.data(), image.image.size());
+
+					this->mImages.push_back(newImage);
+					newMaterial.mNormal = newImage;
+				}
+				else //Texture already in the cache
+				{
+					newMaterial.mNormal = mImages.at(material.normalTexture.index);
+				}
+
+			}
+
+			//Load Mr image
+			if (material.pbrMetallicRoughness.metallicRoughnessTexture.index > -1) {
+				if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= this->mImages.size())
+				{
+					//Load new texture
+					auto& image = model.images.at(material.pbrMetallicRoughness.metallicRoughnessTexture.index);
+					if (image.mimeType.find("image/png") == std::string::npos &&
+						image.mimeType.find("image/jpeg") == std::string::npos)
+					{
+						throw std::runtime_error("Unsupported image format: should be png or jpeg");
+					}
+
+					auto newImage = std::make_shared<Renderer::CombinedImageSampler2D>(
+						image.width, image.height,
+						vk::Format::eR8G8B8A8Unorm,
+						vk::ImageUsageFlagBits::eSampled,
+						vk::ImageAspectFlagBits::eColor,
+						image.image.data(), image.image.size());
+
+					this->mImages.push_back(newImage);
+					newMaterial.mMr = newImage;
+				}
+				else //Texture already in the cache
+				{
+					newMaterial.mMr = mImages.at(material.pbrMetallicRoughness.metallicRoughnessTexture.index);
+				}
+
+			}
+
+
 			vk::DescriptorImageInfo baseColorInfo{};
 			baseColorInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-				.setImageView(baseColor.getImage().getImageView())
-				.setSampler(baseColor.getSampler());
+				.setImageView(newMaterial.mAlbedo ? newMaterial.mAlbedo->getImage().getImageView() : Renderer::getDefaultCheckerboardImage().getImage().getImageView())
+				.setSampler(newMaterial.mAlbedo ? newMaterial.mAlbedo->getSampler() : Renderer::getDefaultCheckerboardImage().getSampler());
+
+			vk::DescriptorImageInfo normalInfo{};
+			normalInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+				.setImageView(newMaterial.mNormal ? newMaterial.mNormal->getImage().getImageView() : Renderer::getDefaultCheckerboardImage().getImage().getImageView())
+				.setSampler(newMaterial.mNormal ? newMaterial.mNormal->getSampler() : Renderer::getDefaultCheckerboardImage().getSampler());
+
+			vk::DescriptorImageInfo metallicRoughnessInfo{};
+			metallicRoughnessInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+				.setImageView(newMaterial.mMr ? newMaterial.mMr->getImage().getImageView() : Renderer::getDefaultCheckerboardImage().getImage().getImageView())
+				.setSampler(newMaterial.mMr ? newMaterial.mMr->getSampler() : Renderer::getDefaultCheckerboardImage().getSampler());
+
+			//Load buffer
+			Material::UniformBuffer uniformBuffer;
+			uniformBuffer.has_albedo = newMaterial.mAlbedo ? 1 : 0;
+			uniformBuffer.has_normal = newMaterial.mNormal ? 1 : 0;
+			uniformBuffer.has_mr = newMaterial.mMr ? 1 : 0;
+
+			newMaterial.mUniformBuffer 
+				= std::make_shared<Renderer::CPUBuffer>(&uniformBuffer, sizeof(Material::UniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer);
+			vk::DescriptorBufferInfo bufferInfo{};
+			bufferInfo
+				.setOffset(0)
+				.setRange(sizeof(Material::UniformBuffer))
+				.setBuffer(newMaterial.mUniformBuffer->getBuffer());
 
 			//Allocate descriptor set
 			vk::DescriptorSetLayout setLayouts[] =
@@ -189,12 +281,15 @@ namespace eg::Data
 			newMaterial.mSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
 			Renderer::getDevice().updateDescriptorSets({
-				vk::WriteDescriptorSet(newMaterial.mSet, 0, 0, 1, vk::DescriptorType::eCombinedImageSampler, &baseColorInfo, nullptr, nullptr, nullptr)
-			}, {});
+				vk::WriteDescriptorSet(newMaterial.mSet, 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo, nullptr, nullptr),
+				vk::WriteDescriptorSet(newMaterial.mSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &baseColorInfo, nullptr, nullptr, nullptr),
+				vk::WriteDescriptorSet(newMaterial.mSet, 2, 0, 1, vk::DescriptorType::eCombinedImageSampler, &normalInfo, nullptr, nullptr, nullptr),
+				vk::WriteDescriptorSet(newMaterial.mSet, 3, 0, 1, vk::DescriptorType::eCombinedImageSampler, &metallicRoughnessInfo, nullptr, nullptr, nullptr)
+				}, {});
 
 			this->mMaterials.push_back(newMaterial);
 		}
-		
+
 
 		Logger::gInfo("Model: " + filePath + " loaded !");
 	}

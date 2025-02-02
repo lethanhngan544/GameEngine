@@ -40,53 +40,10 @@ namespace eg::Renderer
 	vk::DescriptorSet getCurrentFrameGUBODescSet();
 	vk::DescriptorSetLayout getGlobalDescriptorSet();
 
-	const class AmbientLightPipeline& getAmbientLightPipeline();
-	const class PointLightPipeline& getPointLightPipeline();
 	const class DefaultRenderPass& getDefaultRenderPass();
+	const class CombinedImageSampler2D& getDefaultWhiteImage();
+	const class CombinedImageSampler2D& getDefaultCheckerboardImage();
 
-	//Pipelines
-	
-	class AmbientLightPipeline
-	{
-	private:
-		vk::Pipeline mPipeline;
-		vk::PipelineLayout mPipelineLayout;
-		vk::DescriptorSetLayout mDescriptorLayout;
-		vk::DescriptorSet mSet;
-	public:
-		AmbientLightPipeline(vk::RenderPass pass, vk::DescriptorSetLayout globalDescriptorSetLayout,
-			vk::ImageView position, vk::ImageView normal, vk::ImageView albedo);
-		~AmbientLightPipeline();
-
-		void begin(const vk::CommandBuffer& cmd, vk::Rect2D drawExtent) const;
-
-
-		vk::Pipeline getPipeline() const { return mPipeline; }
-		vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout; };
-		vk::DescriptorSetLayout getDescriptorLayout() const { return mDescriptorLayout; }
-	};
-
-	class PointLightPipeline
-	{
-	private:
-		vk::Pipeline mPipeline;
-		vk::PipelineLayout mPipelineLayout;
-		vk::DescriptorSetLayout mDescriptorLayout;
-		vk::DescriptorSetLayout mPerLightLayout;
-		vk::DescriptorSet mSet;
-	public:
-		PointLightPipeline(vk::RenderPass pass, vk::DescriptorSetLayout globalDescriptorSetLayout,
-			vk::ImageView position, vk::ImageView normal, vk::ImageView albedo);
-		~PointLightPipeline();
-
-		void begin(const vk::CommandBuffer& cmd, vk::Rect2D drawExtent) const;
-		void processPointLight(vk::CommandBuffer cmd, const Data::PointLight& pointLight) const;
-
-		vk::Pipeline getPipeline() const { return mPipeline; }
-		vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout; };
-		vk::DescriptorSetLayout getDescriptorLayout() const { return mDescriptorLayout; }
-		vk::DescriptorSetLayout getPerLightLayout() const { return mPerLightLayout;  }
-	};
 
 	
 
@@ -258,6 +215,7 @@ namespace eg::Renderer
 		{
 			glm::mat4x4 mProjection = { 1.0f };
 			glm::mat4x4 mView = { 1.0f };
+			glm::vec3 mCameraPosition = { 0, 0, 0 };
 		};
 
 		class DescriptorSet
@@ -292,7 +250,6 @@ namespace eg::Renderer
 			}
 			~DescriptorSet()
 			{
-				Logger::gTrace("Freed global descriptor set !");
 				getDevice().freeDescriptorSets(getDescriptorPool(), mSet);
 			}
 
@@ -321,7 +278,7 @@ namespace eg::Renderer
 	private:
 		vk::RenderPass mRenderPass;
 		vk::Framebuffer mFramebuffer;
-		Image2D mPosition, mNormal, mAlbedo, mDrawImage, mDepth;
+		Image2D mPosition, mNormal, mAlbedo, mMr, mDrawImage, mDepth;
 	public:
 		DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format);
 		~DefaultRenderPass();
@@ -335,5 +292,12 @@ namespace eg::Renderer
 		Image2D& getPosition() { return mPosition; }
 		Image2D& getNormal() { return mNormal; }
 		Image2D& getAlbedo() { return mAlbedo; }
+		Image2D& getMr() { return mMr; }
+
+		const Image2D& getDrawImage() const  { return mDrawImage; }
+		const Image2D& getPosition() const { return mPosition; }
+		const Image2D& getNormal() const { return mNormal; }
+		const Image2D& getAlbedo() const { return mAlbedo; }
+		const Image2D& getMr() const { return mMr; }
 	};
 }

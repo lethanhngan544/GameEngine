@@ -303,19 +303,29 @@ namespace eg::Network
 		asio::ip::tcp::acceptor mAcceptor;
 		uint64_t mIdCounter = 69000;
 
+		uint64_t mHandShakeOut = 0;
+		uint64_t mHandShakeIn = 0;
+		
+
 	public:
 		IServer(uint16_t port) :
 			mAcceptor(mContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
 		{
-
+			
 		}
 
 		virtual ~IServer()
 		{
 			mContext.stop();
-			if (mThreadContext.joinable())
-				mThreadContext.join();
+			mThreadContext.join();
 			Logger::gInfo("Server stopped.");
+		}
+
+		uint64_t scramble(uint64_t id)
+		{
+			uint64_t out = id ^ 0xDEADBEEFC0DECAFE;
+			out = (out & 0xF0F0F0F0F0F0F0F0) >> 4 | (out & 0x0F0F0F0F0F0F0F0F) << 4;
+			return out ^ 0xC0DEFACE12345678;
 		}
 
 
@@ -427,9 +437,9 @@ namespace eg::Network
 	{
 	private:
 		asio::io_context				mContext;
+		std::thread						mThreadContext;
 		NetQueue						mQueueIn; // From the server
 		NetQueue						mQueueOut; // To the server	
-		std::thread						mThreadContext;
 		asio::ip::tcp::socket			mSocket;
 		Packet							mTempPacket;		
 	public:
@@ -484,9 +494,10 @@ namespace eg::Network
 
 		void disconnect()
 		{
+			mSocket.close();
 			mContext.stop();
-			if (mThreadContext.joinable())
-				mThreadContext.join();
+			mThreadContext.join();
+
 		}
 
 		bool isConnected() const

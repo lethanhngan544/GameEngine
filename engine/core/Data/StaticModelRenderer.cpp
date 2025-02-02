@@ -16,7 +16,10 @@ namespace eg::Data
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
 		{
-			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}) //albedo
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment, {}), //uniform buffer
+			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //albedo
+			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //normal
+			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}) //mr
 		};
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 		descLayoutCI.setBindings(descLayoutBindings);
@@ -25,16 +28,22 @@ namespace eg::Data
 
 		//Load shaders
 		auto vertexBinary = Renderer::compileShaderFromFile("shaders/static_model_vs.glsl", shaderc_glsl_vertex_shader);
+		auto geometryBinary = Renderer::compileShaderFromFile("shaders/static_model_gs.glsl", shaderc_glsl_geometry_shader);
 		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/static_model_fs.glsl", shaderc_glsl_fragment_shader);
 
 		//Create shader modules
-		vk::ShaderModuleCreateInfo vertexShaderModuleCI{}, fragmentShaderModuleCI{};
+		vk::ShaderModuleCreateInfo vertexShaderModuleCI{}, geometryShaderModuleCI{}, fragmentShaderModuleCI{};
 		vertexShaderModuleCI.setCodeSize(vertexBinary.size() * sizeof(uint32_t));
 		vertexShaderModuleCI.setPCode(vertexBinary.data());
+
+		geometryShaderModuleCI.setCodeSize(geometryBinary.size() * sizeof(uint32_t));
+		geometryShaderModuleCI.setPCode(geometryBinary.data());
+
 		fragmentShaderModuleCI.setCodeSize(fragmentBinary.size() * sizeof(uint32_t));
 		fragmentShaderModuleCI.setPCode(fragmentBinary.data());
 
 		auto vertexShaderModule = mDevice.createShaderModule(vertexShaderModuleCI);
+		auto geometryShaderModule = mDevice.createShaderModule(geometryShaderModuleCI);
 		auto fragmentShaderModule = mDevice.createShaderModule(fragmentShaderModuleCI);
 
 
@@ -46,7 +55,7 @@ namespace eg::Data
 		};
 		vk::PushConstantRange pushConstantRanges[] =
 		{
-			vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(VertexPushConstant))
+			vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry, 0, sizeof(VertexPushConstant))
 		};
 		vk::PipelineLayoutCreateInfo pipelineLayoutCI{};
 		pipelineLayoutCI.setFlags(vk::PipelineLayoutCreateFlags{})
@@ -65,6 +74,14 @@ namespace eg::Data
 				vertexShaderModule,
 				"main"
 			},
+			vk::PipelineShaderStageCreateInfo
+			{
+				vk::PipelineShaderStageCreateFlags{},
+				vk::ShaderStageFlagBits::eGeometry,
+				geometryShaderModule,
+				"main"
+			},
+
 			vk::PipelineShaderStageCreateInfo
 			{
 				vk::PipelineShaderStageCreateFlags{},
@@ -153,6 +170,19 @@ namespace eg::Data
 					vk::ColorComponentFlagBits::eA),
 
 				//Albedo
+				vk::PipelineColorBlendAttachmentState(false,
+					vk::BlendFactor::eOne,
+					vk::BlendFactor::eZero,
+					vk::BlendOp::eAdd,
+					vk::BlendFactor::eOne,
+					vk::BlendFactor::eOne,
+					vk::BlendOp::eAdd,
+					vk::ColorComponentFlagBits::eR |
+					vk::ColorComponentFlagBits::eG |
+					vk::ColorComponentFlagBits::eB |
+					vk::ColorComponentFlagBits::eA),
+
+				//Mr
 				vk::PipelineColorBlendAttachmentState(false,
 					vk::BlendFactor::eOne,
 					vk::BlendFactor::eZero,
@@ -261,7 +291,7 @@ namespace eg::Data
 
 			const StaticModel& model = e.get<StaticModel>();
 			cmd.pushConstants(mPipelineLayout,
-				vk::ShaderStageFlagBits::eVertex, 0, sizeof(ps), &ps);
+				vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry, 0, sizeof(ps), &ps);
 			for (const auto& rawMesh : model.getRawMeshes())
 			{
 				cmd.bindVertexBuffers(0, { rawMesh.vertexBuffer.getBuffer() }, { 0 });
