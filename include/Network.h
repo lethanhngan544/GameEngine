@@ -7,12 +7,22 @@
 #include <memory>
 
 #include <asio.hpp>
+#include "Logger.h"
 
 namespace eg::Network
 {
 	enum class PacketType : uint32_t
 	{
 		ServerPing = 0,
+
+		ClientAccepted,
+		ClientAssignID,
+		ClientRegister,
+		ClientUnregister,
+
+		GameAddPlayer,
+		GameRemovePlayer,
+		GameUpdatePlayer,
 
 		PacketTypeEnd,
 	};
@@ -154,16 +164,16 @@ namespace eg::Network
 		NetQueue& mQueueIn;// from the server
 		NetQueue mQueueOut; // To the client
 		uint64_t mId = 0;
+		uint64_t mHandShakeOut = 0;
+		uint64_t mHandShakeIn = 0;
 		Packet mTempPacket;
 	public:
-		Connection(asio::io_context& context, asio::ip::tcp::socket socket, NetQueue& inQueue) :
-			mContext(context), mQueueIn(inQueue), mSocket(std::move(socket))
+		Connection(asio::io_context& context, asio::ip::tcp::socket socket, NetQueue& inQueue, uint64_t handShakeOut) :
+			mContext(context), mQueueIn(inQueue), mSocket(std::move(socket)), mHandShakeOut(handShakeOut)
 		{
-
 		}
 		virtual ~Connection() = default;
 	public:
-		bool connect();
 		void disconnect()
 		{
 			if (isConnected())
@@ -175,13 +185,15 @@ namespace eg::Network
 		{
 			return mSocket.is_open();
 		}
-		void connectToClient(uint64_t id)
+		bool connectToClient(uint64_t id)
 		{
 			if (mSocket.is_open())
 			{
 				mId = id;
-				asyncReadHeader();
+				asyncWriteValidation();
+				asyncReadValidation();
 			}
+			return mSocket.is_open();
 		}
 
 		void sendToClient(const Packet& packet)
@@ -190,11 +202,19 @@ namespace eg::Network
 				{
 					bool writingMessage = !mQueueOut.empty();
 					mQueueOut.push_back(packet);
-					if(!writingMessage)
+					if (!writingMessage)
 						asyncWriteHeader();
 				});
 		}
 	private:
+
+		uint64_t scramble(uint64_t id)
+		{
+			uint64_t out = id ^ 0xDEADBEEFC0DECAFE;
+			out = (out & 0xF0F0F0F0F0F0F0F0) >> 4 | (out & 0x0F0F0F0F0F0F0F0F) << 4;
+			return out ^ 0xC0DEFACE12345678;
+		}
+
 		void asyncReadHeader()
 		{
 			asio::async_read(mSocket, asio::buffer(&mTempPacket.id, Packet::headerSize()),
@@ -277,7 +297,7 @@ namespace eg::Network
 						if (!mQueueOut.empty())
 						{
 							asyncWriteHeader();
-						} 
+						}
 					}
 					else
 					{
@@ -287,7 +307,48 @@ namespace eg::Network
 				});
 		}
 
+		void asyncWriteValidation()
+		{
+			asio::async_write(mSocket, asio::buffer(&mHandShakeOut, sizeof(mHandShakeOut)),
+				[this](std::error_code ec, size_t length)
+				{
+					if (!ec)
+					{
 
+					}
+					else
+					{
+						Logger::gWarn("Connection lost: " + std::to_string(mId));
+						mSocket.close();
+					}
+				});
+		}
+
+		void asyncReadValidation()
+		{
+			asio::async_read(mSocket, asio::buffer(&mHandShakeIn, sizeof(uint64_t)),
+				[this](std::error_code ec, std::size_t length)
+				{
+					if (!ec)
+					{
+						if (mHandShakeIn == scramble(mHandShakeOut))
+						{
+							Logger::gTrace("Client validated | ID: " + std::to_string(mId));
+							asyncReadHeader();
+						}
+						else
+						{
+							Logger::gWarn("Client failed to validate | ID: " + std::to_string(mId));
+							mSocket.close();
+						}
+					}
+					else
+					{
+						Logger::gWarn("Connection lost: " + std::to_string(mId));
+						mSocket.close();
+					}
+				});
+		}
 	};
 
 	class IServer
@@ -303,15 +364,14 @@ namespace eg::Network
 		asio::ip::tcp::acceptor mAcceptor;
 		uint64_t mIdCounter = 69000;
 
-		uint64_t mHandShakeOut = 0;
-		uint64_t mHandShakeIn = 0;
-		
+		uint64_t mHandShakeID = 0;
 
 	public:
 		IServer(uint16_t port) :
 			mAcceptor(mContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
 		{
-			
+			mHandShakeID = (uint64_t)std::chrono::system_clock::now().time_since_epoch().count();
+
 		}
 
 		virtual ~IServer()
@@ -321,12 +381,7 @@ namespace eg::Network
 			Logger::gInfo("Server stopped.");
 		}
 
-		uint64_t scramble(uint64_t id)
-		{
-			uint64_t out = id ^ 0xDEADBEEFC0DECAFE;
-			out = (out & 0xF0F0F0F0F0F0F0F0) >> 4 | (out & 0x0F0F0F0F0F0F0F0F) << 4;
-			return out ^ 0xC0DEFACE12345678;
-		}
+
 
 
 		bool start()
@@ -353,18 +408,15 @@ namespace eg::Network
 					if (!ec)
 					{
 						Logger::gInfo("New connection: " + socket.remote_endpoint().address().to_string());
-						std::shared_ptr<Connection> client = std::make_shared<Connection>(mContext, std::move(socket), mMessageIn);
-						if (onClientConnect(client))
+						std::shared_ptr<Connection> client = std::make_shared<Connection>(mContext, std::move(socket), mMessageIn, mHandShakeID);
+						mConnections.push_back(std::move(client));
+						if (mConnections.back()->connectToClient(mIdCounter++))
 						{
-							Logger::gTrace("Client accepted | ID: " + std::to_string(mIdCounter));
-							mConnections.push_back(std::move(client));
-							mConnections.back()->connectToClient(mIdCounter++);
+							Logger::gTrace("Client accepted | ID: " + std::to_string(mIdCounter - 1));
+							onClientConnect(client);
+						}
 
-						}
-						else
-						{
-							Logger::gError("Client denined !");
-						}
+
 
 					}
 					else
@@ -417,7 +469,7 @@ namespace eg::Network
 		}
 		void update(size_t maxMessages = -1)
 		{
-			
+
 			size_t messageCount = 0;
 			while (messageCount < maxMessages && !mMessageIn.empty())
 			{
@@ -427,7 +479,7 @@ namespace eg::Network
 			}
 		}
 	protected:
-		virtual bool onClientConnect(std::shared_ptr<Connection> client) { return false; }
+		virtual void onClientConnect(std::shared_ptr<Connection> client) {}
 		virtual void onClientDisconnect(std::shared_ptr<Connection> client) {}
 		virtual void onMessage(std::shared_ptr<Connection> client, Packet& p) {}
 	};
@@ -441,7 +493,10 @@ namespace eg::Network
 		NetQueue						mQueueIn; // From the server
 		NetQueue						mQueueOut; // To the server	
 		asio::ip::tcp::socket			mSocket;
-		Packet							mTempPacket;		
+		Packet							mTempPacket;
+
+		uint64_t mHandShakeIn = 0;
+		uint64_t mHandShakeOut = 0;
 	public:
 		IClient() : mSocket(mContext) {}
 		virtual ~IClient() { disconnect(); }
@@ -461,6 +516,7 @@ namespace eg::Network
 		}
 
 
+
 		bool connect(const std::string& host, const uint16_t port)
 		{
 			try
@@ -473,7 +529,7 @@ namespace eg::Network
 					{
 						if (!ec)
 						{
-							asyncReadHeader();
+							asyncReadValidation();
 						}
 						else
 						{
@@ -607,6 +663,49 @@ namespace eg::Network
 					}
 				});
 		}
+
+		void asyncWriteValidation()
+		{
+			asio::async_write(mSocket, asio::buffer(&mHandShakeOut, sizeof(mHandShakeOut)),
+				[this](std::error_code ec, size_t length)
+				{
+					if (!ec)
+					{
+						asyncReadHeader();
+					}
+					else
+					{
+						Logger::gWarn("Connection to server lost !");
+						mSocket.close();
+					}
+				});
+		}
+
+		void asyncReadValidation()
+		{
+			asio::async_read(mSocket, asio::buffer(&mHandShakeIn, sizeof(uint64_t)),
+				[this](std::error_code ec, std::size_t length)
+				{
+					if (!ec)
+					{
+						mHandShakeOut = scramble(mHandShakeIn);
+						asyncWriteValidation();
+					}
+					else
+					{
+						Logger::gWarn("Connection to server lost !");
+						mSocket.close();
+					}
+				});
+		}
+
+		uint64_t scramble(uint64_t id)
+		{
+			uint64_t out = id ^ 0xDEADBEEFC0DECAFE;
+			out = (out & 0xF0F0F0F0F0F0F0F0) >> 4 | (out & 0x0F0F0F0F0F0F0F0F) << 4;
+			return out ^ 0xC0DEFACE12345678;
+		}
+
 	protected:
 		virtual void onMessage(Packet& p) {}
 	};

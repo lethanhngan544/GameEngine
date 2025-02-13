@@ -24,7 +24,7 @@ layout(set = 1, binding = 3) uniform sampler2D uMr;
 
 void main() {
     vec3 albedo = vec3(1.0);
-    vec3 mr = vec3(1.0);
+    vec3 mr = vec3(1.0, 0.0, 1.0);
     vec3 normal = normalize(fsNormal);
 
     if(ubo.has_normal == 1)

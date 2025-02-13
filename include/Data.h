@@ -202,15 +202,11 @@ namespace eg::Data
 			glm::mat4x4 model;
 		};
 	private:
-		vk::Device mDevice;
 		vk::Pipeline mPipeline;
 		vk::PipelineLayout mPipelineLayout;
 		vk::DescriptorSetLayout mDescriptorLayout;
 	public:
-		StaticModelRenderer(vk::Device device,
-			vk::RenderPass pass,
-			uint32_t subpassIndex,
-			vk::DescriptorSetLayout globalDescriptorSetLayout);
+		StaticModelRenderer(uint32_t subpassIndex);
 		~StaticModelRenderer();
 
 		StaticModelRenderer(const StaticModelRenderer&) = delete;
@@ -219,10 +215,13 @@ namespace eg::Data
 		StaticModelRenderer operator=(const StaticModelRenderer&) = delete;
 		StaticModelRenderer& operator=(StaticModelRenderer&&) noexcept = delete;
 
-		void render(vk::CommandBuffer cmd,
+		void begin(vk::CommandBuffer cmd,
 			vk::Rect2D drawExtent,
-			vk::DescriptorSet globalSet,
-			const Entity* filteredEntities, size_t entityCount) const;
+			vk::DescriptorSet globalSet) const;
+
+		void render(vk::CommandBuffer cmd,
+			const Entity& entity) const;
+
 
 		vk::DescriptorSetLayout getMaterialSetLayout() const { return mDescriptorLayout; }
 
