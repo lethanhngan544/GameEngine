@@ -52,17 +52,17 @@ public:
 	Client(vk::DescriptorSetLayout materialSetLayout) :
 		eg::Network::IClient()
 	{
-	/*	mPlayers[0].first.id = 0;
-		mPlayers[0].first.position = { 0.0f, 0.0f, 0.0f };
-		mPlayers[0].first.pitch = 0.0f;
-		mPlayers[0].first.yaw = 0.0f;
-		mPlayers[0].second = std::make_unique<eg::Data::Entity>();
-		mPlayers[0].second->add<eg::Data::StaticModel>("models/DamagedHelmet.glb", materialSetLayout);*/
+		/*	mPlayers[0].first.id = 0;
+			mPlayers[0].first.position = { 0.0f, 0.0f, 0.0f };
+			mPlayers[0].first.pitch = 0.0f;
+			mPlayers[0].first.yaw = 0.0f;
+			mPlayers[0].second = std::make_unique<eg::Data::Entity>();
+			mPlayers[0].second->add<eg::Data::StaticModel>("models/DamagedHelmet.glb", materialSetLayout);*/
 
 		if (!connect("localhost", 1234))
 		{
 			throw std::runtime_error("Failed to connect to server !");
-			
+
 		}
 
 
@@ -92,7 +92,7 @@ public:
 		eg::Network::IClient::update();
 	}
 protected:
-	void onMessage(eg::Network::Packet& p) final 
+	void onMessage(eg::Network::Packet& p) final
 	{
 		switch (p.id)
 		{
@@ -142,6 +142,7 @@ protected:
 			break;
 
 
+		}
 		}
 	}
 };
