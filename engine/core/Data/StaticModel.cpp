@@ -11,7 +11,7 @@
 
 namespace eg::Data
 {
-	StaticModel::StaticModel(const std::string& filePath, vk::DescriptorSetLayout materialSetLayout)
+	StaticModel::StaticModel(const std::string& filePath)
 	{
 		tinygltf::Model model;
 		tinygltf::TinyGLTF loader;
@@ -272,7 +272,7 @@ namespace eg::Data
 			//Allocate descriptor set
 			vk::DescriptorSetLayout setLayouts[] =
 			{
-				materialSetLayout
+				StaticModelRenderer::getMaterialSetLayout()
 			};
 			vk::DescriptorSetAllocateInfo ai{};
 			ai.setDescriptorPool(Renderer::getDescriptorPool())

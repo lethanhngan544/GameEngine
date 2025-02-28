@@ -4,8 +4,9 @@ project(Sandbox)
 
 
 
-add_executable(Sandbox WIN32 EntryPoint.cpp)
+add_executable(Sandbox WIN32 EntryPoint.cpp "Player.cpp")
 target_include_directories(Sandbox PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(Sandbox PRIVATE ${CMAKE_SOURCE_DIR}/SandboxInclude)
 
 target_compile_definitions(Sandbox PRIVATE _WIN32_WINNT=0x0A00)
 

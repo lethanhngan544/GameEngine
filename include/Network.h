@@ -151,9 +151,6 @@ namespace eg::Network
 			std::scoped_lock lock(mMux);
 			mQueue.clear();
 		}
-
-
-
 	};
 
 	class Connection : public std::enable_shared_from_this<Connection>

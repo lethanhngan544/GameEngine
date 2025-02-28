@@ -1,5 +1,5 @@
 #include <Network.h>
-
+#include <iostream>
 #include <glm/glm.hpp>
 
 struct PlayerInfo
@@ -61,11 +61,43 @@ protected:
 
 };
 
+class StdOutLogger  final : public eg::Logger
+{
+public:
+	void trace(const std::string& message) final
+	{
+		std::cout << Logger::formatMessage(message, "Engine", "Trace") << "\n";
+	}
+	void info(const std::string& message) final
+	{
+		std::cout << Logger::formatMessage(message, "Engine", "Info") << "\n";
+	}
+	void warn(const std::string& message) final
+	{
+		std::cout << Logger::formatMessage(message, "Engine", "Warn") << "\n";
+	}
+	void error(const std::string& message) final
+	{
+		std::cout << Logger::formatMessage(message, "Engine", "Error") << "\n";
+	}
+
+};
+
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 {
-	
-	eg::Logger::create(std::make_unique<eg::FileLogger>("output.txt"));
+	if (!AllocConsole())
+	{
+		MessageBox(NULL, "The console window was not created", NULL, MB_ICONEXCLAMATION);
+	}
+
+	//Redirect std out to console
+	FILE* file = nullptr;
+	freopen_s(&file, "CONOUT$", "w", stdout);
+	freopen_s(&file, "CONOUT$", "w", stderr);
+	freopen_s(&file, "CONIN$", "r", stdin);
+
+	eg::Logger::create(std::make_unique<StdOutLogger>());
 	Server server;
 	server.start();
 
@@ -75,5 +107,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 
-
+	FreeConsole();
 }

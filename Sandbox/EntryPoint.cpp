@@ -10,6 +10,8 @@
 #include <vector>
 #include <memory>
 
+#include <Sandbox_Player.h>
+
 
 struct PlayerInfo
 {
@@ -70,7 +72,7 @@ public:
 	}
 
 
-	void renderAllPlayers(vk::CommandBuffer cmd, eg::Data::StaticModelRenderer& staticModelRenderer)
+	/*void renderAllPlayers(vk::CommandBuffer cmd, eg::Data::StaticModelRenderer& staticModelRenderer)
 	{
 		for (const auto& [id, infoPair] : mPlayers)
 		{
@@ -80,7 +82,7 @@ public:
 			staticModelRenderer.render(cmd, *(infoPair.second));
 
 		}
-	}
+	}*/
 
 	void updatePlayerState()
 	{
@@ -153,24 +155,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
 	{
-		//entities.at(0).add<Data::StaticModel>("models/DamagedHelmet.glb", staticModelRenderer.getMaterialSetLayout());
 
+		
 		Window::create(1600, 900, "Sandbox");
 		Renderer::create(1600, 900);
+		Data::StaticModelRenderer::create();
 
 		{
 			Data::LightRenderer lightRenderer(Renderer::getDevice(), Renderer::getDescriptorPool(), Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
 
-			Data::StaticModelRenderer staticModelRenderer(0);
 			Data::Camera camera;
 			camera.mFov = 70.0f;
 			camera.mFar = 1000.0f;
+
+			std::array<Data::Entity, 2> entities;
+
+			entities.at(0).add<std::shared_ptr<Data::StaticModel>>
+				(Data::StaticModelCache::load("models/DamagedHelmet.glb"));
+			entities.at(1).add<std::shared_ptr<Data::StaticModel>>
+				(Data::StaticModelCache::load("models/Sponza.glb"));
+			entities.at(1).mScale = glm::vec3( 0.01f, 0.01f, 0.01f );
+
 			
 
-			Client client(staticModelRenderer.getMaterialSetLayout());
+			//Client client(staticModelRenderer.getMaterialSetLayout());
 			
 
-			Data::PointLight pointLights[] = 
+			std::array<Data::PointLight, 2> pointLights = 
 			{
 				Data::PointLight(lightRenderer.getPointLightPerDescLayout()),
 				Data::PointLight(lightRenderer.getPointLightPerDescLayout())
@@ -179,7 +190,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			while (!Window::shouldClose())
 			{
-				client.updatePlayerState();
+				//client.updatePlayerState();
 				auto cmd = Renderer::begin(camera);
 
 				ImGui::Begin("Debug");
@@ -187,13 +198,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				ImGui::DragFloat("Camera pitch", &camera.mPitch, 0.5f);
 				ImGui::DragFloat("Camera yaw", &camera.mYaw, 0.5f);
 
-				if (ImGui::Button("Send message"))
+				/*if (ImGui::Button("Send message"))
 				{
 					eg::Network::Packet packet;
 					packet.id = static_cast<uint32_t>(eg::Network::PacketType::ServerPing);
 					packet << 69;
 					client.sendToServer(packet);
-				}
+				}*/
 
 				ImGui::DragFloat3("Light1 position", &pointLights[0].mUniformBuffer.position.x, 0.1f);
 				ImGui::DragFloat3("Light2 position", &pointLights[1].mUniformBuffer.position.x, 0.1f);
@@ -204,17 +215,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 				//Subpass 0, gBuffer generation
 				Renderer::getDefaultRenderPass().begin(cmd, vk::Rect2D({ 0, 0 }, {1600, 900}));
-				staticModelRenderer.begin(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet());
-				client.renderAllPlayers(cmd, staticModelRenderer);
+				Data::StaticModelRenderer::begin(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }));
+				//client.renderAllPlayers(cmd, staticModelRenderer);
 
-				/*staticModelRenderer.render(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet(),
-					entities.data(), entityCount);*/
+				for (const Data::Entity& e : entities)
+				{
+					glm::mat4x4 worldTransform(1.0f);
+					worldTransform = glm::translate(worldTransform, e.mPosition);
+					worldTransform *= glm::mat4_cast(e.mRotation);
+					worldTransform = glm::scale(worldTransform, e.mScale);
+
+					if (e.has<Data::StaticModel>())
+					{
+						const Data::StaticModel& model = e.get<Data::StaticModel>();
+						Data::StaticModelRenderer::render(cmd,
+							model,
+							worldTransform);
+					}
+						
+				}
 
 
 				//Subpass 1
 				cmd.nextSubpass(vk::SubpassContents::eInline);
 				lightRenderer.renderAmbient(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet());
-				lightRenderer.renderPointLights(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet(), pointLights, 2);
+				lightRenderer.renderPointLights(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet(), pointLights.data(), pointLights.size());
 
 				Renderer::end();
 				Window::poll();
@@ -223,6 +248,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			Renderer::waitIdle();
 		}
 
+		Data::StaticModelCache::clear();
+		Data::StaticModelRenderer::destroy();
 		Renderer::destory();
 		Window::destroy();
 	}

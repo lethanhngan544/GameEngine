@@ -28,6 +28,36 @@ namespace eg::Data
 		glm::mat4x4 buildView() const;
 	};
 
+	class Transform
+	{
+	public:
+		glm::vec3 mPosition = { 0, 0, 0 };
+		glm::quat mRotation = { 1, 0, 0, 0 };
+		glm::vec3 mScale = { 1, 1, 1 };
+	public:
+		Transform() = default;
+		Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale) :
+			mPosition(position), mRotation(rotation), mScale(scale) {
+		}
+
+		void identity()
+		{
+			mPosition = { 0, 0, 0 };
+			mRotation = { 1, 0, 0, 0 };
+			mScale = { 1, 1, 1 };
+		}
+
+		glm::mat4x4 build() const
+		{
+			glm::mat4x4 matrix(1.0f);
+			matrix = glm::translate(matrix, mPosition);
+			matrix *= glm::mat4_cast(mRotation);
+			matrix = glm::scale(matrix, mScale);
+			return matrix;
+		}
+
+
+	};
 
 	class PointLight
 	{
@@ -52,18 +82,8 @@ namespace eg::Data
 		vk::DescriptorSet getDescriptorSet() const { return mSet; }
 	};
 
-	
 
-	//Entity component system
-
-	class Component
-	{
-	public:
-		bool valid = false;
-	};
-
-
-	class StaticModel : public Component
+	class StaticModel
 	{
 	private:
 		struct RawMesh
@@ -93,103 +113,26 @@ namespace eg::Data
 		std::vector<std::shared_ptr<Renderer::CombinedImageSampler2D>> mImages;
 		std::vector<Material> mMaterials;
 	public:
-		StaticModel() = default;
-		StaticModel(const std::string& filePath, vk::DescriptorSetLayout materialSetLayout);
+		StaticModel() = delete;
+		StaticModel(const std::string& filePath);
 		~StaticModel();
-
-
-		StaticModel(const StaticModel&) = delete;
-		StaticModel operator=(const StaticModel&) = delete;
-
-		StaticModel(StaticModel&& other) noexcept
-		{
-			this->mRawMeshes = std::move(other.mRawMeshes);
-			this->mImages = std::move(other.mImages);
-			this->mMaterials = std::move(other.mMaterials);
-			this->valid = true;
-
-			other.mRawMeshes.clear();
-			other.mImages.clear();
-			other.mMaterials.clear();
-			other.valid = false;
-		}
-
-		StaticModel& operator=(StaticModel&& other) noexcept
-		{
-			this->mRawMeshes = std::move(other.mRawMeshes);
-			this->mImages = std::move(other.mImages);
-			this->mMaterials = std::move(other.mMaterials);
-			this->valid = true;
-
-			other.mRawMeshes.clear();
-			other.mImages.clear();
-			other.mMaterials.clear();
-			other.valid = false;
-
-			return *this;
-		}
-
 
 		const std::vector<RawMesh>& getRawMeshes() const { return mRawMeshes; }
 		const std::vector<Material>& getMaterials() const { return mMaterials; }
 
 	};
 
-	//Entity
-
-	class Entity
+	namespace StaticModelCache
 	{
-	public:
-		glm::vec3 mPosition = { 0, 0, 0 };
-		glm::quat mRotation = { 1, 0, 0, 0 }; //x y z w, glm::quat(w, x, y, z)
-		glm::vec3 mScale = { 1, 1, 1 };
-	private:
-		std::tuple<StaticModel> mComponents;
-	public:
-		Entity() = default;
-		~Entity() = default;
+		void clear();
+		std::shared_ptr<StaticModel> load(const std::string& filePath);
 
-		Entity(const Entity&) = delete;
-		Entity operator=(const Entity&) = delete;
-
-		Entity(Entity&&) = default;
-		Entity& operator=(Entity&&) = default;
-
-
-
-		template<typename T, typename... TArgs>
-		T& add(TArgs&&... args)
-		{
-			auto& component = std::get<T>(mComponents);
-			component = std::move(T(std::forward<TArgs>(args)...));
-			component.valid = true;
-			return component;
-		}
-
-		template<typename T>
-		T& get()
-		{
-			return std::get<T>(mComponents);
-		}
-
-		template<typename T>
-		const T& get() const
-		{
-			return std::get<T>(mComponents);
-		}
-
-		template<typename T>
-		bool has() const
-		{
-			return get<T>().valid;
-		}
 	};
 
 	//Systems
 
-	class StaticModelRenderer
+	namespace StaticModelRenderer
 	{
-	public:
 		struct VertexFormat
 		{
 			glm::vec3 pos;
@@ -201,29 +144,20 @@ namespace eg::Data
 		{
 			glm::mat4x4 model;
 		};
-	private:
-		vk::Pipeline mPipeline;
-		vk::PipelineLayout mPipelineLayout;
-		vk::DescriptorSetLayout mDescriptorLayout;
-	public:
-		StaticModelRenderer(uint32_t subpassIndex);
-		~StaticModelRenderer();
 
-		StaticModelRenderer(const StaticModelRenderer&) = delete;
-		StaticModelRenderer(StaticModelRenderer&&) noexcept = delete;
+		void create();
+		void destroy();
 
-		StaticModelRenderer operator=(const StaticModelRenderer&) = delete;
-		StaticModelRenderer& operator=(StaticModelRenderer&&) noexcept = delete;
 
 		void begin(vk::CommandBuffer cmd,
-			vk::Rect2D drawExtent,
-			vk::DescriptorSet globalSet) const;
+			vk::Rect2D drawExtent);
 
 		void render(vk::CommandBuffer cmd,
-			const Entity& entity) const;
+			const StaticModel& model, 
+			glm::mat4x4 worldTransform);
 
 
-		vk::DescriptorSetLayout getMaterialSetLayout() const { return mDescriptorLayout; }
+		vk::DescriptorSetLayout getMaterialSetLayout();
 
 	};
 
