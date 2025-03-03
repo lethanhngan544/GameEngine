@@ -2,8 +2,9 @@
 
 namespace sndbx
 {
-	Player::Player()
+	Player::Player(bool visible)
 	{
-		mModel = eg::Data::StaticModelCache::load("assets/models/box/box.gltf");
+		if(visible)
+			mModel = eg::Data::StaticModelCache::load("models/DamagedHelmet.glb");
 	}
 }

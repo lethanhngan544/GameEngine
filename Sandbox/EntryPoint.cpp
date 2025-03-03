@@ -49,7 +49,6 @@ class Client final : public eg::Network::IClient
 {
 private:
 	uint64_t mId; // Id of this client
-	std::unordered_map<uint64_t, std::pair<PlayerInfo, std::unique_ptr<eg::Data::Entity>>> mPlayers; // Map id to player info
 public:
 	Client(vk::DescriptorSetLayout materialSetLayout) :
 		eg::Network::IClient()
@@ -88,7 +87,7 @@ public:
 	{
 		eg::Network::Packet packet;
 		packet.id = static_cast<uint32_t>(eg::Network::PacketType::GameUpdatePlayer);
-		packet << mPlayers.at(mId).first;
+		//packet << mPlayers.at(mId).first;
 		sendToServer(packet);
 
 		eg::Network::IClient::update();
@@ -122,7 +121,7 @@ protected:
 			PlayerInfo info;
 
 			p >> info;
-			this->mPlayers.insert_or_assign(info.id, std::make_pair(info, std::make_unique<eg::Data::Entity>()));
+			//this->mPlayers.insert_or_assign(info.id, std::make_pair(info, std::make_unique<eg::Data::Entity>()));
 			break;
 		}
 
@@ -131,7 +130,7 @@ protected:
 			uint64_t removalId;
 
 			p >> removalId;
-			this->mPlayers.erase(removalId);
+			//this->mPlayers.erase(removalId);
 
 			break;
 		}
@@ -140,7 +139,7 @@ protected:
 		{
 			PlayerInfo info;
 			p >> info;
-			this->mPlayers.at(info.id).first = info;
+			//this->mPlayers.at(info.id).first = info;
 			break;
 
 
@@ -168,14 +167,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			camera.mFov = 70.0f;
 			camera.mFar = 1000.0f;
 
-			std::array<Data::Entity, 2> entities;
-
-			entities.at(0).add<std::shared_ptr<Data::StaticModel>>
-				(Data::StaticModelCache::load("models/DamagedHelmet.glb"));
-			entities.at(1).add<std::shared_ptr<Data::StaticModel>>
-				(Data::StaticModelCache::load("models/Sponza.glb"));
-			entities.at(1).mScale = glm::vec3( 0.01f, 0.01f, 0.01f );
-
+			sndbx::Player player(true);
+			sndbx::Player player2(true);
+			player2.getTransform().mPosition.x += 3;
 			
 
 			//Client client(staticModelRenderer.getMaterialSetLayout());
@@ -218,23 +212,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Data::StaticModelRenderer::begin(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }));
 				//client.renderAllPlayers(cmd, staticModelRenderer);
 
-				for (const Data::Entity& e : entities)
+				if (auto model = player.getModel())
 				{
-					glm::mat4x4 worldTransform(1.0f);
-					worldTransform = glm::translate(worldTransform, e.mPosition);
-					worldTransform *= glm::mat4_cast(e.mRotation);
-					worldTransform = glm::scale(worldTransform, e.mScale);
-
-					if (e.has<Data::StaticModel>())
-					{
-						const Data::StaticModel& model = e.get<Data::StaticModel>();
-						Data::StaticModelRenderer::render(cmd,
-							model,
-							worldTransform);
-					}
-						
+					Data::StaticModelRenderer::render
+						(cmd, *model, player.getTransform().build());
 				}
-
+				if (auto model = player2.getModel())
+				{
+					Data::StaticModelRenderer::render
+					(cmd, *model, player2.getTransform().build());
+				}
 
 				//Subpass 1
 				cmd.nextSubpass(vk::SubpassContents::eInline);
