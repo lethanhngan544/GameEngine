@@ -1,7 +1,7 @@
 project(engine)
 
 
-add_library(engine STATIC "core/Window.cpp" "core/Renderer/Renderer.cpp" "core/Loggers/Logger.cpp" "core/Loggers/FileLogger.cpp"  "core/Renderer/GPUBuffer.cpp"   "core/Renderer/Image.cpp" "core/Renderer/DefaultRenderPass.cpp" "core/Data/StaticModel.cpp" "core/Renderer/CPUBuffer.cpp" "core/Renderer/GlobalUniformBuffer.cpp" "core/Data/Camera.cpp"    "core/Data/PointLight.cpp" "core/Data/StaticModelRenderer.cpp"  "core/Data/LightRenderer.cpp" "core/Data/StaticModelCache.cpp")
+add_library(engine STATIC "core/Window.cpp" "core/Renderer/Renderer.cpp" "core/Loggers/Logger.cpp" "core/Loggers/FileLogger.cpp"  "core/Renderer/GPUBuffer.cpp"   "core/Renderer/Image.cpp" "core/Renderer/DefaultRenderPass.cpp" "core/Data/StaticModel.cpp" "core/Renderer/CPUBuffer.cpp" "core/Renderer/GlobalUniformBuffer.cpp" "core/Data/Camera.cpp"    "core/Data/PointLight.cpp" "core/Data/StaticModelRenderer.cpp"  "core/Data/LightRenderer.cpp" "core/Data/StaticModelCache.cpp" "core/Physics/Physics.cpp")
 
 target_include_directories(engine PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
@@ -31,3 +31,5 @@ target_link_libraries(engine PRIVATE imgui::imgui)
 find_package(asio CONFIG REQUIRED)
 target_link_libraries(engine PRIVATE asio::asio)
 
+find_package(Jolt CONFIG REQUIRED)
+target_link_libraries(engine PRIVATE Jolt::Jolt)

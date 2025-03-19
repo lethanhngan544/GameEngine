@@ -1,4 +1,6 @@
 
+#include <Physics.h>
+
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
@@ -159,6 +161,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Window::create(1600, 900, "Sandbox");
 		Renderer::create(1600, 900);
 		Data::StaticModelRenderer::create();
+		Physics::create();
 
 		{
 			Data::LightRenderer lightRenderer(Renderer::getDevice(), Renderer::getDescriptorPool(), Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
@@ -239,6 +242,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Data::StaticModelRenderer::destroy();
 		Renderer::destory();
 		Window::destroy();
+		Physics::destroy();
 	}
 	catch (std::exception& e)
 	{
