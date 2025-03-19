@@ -1,11 +1,11 @@
-#include <Core.h>
+#include <Window.h>
 
 #define GLFW_INCLUDE_NONE
 #include <glfw/glfw3.h>
 #include <string>
 #include <stdexcept>
 
-
+ 
 namespace eg::Window
 {
 	static GLFWwindow* gWindow = nullptr;

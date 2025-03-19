@@ -20,6 +20,9 @@ target_link_libraries(Sandbox PRIVATE unofficial::VulkanMemoryAllocator-Hpp::Vul
 find_package(asio CONFIG REQUIRED)
 target_link_libraries(Sandbox PRIVATE asio::asio)
 
+find_package(Jolt CONFIG REQUIRED)
+target_link_libraries(Sandbox PRIVATE Jolt::Jolt)
+
 
 target_link_libraries(Sandbox PRIVATE engine)
 
