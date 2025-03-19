@@ -4,7 +4,7 @@
 
 namespace sndbx
 {
-	class Player
+	class Player : public eg::Data::IGameObject
 	{
 	private:
 		eg::Data::Transform mTransform;
@@ -12,8 +12,10 @@ namespace sndbx
 	public:
 		Player(bool visible);
 
+		void update(float delta) override {}
+		void render(vk::CommandBuffer cmd) override;
+
 		const eg::Data::Transform& getTransform() const { return mTransform;  }
 		eg::Data::Transform& getTransform() { return mTransform; }
-		const eg::Data::StaticModel* getModel() const { return mModel.get(); }
 	};
 }

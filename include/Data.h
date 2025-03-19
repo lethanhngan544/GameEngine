@@ -4,13 +4,37 @@
 #include <string>
 #include <optional>
 #include <tuple>
-
+#include <memory>
+#include <vector>
 #include <glm/vec3.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/mat4x4.hpp>
 
 namespace eg::Data
 {
+	class IGameObject
+	{
+	public:
+		IGameObject() = default;
+		virtual ~IGameObject() = default;
+
+		virtual void update(float delta) = 0;
+		virtual void render(vk::CommandBuffer cmd) = 0;
+	};
+
+	class GameObjectManager
+	{
+	private:
+		std::vector<std::unique_ptr<IGameObject>> mGameObjects;
+	public:
+
+		void addGameObject(std::unique_ptr<IGameObject> gameobject);
+		void removeGameObject(const IGameObject* gameObject);
+
+		void update(float delta);
+		void render(vk::CommandBuffer cmd);
+	};
+	
 	class Camera
 	{
 	public:
@@ -68,14 +92,14 @@ namespace eg::Data
 			glm::vec4 color = { 1, 1, 1, 1 };
 			float intensity = 1.0f;
 			float constant = 1.0f;
-			float linear = 0.01f;
-			float exponent = 0.001f;
+			float linear = 0.1f;
+			float exponent = 0.01f;
 		} mUniformBuffer{};
 	private:
 		vk::DescriptorSet mSet;
 		Renderer::CPUBuffer	mBuffer;
 	public:
-		PointLight(vk::DescriptorSetLayout pointPerLightLayout);
+		PointLight();
 		~PointLight();
 
 		const Renderer::CPUBuffer& getBuffer() const { return mBuffer; }
@@ -161,54 +185,20 @@ namespace eg::Data
 
 	};
 
-	class LightRenderer
+	namespace LightRenderer
 	{
-	private:
-		vk::Device mDevice;
-		vk::DescriptorPool mPool;
-
-		vk::Pipeline mAmbientPipeline;
-		vk::PipelineLayout mAmbientLayout;
-		vk::DescriptorSetLayout mAmbientDescLayout;
-		vk::DescriptorSet mAmbientSet;
-
-		vk::Pipeline mPointPipeline;
-		vk::PipelineLayout mPointLayout;
-		vk::DescriptorSetLayout mPointDescLayout;
-		vk::DescriptorSetLayout mPointPerDescLayout; //Per light data
-		vk::DescriptorSet mPointSet;
-
-
-		vk::Pipeline mDirectionalPipeline;
-		vk::PipelineLayout mDirectionalLayout;
-		vk::DescriptorSetLayout mDirectionalDescLayout;
-		vk::DescriptorSet mDirectionalSet;
-	public:
-		LightRenderer(vk::Device device,
-			vk::DescriptorPool pool,
-			const Renderer::DefaultRenderPass& renderpass,
-			vk::DescriptorSetLayout globalDescriptorSetLayout);
-		~LightRenderer();
-		LightRenderer(const LightRenderer&) = delete;
-		LightRenderer(LightRenderer&&) noexcept = delete;
-
-		LightRenderer operator=(const LightRenderer&) = delete;
-		LightRenderer& operator=(LightRenderer&&) noexcept = delete;
+		void create();
+		void destroy();
 
 		void renderAmbient(vk::CommandBuffer cmd,
 			vk::Rect2D drawExtent,
-			vk::DescriptorSet globalSet) const;
+			vk::DescriptorSet globalSet);
 
 		void renderPointLights(vk::CommandBuffer cmd,
 			vk::Rect2D drawExtent,
 			vk::DescriptorSet globalSet,
-			const PointLight* pointLights, size_t pointLightCount) const;
+			const PointLight* pointLights, size_t pointLightCount);
 
-		vk::DescriptorSetLayout getPointLightPerDescLayout() const { return mPointPerDescLayout; }
-	private:
-		void createAmbientPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
-		void createPointPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
-		void createDirectionalPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
-
+		vk::DescriptorSetLayout getPointLightPerDescLayout();
 	};
 }

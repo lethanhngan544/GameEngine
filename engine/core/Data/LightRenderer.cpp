@@ -2,37 +2,45 @@
 
 #include <shaderc/shaderc.hpp>
 
-namespace eg::Data
+namespace eg::Data::LightRenderer
 {
-	LightRenderer::LightRenderer(
-		vk::Device device,
-		vk::DescriptorPool pool,
-		const Renderer::DefaultRenderPass& renderpass,
-		vk::DescriptorSetLayout globalDescriptorSetLayout) :
-		mDevice(device),
-		mPool(pool)
+	vk::Pipeline mAmbientPipeline;
+	vk::PipelineLayout mAmbientLayout;
+	vk::DescriptorSetLayout mAmbientDescLayout;
+	vk::DescriptorSet mAmbientSet;
+
+	vk::Pipeline mPointPipeline;
+	vk::PipelineLayout mPointLayout;
+	vk::DescriptorSetLayout mPointDescLayout;
+	vk::DescriptorSetLayout mPointPerDescLayout; //Per light data
+	vk::DescriptorSet mPointSet;
+
+	void createAmbientPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
+	void createPointPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
+
+	void create()
 	{
-		createAmbientPipeline(renderpass, globalDescriptorSetLayout);
-		createPointPipeline(renderpass, globalDescriptorSetLayout);
+		createAmbientPipeline(Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
+		createPointPipeline(Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
 	}
-	LightRenderer::~LightRenderer()
+	void destroy()
 	{
-		mDevice.destroyPipeline(mAmbientPipeline);
-		mDevice.destroyPipelineLayout(mAmbientLayout);
-		mDevice.destroyDescriptorSetLayout(mAmbientDescLayout);
-		mDevice.freeDescriptorSets(mPool, mAmbientSet);
+		Renderer::getDevice().destroyPipeline(mAmbientPipeline);
+		Renderer::getDevice().destroyPipelineLayout(mAmbientLayout);
+		Renderer::getDevice().destroyDescriptorSetLayout(mAmbientDescLayout);
+		Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), mAmbientSet);
 
-		mDevice.destroyPipeline(mPointPipeline);
-		mDevice.destroyPipelineLayout(mPointLayout);
-		mDevice.destroyDescriptorSetLayout(mPointDescLayout);
-		mDevice.destroyDescriptorSetLayout(mPointPerDescLayout);
-		mDevice.freeDescriptorSets(mPool, mPointSet);
+		Renderer::getDevice().destroyPipeline(mPointPipeline);
+		Renderer::getDevice().destroyPipelineLayout(mPointLayout);
+		Renderer::getDevice().destroyDescriptorSetLayout(mPointDescLayout);
+		Renderer::getDevice().destroyDescriptorSetLayout(mPointPerDescLayout);
+		Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), mPointSet);
 
 	}
 
-	void LightRenderer::renderAmbient(vk::CommandBuffer cmd,
+	void renderAmbient(vk::CommandBuffer cmd,
 		vk::Rect2D drawExtent,
-		vk::DescriptorSet globalSet) const
+		vk::DescriptorSet globalSet)
 	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mAmbientPipeline);
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
@@ -48,17 +56,17 @@ namespace eg::Data
 		cmd.setScissor(0, drawExtent);
 		cmd.draw(3, 1, 0, 0);
 	}
-	void LightRenderer::renderPointLights(vk::CommandBuffer cmd,
+	void renderPointLights(vk::CommandBuffer cmd,
 		vk::Rect2D drawExtent,
 		vk::DescriptorSet globalSet,
-		const PointLight* pointLights, size_t pointLightCount) const
+		const PointLight* pointLights, size_t pointLightCount)
 	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPointPipeline);
 
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mPointLayout,
 			0,
-			{globalSet, this->mPointSet},
+			{globalSet, mPointSet},
 			{}
 		);
 		
@@ -82,7 +90,13 @@ namespace eg::Data
 			cmd.draw(3, 1, 0, 0);
 		}
 	}
-	void LightRenderer::createAmbientPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout)
+
+	vk::DescriptorSetLayout getPointLightPerDescLayout()
+	{
+		return mPointPerDescLayout;
+	}
+
+	void createAmbientPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout)
 	{
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
@@ -95,15 +109,15 @@ namespace eg::Data
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 		descLayoutCI.setBindings(descLayoutBindings);
 
-		this->mAmbientDescLayout = mDevice.createDescriptorSetLayout(descLayoutCI);
+		mAmbientDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
 		//Allocate descriptor set right here
 
 		vk::DescriptorSetAllocateInfo ai{};
-		ai.setDescriptorPool(mPool)
+		ai.setDescriptorPool(Renderer::getDescriptorPool())
 			.setDescriptorSetCount(1)
-			.setSetLayouts(this->mAmbientDescLayout);
-		this->mAmbientSet = mDevice.allocateDescriptorSets(ai).at(0);
+			.setSetLayouts(mAmbientDescLayout);
+		mAmbientSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
 		vk::DescriptorImageInfo imageInfos[] = {
 			vk::DescriptorImageInfo(nullptr, renderPass.getPosition().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
@@ -112,21 +126,21 @@ namespace eg::Data
 			vk::DescriptorImageInfo(nullptr, renderPass.getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
-		mDevice.updateDescriptorSets({
-			vk::WriteDescriptorSet(this->mAmbientSet, 0, 0,
+		Renderer::getDevice().updateDescriptorSets({
+			vk::WriteDescriptorSet(mAmbientSet, 0, 0,
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[0]),
-			vk::WriteDescriptorSet(this->mAmbientSet, 1, 0,
+			vk::WriteDescriptorSet(mAmbientSet, 1, 0,
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[1]),
-			vk::WriteDescriptorSet(this->mAmbientSet, 2, 0,
+			vk::WriteDescriptorSet(mAmbientSet, 2, 0,
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[2]),
 
-			vk::WriteDescriptorSet(this->mAmbientSet, 3, 0,
+			vk::WriteDescriptorSet(mAmbientSet, 3, 0,
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[3]),
@@ -144,8 +158,8 @@ namespace eg::Data
 		fragmentShaderModuleCI.setCodeSize(fragmentBinary.size() * sizeof(uint32_t));
 		fragmentShaderModuleCI.setPCode(fragmentBinary.data());
 
-		auto vertexShaderModule = mDevice.createShaderModule(vertexShaderModuleCI);
-		auto fragmentShaderModule = mDevice.createShaderModule(fragmentShaderModuleCI);
+		auto vertexShaderModule = Renderer::getDevice().createShaderModule(vertexShaderModuleCI);
+		auto fragmentShaderModule = Renderer::getDevice().createShaderModule(fragmentShaderModuleCI);
 
 		//Create pipeline layout
 		vk::DescriptorSetLayout setLayouts[] =
@@ -158,7 +172,7 @@ namespace eg::Data
 			.setSetLayouts(setLayouts)
 			.setPushConstantRangeCount(0)
 			.setPPushConstantRanges(nullptr);
-		mAmbientLayout = mDevice.createPipelineLayout(pipelineLayoutCI);
+		mAmbientLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
 
 		//Create graphics pipeline
 		vk::PipelineShaderStageCreateInfo shaderStages[] =
@@ -281,18 +295,18 @@ namespace eg::Data
 			.setPColorBlendState(&colorBlendStateCI)
 			.setPDynamicState(&dynamicStateCI);
 
-		auto pipeLineResult = mDevice.createGraphicsPipeline(nullptr, pipelineCI);
+		auto pipeLineResult = Renderer::getDevice().createGraphicsPipeline(nullptr, pipelineCI);
 		if (pipeLineResult.result != vk::Result::eSuccess)
 		{
 			throw std::runtime_error("Failed to create AmbientLight pipeline !");
 		}
-		this->mAmbientPipeline = pipeLineResult.value;
+		mAmbientPipeline = pipeLineResult.value;
 
 
 
 		//Destroy shader modules
-		mDevice.destroyShaderModule(vertexShaderModule);
-		mDevice.destroyShaderModule(fragmentShaderModule);
+		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
+		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
 	void LightRenderer::createPointPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout)
 	{
@@ -308,15 +322,15 @@ namespace eg::Data
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 		descLayoutCI.setBindings(descLayoutBindings);
 
-		this->mPointDescLayout = mDevice.createDescriptorSetLayout(descLayoutCI);
+		mPointDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
 		//Allocate descriptor set right here
 
 		vk::DescriptorSetAllocateInfo ai{};
-		ai.setDescriptorPool(mPool)
+		ai.setDescriptorPool(Renderer::getDescriptorPool())
 			.setDescriptorSetCount(1)
-			.setSetLayouts(this->mPointDescLayout);
-		this->mPointSet = mDevice.allocateDescriptorSets(ai).at(0);
+			.setSetLayouts(mPointDescLayout);
+		mPointSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
 		vk::DescriptorImageInfo imageInfos[] = {
 			vk::DescriptorImageInfo(nullptr, renderPass.getPosition().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
@@ -326,20 +340,20 @@ namespace eg::Data
 		};
 
 
-		mDevice.updateDescriptorSets({
-			vk::WriteDescriptorSet(this->mPointSet, 0, 0,
+		Renderer::getDevice().updateDescriptorSets({
+			vk::WriteDescriptorSet(mPointSet, 0, 0,
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[0]),
-			vk::WriteDescriptorSet(this->mPointSet, 1, 0,
+			vk::WriteDescriptorSet(mPointSet, 1, 0,
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[1]),
-			vk::WriteDescriptorSet(this->mPointSet, 2, 0,
+			vk::WriteDescriptorSet(mPointSet, 2, 0,
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[2]),
-			vk::WriteDescriptorSet(this->mPointSet, 3, 0,
+			vk::WriteDescriptorSet(mPointSet, 3, 0,
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[3])
@@ -352,7 +366,7 @@ namespace eg::Data
 
 		descLayoutCI.setBindings(perLightDescLayoutBindings);
 
-		this->mPointPerDescLayout = mDevice.createDescriptorSetLayout(descLayoutCI);
+		mPointPerDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
 		//Load shaders
 		auto vertexBinary = Renderer::compileShaderFromFile("shaders/fullscreen_quad.glsl", shaderc_glsl_vertex_shader);
@@ -365,8 +379,8 @@ namespace eg::Data
 		fragmentShaderModuleCI.setCodeSize(fragmentBinary.size() * sizeof(uint32_t));
 		fragmentShaderModuleCI.setPCode(fragmentBinary.data());
 
-		auto vertexShaderModule = mDevice.createShaderModule(vertexShaderModuleCI);
-		auto fragmentShaderModule = mDevice.createShaderModule(fragmentShaderModuleCI);
+		auto vertexShaderModule = Renderer::getDevice().createShaderModule(vertexShaderModuleCI);
+		auto fragmentShaderModule = Renderer::getDevice().createShaderModule(fragmentShaderModuleCI);
 
 		//Create pipeline layout
 		vk::DescriptorSetLayout setLayouts[] =
@@ -380,7 +394,7 @@ namespace eg::Data
 			.setSetLayouts(setLayouts)
 			.setPushConstantRangeCount(0)
 			.setPPushConstantRanges(nullptr);
-		this->mPointLayout = mDevice.createPipelineLayout(pipelineLayoutCI);
+		mPointLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
 
 		//Create graphics pipeline
 		vk::PipelineShaderStageCreateInfo shaderStages[] =
@@ -476,7 +490,7 @@ namespace eg::Data
 
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
-		pipelineCI.setLayout(this->mPointLayout)
+		pipelineCI.setLayout(mPointLayout)
 			.setRenderPass(renderPass.getRenderPass())
 			.setSubpass(1)
 			.setBasePipelineHandle(nullptr)
@@ -493,18 +507,18 @@ namespace eg::Data
 			.setPColorBlendState(&colorBlendStateCI)
 			.setPDynamicState(&dynamicStateCI);
 
-		auto pipeLineResult = mDevice.createGraphicsPipeline(nullptr, pipelineCI);
+		auto pipeLineResult = Renderer::getDevice().createGraphicsPipeline(nullptr, pipelineCI);
 		if (pipeLineResult.result != vk::Result::eSuccess)
 		{
 			throw std::runtime_error("Failed to create PointLight pipeline !");
 		}
-		this->mPointPipeline = pipeLineResult.value;
+		mPointPipeline = pipeLineResult.value;
 
 
 
 		//Destroy shader modules
-		mDevice.destroyShaderModule(vertexShaderModule);
-		mDevice.destroyShaderModule(fragmentShaderModule);
+		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
+		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
 
 	//void LightRenderer::createDirectionalPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout)
@@ -521,15 +535,15 @@ namespace eg::Data
 	//	vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 	//	descLayoutCI.setBindings(descLayoutBindings);
 
-	//	this->mDirectionalDescLayout = mDevice.createDescriptorSetLayout(descLayoutCI);
+	//	mDirectionalDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
 	//	//Allocate descriptor set right here
 
 	//	vk::DescriptorSetAllocateInfo ai{};
-	//	ai.setDescriptorPool(mPool)
+	//	ai.setDescriptorPool(Renderer::getDescriptorPool())
 	//		.setDescriptorSetCount(1)
-	//		.setSetLayouts(this->mDirectionalDescLayout);
-	//	this->mDirectionalSet = mDevice.allocateDescriptorSets(ai).at(0);
+	//		.setSetLayouts(mDirectionalDescLayout);
+	//	mDirectionalSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
 	//	vk::DescriptorImageInfo imageInfos[] = {
 	//		vk::DescriptorImageInfo(nullptr, renderPass.getPosition().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
@@ -539,16 +553,16 @@ namespace eg::Data
 	//	};
 
 
-	//	mDevice.updateDescriptorSets({
-	//		vk::WriteDescriptorSet(this->mPointSet, 0, 0,
+	//	Renderer::getDevice().updateDescriptorSets({
+	//		vk::WriteDescriptorSet(mPointSet, 0, 0,
 	//			1,
 	//			vk::DescriptorType::eInputAttachment,
 	//			&imageInfos[0]),
-	//		vk::WriteDescriptorSet(this->mPointSet, 1, 0,
+	//		vk::WriteDescriptorSet(mPointSet, 1, 0,
 	//			1,
 	//			vk::DescriptorType::eInputAttachment,
 	//			&imageInfos[1]),
-	//		vk::WriteDescriptorSet(this->mPointSet, 2, 0,
+	//		vk::WriteDescriptorSet(mPointSet, 2, 0,
 	//			1,
 	//			vk::DescriptorType::eInputAttachment,
 	//			&imageInfos[2])
@@ -561,7 +575,7 @@ namespace eg::Data
 
 	//	descLayoutCI.setBindings(perLightDescLayoutBindings);
 
-	//	this->mPointPerDescLayout = mDevice.createDescriptorSetLayout(descLayoutCI);
+	//	mPointPerDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
 	//	//Load shaders
 	//	auto vertexBinary = Renderer::compileShaderFromFile("shaders/fullscreen_quad.glsl", shaderc_glsl_vertex_shader);
@@ -574,8 +588,8 @@ namespace eg::Data
 	//	fragmentShaderModuleCI.setCodeSize(fragmentBinary.size() * sizeof(uint32_t));
 	//	fragmentShaderModuleCI.setPCode(fragmentBinary.data());
 
-	//	auto vertexShaderModule = mDevice.createShaderModule(vertexShaderModuleCI);
-	//	auto fragmentShaderModule = mDevice.createShaderModule(fragmentShaderModuleCI);
+	//	auto vertexShaderModule = Renderer::getDevice().createShaderModule(vertexShaderModuleCI);
+	//	auto fragmentShaderModule = Renderer::getDevice().createShaderModule(fragmentShaderModuleCI);
 
 	//	//Create pipeline layout
 	//	vk::DescriptorSetLayout setLayouts[] =
@@ -589,7 +603,7 @@ namespace eg::Data
 	//		.setSetLayouts(setLayouts)
 	//		.setPushConstantRangeCount(0)
 	//		.setPPushConstantRanges(nullptr);
-	//	this->mPointLayout = mDevice.createPipelineLayout(pipelineLayoutCI);
+	//	mPointLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
 
 	//	//Create graphics pipeline
 	//	vk::PipelineShaderStageCreateInfo shaderStages[] =
@@ -685,7 +699,7 @@ namespace eg::Data
 
 
 	//	vk::GraphicsPipelineCreateInfo pipelineCI{};
-	//	pipelineCI.setLayout(this->mPointLayout)
+	//	pipelineCI.setLayout(mPointLayout)
 	//		.setRenderPass(renderPass.getRenderPass())
 	//		.setSubpass(1)
 	//		.setBasePipelineHandle(nullptr)
@@ -702,17 +716,17 @@ namespace eg::Data
 	//		.setPColorBlendState(&colorBlendStateCI)
 	//		.setPDynamicState(&dynamicStateCI);
 
-	//	auto pipeLineResult = mDevice.createGraphicsPipeline(nullptr, pipelineCI);
+	//	auto pipeLineResult = Renderer::getDevice().createGraphicsPipeline(nullptr, pipelineCI);
 	//	if (pipeLineResult.result != vk::Result::eSuccess)
 	//	{
 	//		throw std::runtime_error("Failed to create PointLight pipeline !");
 	//	}
-	//	this->mPointPipeline = pipeLineResult.value;
+	//	mPointPipeline = pipeLineResult.value;
 
 
 
 	//	//Destroy shader modules
-	//	mDevice.destroyShaderModule(vertexShaderModule);
-	//	mDevice.destroyShaderModule(fragmentShaderModule);
+	//	Renderer::getDevice().destroyShaderModule(vertexShaderModule);
+	//	Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	//}
 }

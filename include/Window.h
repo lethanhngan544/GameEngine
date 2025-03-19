@@ -9,8 +9,6 @@ namespace eg::Window
 	void poll();
 	bool shouldClose();
 
-
-
 	GLFWwindow* getHandle();
 
 }

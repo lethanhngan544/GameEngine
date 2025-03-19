@@ -1,13 +1,13 @@
 #include <Data.h>
 namespace eg::Data
 {
-	PointLight::PointLight(vk::DescriptorSetLayout pointPerLightLayout)  :
+	PointLight::PointLight()  :
 		mBuffer(nullptr, sizeof(UniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer)
 	{
 
 		vk::DescriptorSetLayout setLayouts[] =
 		{
-			pointPerLightLayout
+			LightRenderer::getPointLightPerDescLayout()
 		};
 		vk::DescriptorSetAllocateInfo ai{};
 		ai.setDescriptorPool(Renderer::getDescriptorPool())
