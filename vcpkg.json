@@ -1,5 +1,6 @@
 {
   "dependencies": [
+    "asio",
     "glfw3",
     "glm",
     {
@@ -15,7 +16,6 @@
     "tinygltf",
     "vulkan",
     "vulkan-memory-allocator",
-    "vulkan-memory-allocator-hpp",
-    "asio"
+    "vulkan-memory-allocator-hpp"
   ]
 }

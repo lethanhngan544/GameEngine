@@ -18,5 +18,10 @@ namespace eg::Input
 	namespace Mouse
 	{
 		void create(GLFWwindow* window);
+
+		void update();
+
+		float getDeltaX();
+		float getDeltaY();
 	}
 }

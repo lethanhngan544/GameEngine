@@ -4,7 +4,7 @@ project(Sandbox)
 
 
 
-add_executable(Sandbox WIN32 EntryPoint.cpp "Player.cpp")
+add_executable(Sandbox WIN32 EntryPoint.cpp "Player.cpp" "MapObject.cpp")
 target_include_directories(Sandbox PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(Sandbox PRIVATE ${CMAKE_SOURCE_DIR}/SandboxInclude)
 

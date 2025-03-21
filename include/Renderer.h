@@ -24,10 +24,11 @@ namespace eg::Renderer
 
 
 	void create(uint32_t width, uint32_t height);
+	void setCamera(const Data::Camera* camera);
 	void waitIdle();
 	void destory();
 
-	vk::CommandBuffer begin(const Data::Camera& camera);
+	vk::CommandBuffer begin();
 	void renderStaticModel(vk::CommandBuffer cmd, const Data::StaticModel& staticMesh);
 	void end();
 

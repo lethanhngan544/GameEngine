@@ -17,6 +17,21 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace eg::Renderer
 {
+
+	std::vector<const char*> gEnabledExtensions =
+	{
+		VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+
+	};
+	std::vector<const char*> gDeviceEnabledExtensions =
+	{
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	};
+	std::vector<const char*> gEnabledLayers =
+	{
+		"VK_LAYER_KHRONOS_validation"
+	};
+
 	struct FrameData
 	{
 		vk::Semaphore presentSemaphore, renderSemaphore;
@@ -24,7 +39,7 @@ namespace eg::Renderer
 		vk::CommandBuffer commandBuffer;
 		uint32_t swapchainIndex = 0;
 	};
-
+	static const Data::Camera* gCamera = nullptr;
 	static shaderc::Compiler gShaderCompiler;
 	static shaderc::CompileOptions gShaderCompilerOptions;
 	static vk::Rect2D gDrawExtent;
@@ -148,21 +163,6 @@ namespace eg::Renderer
 		vk::InstanceCreateInfo instanceCI{};
 		instanceCI.setPApplicationInfo(&instanceAI);
 
-		std::vector<const char*> enabledExtensions =
-		{
-			VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-
-		};
-		std::vector<const char*> deviceEnabledExtensions =
-		{
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME
-		};
-		std::vector<const char*> enabledLayers =
-		{
-
-		};
-
-
 		//Load glfw required extensions
 		Logger::gInfo("Loading GLFW extensions for vulkan !");
 		{
@@ -174,13 +174,14 @@ namespace eg::Renderer
 			for (size_t i = 0; i < glfwExtensionCount; i++)
 			{
 				Logger::gInfo(std::string("GLFW Extension: ") + glfwExtensions[i]);
-				enabledExtensions.push_back(glfwExtensions[i]);
+				gEnabledExtensions.push_back(glfwExtensions[i]);
 			}
 		}
 
 
-		instanceCI.setPEnabledExtensionNames(enabledExtensions);
-		instanceCI.setPEnabledLayerNames(enabledLayers);
+		instanceCI.setPEnabledExtensionNames(gEnabledExtensions);
+		instanceCI.setPEnabledLayerNames(gEnabledLayers);
+	
 
 		gInstance = vk::createInstance(instanceCI);
 		VULKAN_HPP_DEFAULT_DISPATCHER.init(gInstance);
@@ -273,7 +274,7 @@ namespace eg::Renderer
 
 		vk::DeviceCreateInfo deviceCI{};
 		deviceCI.setQueueCreateInfos(queueCIs)
-			.setPEnabledExtensionNames(deviceEnabledExtensions)
+			.setPEnabledExtensionNames(gDeviceEnabledExtensions)
 			.setPNext(&features2);
 
 		gDevice = gPhysicalDevice.createDevice(deviceCI);
@@ -428,6 +429,12 @@ namespace eg::Renderer
 		ImGui_ImplVulkan_Init(&init_info);
 
 	}
+
+	void setCamera(const Data::Camera* camera)
+	{
+		gCamera = camera;
+	}
+
 	void destory()
 	{
 		gDefaultRenderPass.reset();
@@ -466,7 +473,7 @@ namespace eg::Renderer
 	}
 
 
-	vk::CommandBuffer begin(const Data::Camera& camera)
+	vk::CommandBuffer begin()
 	{
 		auto& frameData = gFrameData[gCurrentFrame];
 		if (gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000) != vk::Result::eSuccess)
@@ -484,9 +491,9 @@ namespace eg::Renderer
 
 		//Update global uniform buffer
 		GlobalUniformBuffer::Data GlobalUBOData;
-		GlobalUBOData.mProjection = camera.buildProjection(gDrawExtent.extent);
-		GlobalUBOData.mView = camera.buildView();
-		GlobalUBOData.mCameraPosition = camera.mPosition;
+		GlobalUBOData.mProjection = gCamera->buildProjection(gDrawExtent.extent);
+		GlobalUBOData.mView = gCamera->buildView();
+		GlobalUBOData.mCameraPosition = gCamera->mPosition;
 		gGlobalUniformBuffer->update(GlobalUBOData, gCurrentFrame);
 
 		vk::CommandBuffer& cmd = frameData.commandBuffer;

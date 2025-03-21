@@ -1,5 +1,5 @@
 
-#include <Physics.h>
+#include <GLFW/glfw3.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -12,10 +12,12 @@
 #include <memory>
 
 #include <Sandbox_Player.h>
+#include <SandBox_MapObject.h>
+#include <Physics.h>
 #include <Network.h>
 #include <Window.h>
 #include <Data.h>
-
+#include <Input.h>
 
 
 class VisualStudioLogger  final : public eg::Logger
@@ -55,19 +57,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Data::StaticModelRenderer::create();
 		Data::LightRenderer::create();
 		Physics::create();
+		Input::Keyboard::create(Window::getHandle());
+		Input::Mouse::create(Window::getHandle());
 
 		{
 			Data::GameObjectManager gameObjManager;
 			
-
-			Data::Camera camera;
-			camera.mFov = 70.0f;
-			camera.mFar = 1000.0f;
-
 			auto player1 = std::make_unique<sndbx::Player>(true);
-			//player1->getTransform().mPosition.x += 20;
-			//player1->getTransform().mScale = { 0.01f, 0.01f, 0.01f };
+			Renderer::setCamera(&player1->getCamera());
 			gameObjManager.addGameObject(std::move(player1));
+
+			auto mo1 = std::make_unique<sndbx::MapObject>("models/sponza.glb");
+			mo1->getTransform().mScale.x = 0.01f;
+			mo1->getTransform().mScale.y = 0.01f;
+			mo1->getTransform().mScale.z = 0.01f;
+			gameObjManager.addGameObject(std::move(mo1));
 			
 
 			std::array<Data::PointLight, 2> pointLights = 
@@ -79,13 +83,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			while (!Window::shouldClose())
 			{
+				//Update
 				gameObjManager.update(0.016f);
-				auto cmd = Renderer::begin(camera);
+
+				
+				Input::Keyboard::update();
+				Input::Mouse::update();
+
+				//Render
+				auto cmd = Renderer::begin();
 
 				ImGui::Begin("Debug");
-				ImGui::DragFloat3("Camera position", &camera.mPosition.x, 0.1f);
-				ImGui::DragFloat("Camera pitch", &camera.mPitch, 0.5f);
-				ImGui::DragFloat("Camera yaw", &camera.mYaw, 0.5f);
 
 				ImGui::DragFloat3("Light1 position", &pointLights[0].mUniformBuffer.position.x, 0.1f);
 				ImGui::DragFloat3("Light2 position", &pointLights[1].mUniformBuffer.position.x, 0.1f);
