@@ -159,9 +159,7 @@ namespace eg::Renderer
 		};
 		std::vector<const char*> enabledLayers =
 		{
-#ifndef NDEBUG
-			"VK_LAYER_KHRONOS_validation"
-#endif
+
 		};
 
 

@@ -43,6 +43,18 @@ public:
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 {
 	using namespace eg;
+
+	if (!AllocConsole())
+	{
+		MessageBox(NULL, "The console window was not created", NULL, MB_ICONEXCLAMATION);
+	}
+
+	//Redirect std out to console
+	FILE* file = nullptr;
+	freopen_s(&file, "CONOUT$", "w", stdout);
+	freopen_s(&file, "CONOUT$", "w", stderr);
+	freopen_s(&file, "CONIN$", "r", stdin);
+
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
 	{
@@ -51,6 +63,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Window::create(1600, 900, "Sandbox");
 		Renderer::create(1600, 900);
 		Data::StaticModelRenderer::create();
+		Data::LightRenderer::create();
 		Physics::create();
 
 		{
@@ -63,7 +76,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			auto player1 = std::make_unique<sndbx::Player>(true);
 			player1->getTransform().mPosition.x += 20;
-			player1->getTransform().mScale = { 0.01f, 0.01f, 0.01f };
+			//player1->getTransform().mScale = { 0.01f, 0.01f, 0.01f };
 			gameObjManager.addGameObject(std::move(player1));
 			
 
@@ -94,8 +107,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				//Subpass 0, gBuffer generation
 				Renderer::getDefaultRenderPass().begin(cmd, vk::Rect2D({ 0, 0 }, {1600, 900}));
 				Data::StaticModelRenderer::begin(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }));
-				//client.renderAllPlayers(cmd, staticModelRenderer);
-
 				gameObjManager.render(cmd);
 
 				//Subpass 1
@@ -125,6 +136,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	{
 		MessageBox(nullptr, "TODO", "Unknown exception", MB_ICONEXCLAMATION);
 	}
+
+	FreeConsole();
 
 
 	return 0;
