@@ -44,16 +44,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 {
 	using namespace eg;
 
-	if (!AllocConsole())
-	{
-		MessageBox(NULL, "The console window was not created", NULL, MB_ICONEXCLAMATION);
-	}
-
-	//Redirect std out to console
-	FILE* file = nullptr;
-	freopen_s(&file, "CONOUT$", "w", stdout);
-	freopen_s(&file, "CONOUT$", "w", stderr);
-	freopen_s(&file, "CONIN$", "r", stdin);
 
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
@@ -75,7 +65,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			camera.mFar = 1000.0f;
 
 			auto player1 = std::make_unique<sndbx::Player>(true);
-			player1->getTransform().mPosition.x += 20;
+			//player1->getTransform().mPosition.x += 20;
 			//player1->getTransform().mScale = { 0.01f, 0.01f, 0.01f };
 			gameObjManager.addGameObject(std::move(player1));
 			
@@ -136,9 +126,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	{
 		MessageBox(nullptr, "TODO", "Unknown exception", MB_ICONEXCLAMATION);
 	}
-
-	FreeConsole();
-
-
 	return 0;
 }
