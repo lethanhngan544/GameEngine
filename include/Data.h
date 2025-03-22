@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Renderer.h>
+#include <RenderStages.h>
 #include <string>
 #include <optional>
 #include <tuple>
@@ -13,13 +14,13 @@
 namespace eg::Data
 {
 	class IGameObject
-	{
+	{	
 	public:
 		IGameObject() = default;
 		virtual ~IGameObject() = default;
 
 		virtual void update(float delta) = 0;
-		virtual void render(vk::CommandBuffer cmd) = 0;
+		virtual void render(vk::CommandBuffer cmd, Renderer::RenderStage stage) = 0;
 	};
 
 	class GameObjectManager
@@ -32,7 +33,7 @@ namespace eg::Data
 		void removeGameObject(const IGameObject* gameObject);
 
 		void update(float delta);
-		void render(vk::CommandBuffer cmd);
+		void render(vk::CommandBuffer cmd, Renderer::RenderStage stage);
 	};
 	
 	class Camera
@@ -173,8 +174,7 @@ namespace eg::Data
 		void destroy();
 
 
-		void begin(vk::CommandBuffer cmd,
-			vk::Rect2D drawExtent);
+		void begin(vk::CommandBuffer cmd);
 
 		void render(vk::CommandBuffer cmd,
 			const StaticModel& model, 
@@ -190,13 +190,9 @@ namespace eg::Data
 		void create();
 		void destroy();
 
-		void renderAmbient(vk::CommandBuffer cmd,
-			vk::Rect2D drawExtent,
-			vk::DescriptorSet globalSet);
+		void renderAmbient(vk::CommandBuffer cmd);
 
 		void renderPointLights(vk::CommandBuffer cmd,
-			vk::Rect2D drawExtent,
-			vk::DescriptorSet globalSet,
 			const PointLight* pointLights, size_t pointLightCount);
 
 		vk::DescriptorSetLayout getPointLightPerDescLayout();

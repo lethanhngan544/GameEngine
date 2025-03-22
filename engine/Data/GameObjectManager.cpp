@@ -17,11 +17,11 @@ namespace eg::Data
 			gameObject->update(delta);
 		}
 	}
-	void GameObjectManager::render(vk::CommandBuffer cmd)
+	void GameObjectManager::render(vk::CommandBuffer cmd, Renderer::RenderStage stage)
 	{
 		for (const auto& gameObject : mGameObjects)
 		{
-			gameObject->render(cmd);
+			gameObject->render(cmd, stage);
 		}
 	}
 }

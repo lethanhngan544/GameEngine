@@ -38,27 +38,23 @@ namespace eg::Data::LightRenderer
 
 	}
 
-	void renderAmbient(vk::CommandBuffer cmd,
-		vk::Rect2D drawExtent,
-		vk::DescriptorSet globalSet)
+	void renderAmbient(vk::CommandBuffer cmd)
 	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mAmbientPipeline);
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mAmbientLayout,
 			0,
-			{ globalSet, mAmbientSet },
+			{ Renderer::getCurrentFrameGUBODescSet(), mAmbientSet },
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(drawExtent.extent.width),
-			static_cast<float>(drawExtent.extent.height),
+			static_cast<float>(Renderer::getDrawExtent().extent.width),
+			static_cast<float>(Renderer::getDrawExtent().extent.height),
 			0.0f, 1.0f } });
-		cmd.setScissor(0, drawExtent);
+		cmd.setScissor(0, Renderer::getDrawExtent());
 		cmd.draw(3, 1, 0, 0);
 	}
 	void renderPointLights(vk::CommandBuffer cmd,
-		vk::Rect2D drawExtent,
-		vk::DescriptorSet globalSet,
 		const PointLight* pointLights, size_t pointLightCount)
 	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPointPipeline);
@@ -66,15 +62,15 @@ namespace eg::Data::LightRenderer
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mPointLayout,
 			0,
-			{globalSet, mPointSet},
+			{ Renderer::getCurrentFrameGUBODescSet(), mPointSet},
 			{}
 		);
 		
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(drawExtent.extent.width),
-			static_cast<float>(drawExtent.extent.height),
+			static_cast<float>(Renderer::getDrawExtent().extent.width),
+			static_cast<float>(Renderer::getDrawExtent().extent.height),
 			0.0f, 1.0f } });
-		cmd.setScissor(0, drawExtent);
+		cmd.setScissor(0, Renderer::getDrawExtent());
 
 		for (size_t i = 0; i < pointLightCount; i++)
 		{

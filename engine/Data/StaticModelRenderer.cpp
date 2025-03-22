@@ -263,8 +263,7 @@ namespace eg::Data::StaticModelRenderer
 		dv.destroyDescriptorSetLayout(mDescriptorLayout);
 	}
 
-	void begin(vk::CommandBuffer cmd,
-		vk::Rect2D drawExtent)
+	void begin(vk::CommandBuffer cmd)
 	{
 
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
@@ -275,10 +274,10 @@ namespace eg::Data::StaticModelRenderer
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(drawExtent.extent.width),
-			static_cast<float>(drawExtent.extent.height),
+			static_cast<float>(Renderer::getDrawExtent().extent.width),
+			static_cast<float>(Renderer::getDrawExtent().extent.height),
 			0.0f, 1.0f } });
-		cmd.setScissor(0, drawExtent);
+		cmd.setScissor(0, Renderer::getDrawExtent());
 
 
 

@@ -188,7 +188,7 @@ namespace eg::Renderer
 	}
 
 
-	void DefaultRenderPass::begin(const vk::CommandBuffer& cmd, vk::Rect2D drawExtent) const
+	void DefaultRenderPass::begin(const vk::CommandBuffer& cmd) const
 	{
 		vk::ClearValue clearValues[] =
 		{
@@ -203,7 +203,7 @@ namespace eg::Renderer
 		vk::RenderPassBeginInfo renderPassBI{};
 		renderPassBI.setRenderPass(mRenderPass)
 			.setFramebuffer(mFramebuffer)
-			.setRenderArea(drawExtent)
+			.setRenderArea(Renderer::getDrawExtent())
 			.setClearValues(clearValues);
 
 

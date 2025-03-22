@@ -18,6 +18,7 @@ namespace eg::Data
 
 namespace eg::Renderer
 {
+	
 	//Global functions
 	std::vector<uint32_t> compileShaderFromFile(const std::string& filePath, uint32_t kind);
 	void immediateSubmit(std::function<void(vk::CommandBuffer cmd)>&& function);
@@ -28,7 +29,7 @@ namespace eg::Renderer
 	void waitIdle();
 	void destory();
 
-	vk::CommandBuffer begin();
+	vk::CommandBuffer begin(vk::Rect2D drawExtent);
 	void renderStaticModel(vk::CommandBuffer cmd, const Data::StaticModel& staticMesh);
 	void end();
 
@@ -38,6 +39,7 @@ namespace eg::Renderer
 	vma::Allocator getAllocator();
 	vk::DescriptorPool getDescriptorPool();
 
+	vk::Rect2D getDrawExtent();
 	vk::DescriptorSet getCurrentFrameGUBODescSet();
 	vk::DescriptorSetLayout getGlobalDescriptorSet();
 
@@ -284,7 +286,7 @@ namespace eg::Renderer
 		DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format);
 		~DefaultRenderPass();
 
-		void begin(const vk::CommandBuffer& cmd, vk::Rect2D drawExtent) const;
+		void begin(const vk::CommandBuffer& cmd) const;
 		
 
 		vk::RenderPass getRenderPass() const { return mRenderPass; }

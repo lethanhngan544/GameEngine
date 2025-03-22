@@ -50,15 +50,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
 	{
-
-		
 		Window::create(1600, 900, "Sandbox");
+		Input::Keyboard::create(Window::getHandle());
+		Input::Mouse::create(Window::getHandle());
 		Renderer::create(1600, 900);
 		Data::StaticModelRenderer::create();
 		Data::LightRenderer::create();
 		Physics::create();
-		Input::Keyboard::create(Window::getHandle());
-		Input::Mouse::create(Window::getHandle());
+		
 
 		{
 			Data::GameObjectManager gameObjManager;
@@ -72,13 +71,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			mo1->getTransform().mScale.y = 0.01f;
 			mo1->getTransform().mScale.z = 0.01f;
 			gameObjManager.addGameObject(std::move(mo1));
-			
-
-			std::array<Data::PointLight, 2> pointLights = 
-			{
-				Data::PointLight{},
-				Data::PointLight{}
-			};
+		
 
 
 			while (!Window::shouldClose())
@@ -91,26 +84,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Input::Mouse::update();
 
 				//Render
-				auto cmd = Renderer::begin();
+				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));
 
 				ImGui::Begin("Debug");
 
-				ImGui::DragFloat3("Light1 position", &pointLights[0].mUniformBuffer.position.x, 0.1f);
-				ImGui::DragFloat3("Light2 position", &pointLights[1].mUniformBuffer.position.x, 0.1f);
+				
 
 
 				ImGui::End();
 
 
 				//Subpass 0, gBuffer generation
-				Renderer::getDefaultRenderPass().begin(cmd, vk::Rect2D({ 0, 0 }, {1600, 900}));
-				Data::StaticModelRenderer::begin(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }));
-				gameObjManager.render(cmd);
+				Renderer::getDefaultRenderPass().begin(cmd);
+				Data::StaticModelRenderer::begin(cmd);
+				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS0_GBUFFER);
 
 				//Subpass 1
 				cmd.nextSubpass(vk::SubpassContents::eInline);
-				Data::LightRenderer::renderAmbient(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet());
-				Data::LightRenderer::renderPointLights(cmd, vk::Rect2D({ 0, 0 }, { 1600, 900 }), Renderer::getCurrentFrameGUBODescSet(), pointLights.data(), pointLights.size());
+				Data::LightRenderer::renderAmbient(cmd);
+				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
 
 				Renderer::end();
 				Window::poll();

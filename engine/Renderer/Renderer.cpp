@@ -473,8 +473,9 @@ namespace eg::Renderer
 	}
 
 
-	vk::CommandBuffer begin()
+	vk::CommandBuffer begin(vk::Rect2D drawExtent)
 	{
+		gDrawExtent = drawExtent;
 		auto& frameData = gFrameData[gCurrentFrame];
 		if (gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000) != vk::Result::eSuccess)
 		{
@@ -614,6 +615,11 @@ namespace eg::Renderer
 	const CombinedImageSampler2D& getDefaultWhiteImage()
 	{
 		return *gDefaultWhiteImage;
+	}
+
+	vk::Rect2D getDrawExtent()
+	{
+		return gDrawExtent;
 	}
 	const CombinedImageSampler2D& getDefaultCheckerboardImage()
 	{
