@@ -2,13 +2,36 @@
 
 #include <Input.h>
 #include <GLFW/glfw3.h>
+#include <Physics.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 
 namespace sndbx
 {
 	Player::Player(bool visible)
 	{
 		mModel = eg::Data::StaticModelCache::load("models/DamagedHelmet.glb");
-		
+		//Create rigid body
+		{
+			JPH::SphereShapeSettings shapeSettings(0.5f);
+			shapeSettings.SetEmbedded();
+			JPH::BodyCreationSettings bodySetting(&shapeSettings,
+				JPH::RVec3(0.0f, 10.0f, 0.0f),
+				JPH::Quat::sIdentity(),
+				JPH::EMotionType::Dynamic,
+				eg::Physics::Layers::MOVING);
+			bodySetting.mRestitution = 0.0f;
+			bodySetting.mFriction = 0.3f;
+			
+			mBody = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::Activate);
+			eg::Physics::getBodyInterface()->SetLinearVelocity(mBody, { 0.0f, 10.0f, 0.0f });
+		}
+	}
+
+	Player::~Player()
+	{
+		eg::Physics::getBodyInterface()->RemoveBody(mBody);
+		eg::Physics::getBodyInterface()->DestroyBody(mBody);
 	}
 
 	void Player::update(float delta)
@@ -55,15 +78,22 @@ namespace sndbx
 			mDirection = glm::normalize(mDirection);
 		}
 
-		mTransform.mPosition += mDirection * mPlayerSpeed * delta;
+		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
+		float YVel = bodyInterface->GetLinearVelocity(mBody).GetY();
+		bodyInterface->SetLinearVelocity(mBody, JPH::RVec3(mDirection.x, YVel, mDirection.z) * mPlayerSpeed);
+
+		JPH::RVec3 position = bodyInterface->GetCenterOfMassPosition(mBody);
+		glm::vec3 postionGlm = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
 
 		//Rotate forward vector by pitch and yaw in degrees
 		glm::mat4 yawRotation = glm::rotate(glm::mat4(1.0f), glm::radians(mYaw), { 0.0f, 1.0f, 0.0f });
 		glm::mat4 pitchRotation = glm::rotate(glm::mat4(1.0f), glm::radians(mPitch), { 1.0f, 0.0f, 0.0f });
 		mForwardVector = glm::mat3(yawRotation) * glm::mat3(pitchRotation) * mGlobalForward;
 
-		mCamera.mPosition = mTransform.mPosition - mForwardVector * mCameraDistance;
-		mLight.mUniformBuffer.position = glm::vec4(mTransform.mPosition + glm::vec3(0.0f, 2.0f, 0.0f), 0.0f);
+		mCamera.mPosition = postionGlm - mForwardVector * mCameraDistance;
+		mLight.mUniformBuffer.position = glm::vec4(postionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);
+
+
 	}
 
 	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
@@ -71,13 +101,21 @@ namespace sndbx
 		switch (stage)
 		{
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
-			eg::Data::StaticModelRenderer::render(cmd, *mModel, mTransform.build());
+		{
+
+			JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
+			JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
+			glm::mat4x4 glmMatrix;
+			std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
+
+			eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
 			break;
+		}
 		case eg::Renderer::RenderStage::SUBPASS1_POINTLIGHT:
-			eg::Data::LightRenderer::renderPointLights(cmd, &mLight, 1);
+			eg::Data::LightRenderer::renderPointLight(cmd, mLight);
 			break;
 		default:
 			break;
-		}		
+		}
 	}
 }

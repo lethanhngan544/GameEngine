@@ -54,37 +54,40 @@ namespace eg::Data::LightRenderer
 		cmd.setScissor(0, Renderer::getDrawExtent());
 		cmd.draw(3, 1, 0, 0);
 	}
-	void renderPointLights(vk::CommandBuffer cmd,
-		const PointLight* pointLights, size_t pointLightCount)
+
+
+	void beginPointLight(vk::CommandBuffer cmd)
 	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPointPipeline);
 
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mPointLayout,
 			0,
-			{ Renderer::getCurrentFrameGUBODescSet(), mPointSet},
+			{ Renderer::getCurrentFrameGUBODescSet(), mPointSet },
 			{}
 		);
-		
+
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
 			static_cast<float>(Renderer::getDrawExtent().extent.width),
 			static_cast<float>(Renderer::getDrawExtent().extent.height),
 			0.0f, 1.0f } });
 		cmd.setScissor(0, Renderer::getDrawExtent());
+	}
 
-		for (size_t i = 0; i < pointLightCount; i++)
-		{
-			//Copy data to uniform buffer
-			std::memcpy(pointLights[i].getBuffer().getInfo().pMappedData, &pointLights[i].mUniformBuffer, sizeof(Data::PointLight::UniformBuffer));
+	void renderPointLight(vk::CommandBuffer cmd,
+		const PointLight& pointLight)
+	{
+		//Copy data to uniform buffer
+		std::memcpy(pointLight.getBuffer().getInfo().pMappedData, &pointLight.mUniformBuffer, sizeof(Data::PointLight::UniformBuffer));
 
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-				mPointLayout,
-				2,
-				{ pointLights[i].getDescriptorSet() },
-				{}
-			);
-			cmd.draw(3, 1, 0, 0);
-		}
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+			mPointLayout,
+			2,
+			{ pointLight.getDescriptorSet() },
+			{}
+		);
+		cmd.draw(3, 1, 0, 0);
+
 	}
 
 	vk::DescriptorSetLayout getPointLightPerDescLayout()

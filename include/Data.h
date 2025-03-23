@@ -11,6 +11,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/mat4x4.hpp>
 
+
+
 namespace eg::Data
 {
 	class IGameObject
@@ -21,6 +23,7 @@ namespace eg::Data
 
 		virtual void update(float delta) = 0;
 		virtual void render(vk::CommandBuffer cmd, Renderer::RenderStage stage) = 0;
+
 	};
 
 	class GameObjectManager
@@ -192,9 +195,12 @@ namespace eg::Data
 
 		void renderAmbient(vk::CommandBuffer cmd);
 
-		void renderPointLights(vk::CommandBuffer cmd,
-			const PointLight* pointLights, size_t pointLightCount);
+		void beginPointLight(vk::CommandBuffer cmd);
+
+		void renderPointLight(vk::CommandBuffer cmd,
+			const PointLight& pointLight);
 
 		vk::DescriptorSetLayout getPointLightPerDescLayout();
 	};
+	
 }

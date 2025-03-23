@@ -77,7 +77,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			while (!Window::shouldClose())
 			{
 				//Update
-				gameObjManager.update(0.016f);
+				Physics::update(1.0f / 180.0f);
+				gameObjManager.update(1.0f / 180.0f);
 
 				
 				Input::Keyboard::update();
@@ -87,21 +88,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));
 
 				ImGui::Begin("Debug");
-
-				
-
-
 				ImGui::End();
 
 
-				//Subpass 0, gBuffer generation
 				Renderer::getDefaultRenderPass().begin(cmd);
+				//Subpass 0, gBuffer generation
 				Data::StaticModelRenderer::begin(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS0_GBUFFER);
 
 				//Subpass 1
 				cmd.nextSubpass(vk::SubpassContents::eInline);
 				Data::LightRenderer::renderAmbient(cmd);
+				Data::LightRenderer::beginPointLight(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
 
 				Renderer::end();
