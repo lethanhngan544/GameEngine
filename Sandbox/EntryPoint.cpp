@@ -18,6 +18,8 @@
 #include <Window.h>
 #include <Data.h>
 #include <Input.h>
+#include <chrono>
+#include <thread>
 
 
 class VisualStudioLogger  final : public eg::Logger
@@ -46,7 +48,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 {
 	using namespace eg;
 
+	using Clock = std::chrono::high_resolution_clock;
+	using TimePoint = std::chrono::time_point<Clock>;
 
+	constexpr double TICK_RATE = 66.666;
+	constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
+	constexpr int MAX_FPS = 120;
+	constexpr double FRAME_DURATION_CAP = 1.0 / MAX_FPS;
+	TimePoint lastTime = Clock::now();
+	double accumulator = 0.0;
+	
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
 	{
@@ -76,9 +87,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			while (!Window::shouldClose())
 			{
+				TimePoint now = Clock::now();
+				double deltaTime = std::chrono::duration<double>(now - lastTime).count();
+				lastTime = now;
+				if (deltaTime > 0.25) deltaTime = 0.25;
+				accumulator += deltaTime;
+				while (accumulator >= TICK_INTERVAL) {
+					
+					Physics::update(TICK_INTERVAL);
+					gameObjManager.update(TICK_INTERVAL);
+					accumulator -= TICK_INTERVAL;
+				}
 				//Update
-				Physics::update(1.0f / 180.0f);
-				gameObjManager.update(1.0f / 180.0f);
 
 				
 				Input::Keyboard::update();
@@ -96,14 +116,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Data::StaticModelRenderer::begin(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS0_GBUFFER);
 
-				//Subpass 1
+				//Subpass 1, lighting
 				cmd.nextSubpass(vk::SubpassContents::eInline);
 				Data::LightRenderer::renderAmbient(cmd);
 				Data::LightRenderer::beginPointLight(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
 
+				//Subpass 2, debug draw
+				cmd.nextSubpass(vk::SubpassContents::eInline);
+
+
+
 				Renderer::end();
 				Window::poll();
+
+				TimePoint frameEnd = Clock::now();
+				double frameTime = std::chrono::duration<double>(frameEnd - now).count();
+				if (frameTime < FRAME_DURATION_CAP) {
+					std::this_thread::sleep_for(std::chrono::duration<double>(FRAME_DURATION_CAP - frameTime));
+				}
 			}
 
 			Renderer::waitIdle();
