@@ -1,14 +1,13 @@
 #version 450
 
+
 layout(location = 0) in vec3 fsNormal;
 layout(location = 1) in vec2 fsUv;
-layout(location = 2) in vec3 fsPosition;
-layout(location = 3) in mat3 fsTBN;
+layout(location = 2) in mat3 fsTBN;
 
-layout(location = 0) out vec3 outPosition;
-layout(location = 1) out vec3 outNormal;
-layout(location = 2) out vec3 outAlbeo;
-layout(location = 3) out vec3 outMr;
+layout(location = 0) out vec3 outNormal;
+layout(location = 1) out vec3 outAlbeo;
+layout(location = 2) out vec3 outMr;
 
 layout(set = 1, binding = 0) uniform UniformBuffer
 {
@@ -50,6 +49,5 @@ void main() {
 
     outAlbeo = albedo;
     outNormal = normal;
-    outPosition = fsPosition;
     outMr = mr;
 }

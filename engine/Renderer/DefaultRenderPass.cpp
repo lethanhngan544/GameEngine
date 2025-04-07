@@ -3,9 +3,6 @@
 namespace eg::Renderer
 {
 	DefaultRenderPass::DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format) :
-		mPosition(width, height, vk::Format::eR32G32B32A32Sfloat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor),
 		mNormal(width, height, vk::Format::eR32G32B32A32Sfloat,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor),
@@ -18,13 +15,13 @@ namespace eg::Renderer
 		mDrawImage(width, height, format, 
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
 			vk::ImageAspectFlagBits::eColor),
-		mDepth(width, height, vk::Format::eD24UnormS8Uint, vk::ImageUsageFlagBits::eDepthStencilAttachment,
+		mDepth(width, height, vk::Format::eD24UnormS8Uint, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eDepth)
 	{
 
 		vk::AttachmentDescription attachments[] =
 		{
-			//Position, id = 0
+			//Normal, id = 0
 			vk::AttachmentDescription(
 				(vk::AttachmentDescriptionFlags)0,
 				vk::Format::eR32G32B32A32Sfloat,
@@ -37,20 +34,7 @@ namespace eg::Renderer
 				vk::ImageLayout::eColorAttachmentOptimal
 			),
 
-			//Normal, id = 1
-			vk::AttachmentDescription(
-				(vk::AttachmentDescriptionFlags)0,
-				vk::Format::eR32G32B32A32Sfloat,
-				vk::SampleCountFlagBits::e1,
-				vk::AttachmentLoadOp::eClear,
-				vk::AttachmentStoreOp::eDontCare,
-				vk::AttachmentLoadOp::eDontCare,
-				vk::AttachmentStoreOp::eDontCare,
-				vk::ImageLayout::eUndefined,
-				vk::ImageLayout::eColorAttachmentOptimal
-			),
-
-			//Albedo, id = 2
+			//Albedo, id = 1
 			vk::AttachmentDescription(
 				(vk::AttachmentDescriptionFlags)0,
 				vk::Format::eR8G8B8A8Unorm,
@@ -63,7 +47,7 @@ namespace eg::Renderer
 				vk::ImageLayout::eColorAttachmentOptimal
 			),
 
-			//Mr, id = 3
+			//Mr, id = 2
 			vk::AttachmentDescription(
 				(vk::AttachmentDescriptionFlags)0,
 				vk::Format::eR8G8B8A8Unorm,
@@ -76,7 +60,7 @@ namespace eg::Renderer
 				vk::ImageLayout::eColorAttachmentOptimal
 			),
 
-			//Depth, id = 4
+			//Depth, id = 3
 			vk::AttachmentDescription(
 				(vk::AttachmentDescriptionFlags)0,
 				vk::Format::eD24UnormS8Uint,
@@ -89,7 +73,7 @@ namespace eg::Renderer
 				vk::ImageLayout::eDepthStencilAttachmentOptimal
 			),
 
-			//Draw image, id = 5
+			//Draw image, id = 4
 			vk::AttachmentDescription(
 				(vk::AttachmentDescriptionFlags)0,
 				format,
@@ -109,22 +93,21 @@ namespace eg::Renderer
 			vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
 			vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal),
 			vk::AttachmentReference(2, vk::ImageLayout::eColorAttachmentOptimal),
-			vk::AttachmentReference(3, vk::ImageLayout::eColorAttachmentOptimal),
 		};
 
-		vk::AttachmentReference pass0OutputDepthStencilAttachmentRef = vk::AttachmentReference(4, vk::ImageLayout::eDepthStencilAttachmentOptimal); //Depth;
+		vk::AttachmentReference pass0OutputDepthStencilAttachmentRef = vk::AttachmentReference(3, vk::ImageLayout::eDepthStencilAttachmentOptimal); //Depth;
 
 		vk::AttachmentReference pass1InputAttachmentRef[] =
 		{
 			vk::AttachmentReference(0, vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::AttachmentReference(1, vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::AttachmentReference(2, vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::AttachmentReference(3, vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::AttachmentReference(3, vk::ImageLayout::eShaderReadOnlyOptimal), //Depth
 		};
 
 		vk::AttachmentReference pass1OutputAttachmentRef[] =
 		{
-			vk::AttachmentReference(5, vk::ImageLayout::eColorAttachmentOptimal),
+			vk::AttachmentReference(4, vk::ImageLayout::eColorAttachmentOptimal),
 		};
 
 		vk::SubpassDescription subpasses[] = {
@@ -168,7 +151,6 @@ namespace eg::Renderer
 
 		vk::ImageView frameBufferAttachments[] =
 		{
-			mPosition.getImageView(),
 			mNormal.getImageView(),
 			mAlbedo.getImageView(),
 			mMr.getImageView(),
@@ -192,7 +174,6 @@ namespace eg::Renderer
 	{
 		vk::ClearValue clearValues[] =
 		{
-			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
 			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
 			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
 			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),

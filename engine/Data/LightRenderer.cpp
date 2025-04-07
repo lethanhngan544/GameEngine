@@ -100,10 +100,9 @@ namespace eg::Data::LightRenderer
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
 		{
-			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //position
-			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Normal
-			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Albedo
-			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //mr
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Normal
+			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Albedo
+			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //mr
 		};
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 		descLayoutCI.setBindings(descLayoutBindings);
@@ -119,8 +118,7 @@ namespace eg::Data::LightRenderer
 		mAmbientSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
 		vk::DescriptorImageInfo imageInfos[] = {
-			vk::DescriptorImageInfo(nullptr, renderPass.getPosition().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, renderPass.getPosition().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, renderPass.getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
@@ -138,11 +136,6 @@ namespace eg::Data::LightRenderer
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[2]),
-
-			vk::WriteDescriptorSet(mAmbientSet, 3, 0,
-				1,
-				vk::DescriptorType::eInputAttachment,
-				&imageInfos[3]),
 			}, {});
 
 
@@ -192,19 +185,9 @@ namespace eg::Data::LightRenderer
 			}
 		};
 
-		/*vk::VertexInputBindingDescription vertexBindingDescriptions[] = {
-			vk::VertexInputBindingDescription(0, sizeof(Vertex), vk::VertexInputRate::eVertex)
-		};*/
-		/*vk::VertexInputAttributeDescription vertexAttributeDescriptions[] = {
-			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos)),
-			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, normal)),
-			vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, uv))
-		};*/
 
 		vk::PipelineVertexInputStateCreateInfo vertexInputStateCI{};
 		vertexInputStateCI.setFlags(vk::PipelineVertexInputStateCreateFlags{});
-		/*.setVertexAttributeDescriptions(vertexAttributeDescriptions)
-		.setVertexBindingDescriptions(vertexBindingDescriptions);*/
 
 		vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateCI{};
 		inputAssemblyStateCI.setFlags(vk::PipelineInputAssemblyStateCreateFlags{})
@@ -312,10 +295,10 @@ namespace eg::Data::LightRenderer
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
 		{
-			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //position
-			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Normal
-			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Albedo
-			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Mr
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Normal
+			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Albedo
+			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Mr
+			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
 		};
 
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
@@ -332,10 +315,10 @@ namespace eg::Data::LightRenderer
 		mPointSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
 		vk::DescriptorImageInfo imageInfos[] = {
-			vk::DescriptorImageInfo(nullptr, renderPass.getPosition().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, renderPass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
 

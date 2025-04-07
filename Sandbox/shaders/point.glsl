@@ -9,10 +9,10 @@ layout(set = 0, binding = 0) uniform GlobalUniformBuffer
     vec3 cameraPos;
 } gUBO;
 
-layout (input_attachment_index = 0, set = 1, binding = 0) uniform subpassInput subpass0Position;
-layout (input_attachment_index = 1, set = 1, binding = 1) uniform subpassInput subpass0Normal;
-layout (input_attachment_index = 2, set = 1, binding = 2) uniform subpassInput subpass0Albedo;
-layout (input_attachment_index = 3, set = 1, binding = 3) uniform subpassInput subpass0Mr;
+layout (input_attachment_index = 0, set = 1, binding = 0) uniform subpassInput subpass0Normal;
+layout (input_attachment_index = 1, set = 1, binding = 1) uniform subpassInput subpass0Albedo;
+layout (input_attachment_index = 2, set = 1, binding = 2) uniform subpassInput subpass0Mr;
+layout (input_attachment_index = 3, set = 1, binding = 3) uniform subpassInput subpass0Depth;
 
 layout(set = 2, binding = 0) uniform UniformBuffer
 {
@@ -71,13 +71,18 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 void main() 
 {
 	// Read G-Buffer values from previous sub pass
-	vec3 fragPos = subpassLoad(subpass0Position).rgb;
 	vec3 albedo = subpassLoad(subpass0Albedo).rgb;
 	vec3 mr = subpassLoad(subpass0Mr).rgb;
 	float roughness = mr.g;
 	float metallic = mr.b;
 	float ao = 1;
 
+	float depth = subpassLoad(subpass0Depth).r;
+	vec4 clipSpacePos = vec4(fsUv * 2.0 - 1.0, depth, 1.0);
+    vec4 viewSpacePos = inverse(gUBO.projection) * clipSpacePos;
+    viewSpacePos /= viewSpacePos.w; // Perspective divide
+	vec4 worldSpacePos = inverse(gUBO.view) * viewSpacePos;
+	vec3 fragPos = worldSpacePos.xyz;
 
 	vec3 N = subpassLoad(subpass0Normal).rgb;
 	vec3 V = normalize(gUBO.cameraPos - fragPos);

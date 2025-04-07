@@ -281,7 +281,7 @@ namespace eg::Renderer
 	private:
 		vk::RenderPass mRenderPass;
 		vk::Framebuffer mFramebuffer;
-		Image2D mPosition, mNormal, mAlbedo, mMr, mDrawImage, mDepth;
+		Image2D mNormal, mAlbedo, mMr, mDrawImage, mDepth;
 	public:
 		DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format);
 		~DefaultRenderPass();
@@ -292,15 +292,15 @@ namespace eg::Renderer
 		vk::RenderPass getRenderPass() const { return mRenderPass; }
 		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
 		Image2D& getDrawImage() { return mDrawImage; }
-		Image2D& getPosition() { return mPosition; }
 		Image2D& getNormal() { return mNormal; }
 		Image2D& getAlbedo() { return mAlbedo; }
 		Image2D& getMr() { return mMr; }
+		Image2D& getDepth() { return mDepth; }
 
 		const Image2D& getDrawImage() const  { return mDrawImage; }
-		const Image2D& getPosition() const { return mPosition; }
 		const Image2D& getNormal() const { return mNormal; }
 		const Image2D& getAlbedo() const { return mAlbedo; }
 		const Image2D& getMr() const { return mMr; }
+		const Image2D& getDepth() const { return mDepth; }
 	};
 }

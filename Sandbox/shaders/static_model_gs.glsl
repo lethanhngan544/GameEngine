@@ -4,14 +4,12 @@ layout(triangles) in;
 layout(triangle_strip, max_vertices = 3) out;
 
 
-layout(location = 0) in vec3 gsNormal[];
-layout(location = 1) in vec2 gsUv[];
-layout(location = 2) in vec3 gsPosition[];
+layout(location = 0) in vec2 gsUv[];
+layout(location = 1) in vec3 gsNormal[];
 
 layout(location = 0) out vec3 fsNormal;
 layout(location = 1) out vec2 fsUv;
-layout(location = 2) out vec3 fsPosition;
-layout(location = 3) out mat3 fsTBN;
+layout(location = 2) out mat3 fsTBN;
 
 layout(push_constant) uniform PushConstant
 {
@@ -43,7 +41,6 @@ void main()
 
 		fsNormal = gsNormal[i];
 		fsUv = gsUv[i];
-		fsPosition = gsPosition[i];
 		fsTBN = mat3(T, B, normalize(vec3(ps.model * vec4(gsNormal[i], 0.0f))));
 
 
