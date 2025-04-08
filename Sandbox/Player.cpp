@@ -4,24 +4,36 @@
 #include <GLFW/glfw3.h>
 #include <Physics.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
-#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
 
 namespace sndbx
 {
-	Player::Player(bool visible)
+	
+	Player::Player(bool visible) 
 	{
-		mModel = eg::Data::StaticModelCache::load("models/DamagedHelmet.glb");
+		if(visible)
+			mModel = eg::Data::StaticModelCache::load("models/DamagedHelmet.glb");
 		//Create rigid body
 		{
-			JPH::SphereShapeSettings shapeSettings(0.5f);
+
+			JPH::CapsuleShapeSettings shapeSettings(mHeight * 0.5f - mRadius, mRadius);
 			shapeSettings.SetEmbedded();
 			JPH::BodyCreationSettings bodySetting(&shapeSettings,
 				JPH::RVec3(0.0f, 10.0f, 0.0f),
 				JPH::Quat::sIdentity(),
 				JPH::EMotionType::Dynamic,
 				eg::Physics::Layers::MOVING);
-			bodySetting.mRestitution = 0.0f;
-			bodySetting.mFriction = 0.3f;
+			bodySetting.mFriction = 0.8f;
+			bodySetting.mMassPropertiesOverride.mMass = mMass;
+			bodySetting.mLinearDamping = 0.9f;
+			bodySetting.mAngularDamping = 0.0f;
+			bodySetting.mAllowSleeping = false;
+			bodySetting.mMotionQuality = JPH::EMotionQuality::LinearCast;
+			bodySetting.mAllowedDOFs = JPH::EAllowedDOFs::TranslationX | 
+				JPH::EAllowedDOFs::TranslationY | 
+				JPH::EAllowedDOFs::TranslationZ;
 			
 			mBody = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::Activate);
 			eg::Physics::getBodyInterface()->SetLinearVelocity(mBody, { 0.0f, 10.0f, 0.0f });
@@ -36,64 +48,58 @@ namespace sndbx
 
 	void Player::update(float delta)
 	{
-
-		mYaw -= eg::Input::Mouse::getDeltaX() * mMouseSensitivity;
-		mPitch -= eg::Input::Mouse::getDeltaY() * mMouseSensitivity;
-		mCamera.mPitch = -mPitch;
-		mCamera.mYaw = -mYaw;
-
-		glm::vec3 mDirection = { 0.0f,0.0f,0.0f };
-		if (eg::Input::Keyboard::isKeyDown(GLFW_KEY_W))
-		{
-			mDirection.x += glm::cos(glm::radians(mYaw + 90.0f));
-			mDirection.z -= glm::sin(glm::radians(mYaw + 90.0f));
-		}
-		if (eg::Input::Keyboard::isKeyDown(GLFW_KEY_S))
-		{
-			mDirection.x -= glm::cos(glm::radians(mYaw + 90.0f));
-			mDirection.z += glm::sin(glm::radians(mYaw + 90.0f));
-		}
-		if (eg::Input::Keyboard::isKeyDown(GLFW_KEY_D))
-		{
-			mDirection.x += glm::cos(glm::radians(mYaw));
-			mDirection.z -= glm::sin(glm::radians(mYaw));
-		}
-		if (eg::Input::Keyboard::isKeyDown(GLFW_KEY_A))
-		{
-			mDirection.x -= glm::cos(glm::radians(mYaw));
-			mDirection.z += glm::sin(glm::radians(mYaw));
-		}
-		if (eg::Input::Keyboard::isKeyDown(GLFW_KEY_SPACE))
-		{
-			mDirection.y += 1.0f;
-		}
-		if (eg::Input::Keyboard::isKeyDown(GLFW_KEY_LEFT_SHIFT))
-		{
-			mDirection.y -= 1.0f;
-		}
-
-
-		if (glm::dot(mDirection, mDirection) != 0.0f)
-		{
-			mDirection = glm::normalize(mDirection);
-		}
-
 		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-		float YVel = bodyInterface->GetLinearVelocity(mBody).GetY();
-		bodyInterface->SetLinearVelocity(mBody, JPH::RVec3(mDirection.x, YVel, mDirection.z) * mPlayerSpeed);
-
-		JPH::RVec3 position = bodyInterface->GetCenterOfMassPosition(mBody);
+		JPH::Vec3 position = bodyInterface->GetPosition(mBody);
 		glm::vec3 postionGlm = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
+		JPH::Vec3 velocity = bodyInterface->GetLinearVelocity(mBody);
+		JPH::Vec3 wishDir = JPH::Vec3(mDirection.x, mDirection.y, mDirection.z);
+		
+		// Simple grounded check (raycast down)
+		JPH::RRayCast ray;
+		ray.mOrigin = position;
+		ray.mDirection = JPH::Vec3(0, -1, 0);
 
-		//Rotate forward vector by pitch and yaw in degrees
-		glm::mat4 yawRotation = glm::rotate(glm::mat4(1.0f), glm::radians(mYaw), { 0.0f, 1.0f, 0.0f });
-		glm::mat4 pitchRotation = glm::rotate(glm::mat4(1.0f), glm::radians(mPitch), { 1.0f, 0.0f, 0.0f });
-		mForwardVector = glm::mat3(yawRotation) * glm::mat3(pitchRotation) * mGlobalForward;
+		JPH::RayCastResult result;
+		bool grounded = eg::Physics::getPhysicsSystem().GetNarrowPhaseQuery().CastRay(ray, result,
+			JPH::BroadPhaseLayerFilter{},
+			JPH::ObjectLayerFilter{},
+			JPH::IgnoreSingleBodyFilter(mBody));
 
-		mCamera.mPosition = postionGlm - mForwardVector * mCameraDistance;
+
+		float currentSpeed = velocity.Dot(wishDir);
+		if (grounded) {
+			float addSpeed = mGroundMaxSpeed - currentSpeed;
+			if (addSpeed <= 0.0f) addSpeed = 0.0f;
+			float accelSpeed = mGroundAccel * delta * mGroundMaxSpeed;
+			if (accelSpeed > addSpeed)
+				accelSpeed = addSpeed;
+
+			velocity += wishDir * accelSpeed;
+
+			if (mJumpRequested) {
+				velocity.SetY(mJumpStrength);
+			}
+		}
+		else {
+			float addSpeed = mAirMaxSpeed - currentSpeed;
+			if (addSpeed <= 0.0f) addSpeed = 0.0f;
+			float accelSpeed = mAirAccel * delta * mAirMaxSpeed;
+			if (accelSpeed > addSpeed)
+				accelSpeed = addSpeed;
+
+			velocity += wishDir * accelSpeed;
+			velocity.SetY(velocity.GetY() - 9.8f * delta); // Gravity
+		}
+
+		velocity.SetY(velocity.GetY() - 9.8f * delta);
+
+		bodyInterface->SetLinearVelocity(mBody, velocity);
+		bodyInterface->SetRotation(mBody, JPH::Quat::sIdentity(), JPH::EActivation::Activate);
+		//Rotate body based on yaw
+		bodyInterface->SetRotation(mBody, JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)), JPH::EActivation::Activate);
+		
+
 		mLight.mUniformBuffer.position = glm::vec4(postionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);
-
-
 	}
 
 	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
@@ -102,13 +108,15 @@ namespace sndbx
 		{
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 		{
+			if (mModel)
+			{
+				JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
+				JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
+				glm::mat4x4 glmMatrix;
+				std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
 
-			JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-			JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
-			glm::mat4x4 glmMatrix;
-			std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
-
-			eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
+				eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
+			}
 			break;
 		}
 		case eg::Renderer::RenderStage::SUBPASS1_POINTLIGHT:

@@ -6,18 +6,31 @@
 
 namespace sndbx
 {
+
+
 	class Player : public eg::Data::IGameObject
 	{
-	private:
-		eg::Data::Camera mCamera;
+	protected:
+
 		eg::Data::PointLight mLight;
 		std::shared_ptr<eg::Data::StaticModel> mModel = nullptr;
 		JPH::BodyID mBody;
 
+		float mHeight = 1.8f;
+		float mRadius = 0.3f;
+		float mMass = 80.0f;
+		float mGroundAccel = 10.0f;
+		float mAirAccel = 2.0f;
+		float mJumpStrength = 10.5f;
+		float mGroundMaxSpeed = 5.0f;
+		float mAirMaxSpeed = 2.0f;
+
 		float mYaw = 0.0f;
+		float mPitchClamp = 89.5f; // Clamp for pitch to prevent flipping
 		float mPitch = 0.0f;
-		const glm::vec3 mGlobalForward = { 0.0f, 0.0f, -1.0f };
-		glm::vec3 mForwardVector = mGlobalForward;
+		glm::vec3 mDirection = { 0, 0, 0 };
+		glm::vec3 mVelocity = { 0, 0, 0 };
+		bool mJumpRequested = false;
 		float mCameraDistance = 5.0f;
 		float mPlayerSpeed = 1.0f;
 		float mMouseSensitivity = 0.2f;
@@ -28,6 +41,8 @@ namespace sndbx
 		void update(float delta) override;
 		void render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage) override;
 
-		const eg::Data::Camera& getCamera() const { return mCamera; }
+		
 	};
+
+	
 }

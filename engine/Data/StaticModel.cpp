@@ -66,7 +66,7 @@ namespace eg::Data
 					{
 						std::vector<uint16_t> tempIndices;
 						tempIndices.resize(accessor.count);
-						std::memcpy(tempIndices.data(), (void*)(buffer.data.data() + bufferView.byteOffset), bufferView.byteLength);
+						std::memcpy(tempIndices.data(), (void*)(buffer.data.data() + bufferView.byteOffset), accessor.count * sizeof(uint16_t));
 						indices.reserve(indices.size() + tempIndices.size());
 						for (const auto& index : tempIndices)
 						{
@@ -78,7 +78,7 @@ namespace eg::Data
 					{
 						std::vector<uint32_t> tempIndices;
 						tempIndices.resize(accessor.count);
-						std::memcpy(tempIndices.data(), (void*)(buffer.data.data() + bufferView.byteOffset), bufferView.byteLength);
+						std::memcpy(tempIndices.data(), (void*)(buffer.data.data() + bufferView.byteOffset), accessor.count * sizeof(uint32_t));
 						indices.reserve(indices.size() + tempIndices.size());
 						for (const auto& index : tempIndices)
 						{
@@ -98,7 +98,9 @@ namespace eg::Data
 					const auto& positionBuffer = model.buffers.at(positionBufferView.buffer);
 
 					positions.resize(positionAccessor.count);
-					std::memcpy(positions.data(), positionBuffer.data.data() + positionBufferView.byteOffset, positionBufferView.byteLength);
+					std::memcpy(positions.data(),
+						positionBuffer.data.data() + positionBufferView.byteOffset,
+						sizeof(glm::vec3) * positionAccessor.count);
 				}
 
 				//Normals
@@ -109,7 +111,9 @@ namespace eg::Data
 					const auto& buffer = model.buffers.at(bufferView.buffer);
 
 					normals.resize(accessor.count);
-					std::memcpy(normals.data(), buffer.data.data() + bufferView.byteOffset, bufferView.byteLength);
+					std::memcpy(normals.data(),
+						buffer.data.data() + bufferView.byteOffset,
+						sizeof(glm::vec3) * accessor.count);
 				}
 
 				//texture coords
@@ -120,7 +124,7 @@ namespace eg::Data
 					const auto& buffer = model.buffers.at(bufferView.buffer);
 
 					uvs.resize(accessor.count);
-					std::memcpy(uvs.data(), buffer.data.data() + bufferView.byteOffset, bufferView.byteLength);
+					std::memcpy(uvs.data(), buffer.data.data() + bufferView.byteOffset, sizeof(glm::vec2) * accessor.count);
 				}
 
 				for (size_t i = 0; i < positions.size(); i++)

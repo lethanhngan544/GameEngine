@@ -38,12 +38,7 @@ namespace eg::Physics
 		}
 	};
 
-	namespace BroadPhaseLayers
-	{
-		static constexpr BroadPhaseLayer NON_MOVING(0);
-		static constexpr BroadPhaseLayer MOVING(1);
-		static constexpr uint NUM_LAYERS(2);
-	};
+
 
 	class BPLayerInterfaceImpl final : public BroadPhaseLayerInterface
 	{

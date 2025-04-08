@@ -12,6 +12,7 @@
 #include <memory>
 
 #include <Sandbox_Player.h>
+#include <SandBox_PlayerControlled.h>
 #include <SandBox_MapObject.h>
 #include <Physics.h>
 #include <Network.h>
@@ -51,9 +52,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	using Clock = std::chrono::high_resolution_clock;
 	using TimePoint = std::chrono::time_point<Clock>;
 
-	constexpr double TICK_RATE = 66.666;
+	constexpr double TICK_RATE = 128;
 	constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
-	constexpr int MAX_FPS = 120;
+	constexpr int MAX_FPS = 60;
 	constexpr double FRAME_DURATION_CAP = 1.0 / MAX_FPS;
 	TimePoint lastTime = Clock::now();
 	double accumulator = 0.0;
@@ -73,15 +74,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		{
 			Data::GameObjectManager gameObjManager;
 			
-			auto player1 = std::make_unique<sndbx::Player>(true);
+			auto player1 = std::make_unique<sndbx::PlayerControlled>();
+			auto player2 = std::make_unique<sndbx::Player>(true);
 			Renderer::setCamera(&player1->getCamera());
 			gameObjManager.addGameObject(std::move(player1));
+			gameObjManager.addGameObject(std::move(player2));
 
 			auto mo1 = std::make_unique<sndbx::MapObject>("models/sponza.glb");
 			mo1->getTransform().mScale.x = 0.01f;
 			mo1->getTransform().mScale.y = 0.01f;
 			mo1->getTransform().mScale.z = 0.01f;
 			gameObjManager.addGameObject(std::move(mo1));
+
+			/*auto mo2 = std::make_unique<sndbx::MapObject>("models/VC.glb");
+			gameObjManager.addGameObject(std::move(mo2));*/
+
 		
 
 
@@ -96,13 +103,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 					
 					Physics::update(TICK_INTERVAL);
 					gameObjManager.update(TICK_INTERVAL);
+					Input::Keyboard::update();
 					accumulator -= TICK_INTERVAL;
 				}
 				//Update
+				Input::Mouse::update();
 
 				
-				Input::Keyboard::update();
-				Input::Mouse::update();
+				
+				
 
 				//Render
 				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));

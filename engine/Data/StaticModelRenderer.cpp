@@ -129,7 +129,7 @@ namespace eg::Data::StaticModelRenderer
 			.setRasterizerDiscardEnable(false)
 			.setPolygonMode(vk::PolygonMode::eFill)
 			.setLineWidth(1.0f)
-			.setCullMode(vk::CullModeFlagBits::eNone)
+			.setCullMode(vk::CullModeFlagBits::eBack)
 			.setFrontFace(vk::FrontFace::eCounterClockwise)
 			.setDepthBiasClamp(0.0f)
 			.setDepthBiasEnable(false)
