@@ -145,21 +145,6 @@ namespace eg::Data::StaticModelRenderer
 			.setAlphaToOneEnable(false);
 
 		vk::PipelineColorBlendAttachmentState attachments[] = {
-
-			//Position
-			vk::PipelineColorBlendAttachmentState(false,
-				vk::BlendFactor::eOne,
-				vk::BlendFactor::eZero,
-				vk::BlendOp::eAdd,
-				vk::BlendFactor::eOne,
-				vk::BlendFactor::eOne,
-				vk::BlendOp::eAdd,
-				vk::ColorComponentFlagBits::eR |
-				vk::ColorComponentFlagBits::eG |
-				vk::ColorComponentFlagBits::eB |
-				vk::ColorComponentFlagBits::eA),
-
-
 				//Normal
 				vk::PipelineColorBlendAttachmentState(false,
 					vk::BlendFactor::eOne,

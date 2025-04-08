@@ -131,9 +131,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Data::LightRenderer::beginPointLight(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
 
-				//Subpass 2, debug draw
-				//cmd.nextSubpass(vk::SubpassContents::eInline);
-
 
 
 				Renderer::end();

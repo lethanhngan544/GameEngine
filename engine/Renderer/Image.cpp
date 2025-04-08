@@ -60,8 +60,7 @@ namespace eg::Renderer
 
 			immediateSubmit([&](vk::CommandBuffer cmd)
 				{
-					
-
+	
 					//Copy data to image
 
 					cmd.pipelineBarrier(

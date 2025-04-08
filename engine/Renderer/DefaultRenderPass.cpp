@@ -110,6 +110,7 @@ namespace eg::Renderer
 			vk::AttachmentReference(4, vk::ImageLayout::eColorAttachmentOptimal),
 		};
 
+		
 		vk::SubpassDescription subpasses[] = {
 			//Subpass 0
 			vk::SubpassDescription((vk::SubpassDescriptionFlags)0,
@@ -120,7 +121,7 @@ namespace eg::Renderer
 				&pass0OutputDepthStencilAttachmentRef,
 				0, nullptr//Preserve
 			),
-
+			//Subpass 1
 			vk::SubpassDescription((vk::SubpassDescriptionFlags)0,
 				vk::PipelineBindPoint::eGraphics,
 				sizeof(pass1InputAttachmentRef) / sizeof(pass1InputAttachmentRef[0]), pass1InputAttachmentRef, // Input
@@ -129,6 +130,8 @@ namespace eg::Renderer
 				nullptr, //Depth
 				0, nullptr//Preserve
 			),
+
+
 		};
 		
 		vk::SubpassDependency dependencies[] = {
@@ -138,7 +141,6 @@ namespace eg::Renderer
 				vk::AccessFlagBits::eColorAttachmentWrite,
 				vk::AccessFlagBits::eInputAttachmentRead,
 				vk::DependencyFlagBits::eByRegion),
-
 		};
 		vk::RenderPassCreateInfo renderPassCI{};
 		renderPassCI

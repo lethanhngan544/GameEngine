@@ -389,11 +389,31 @@ namespace eg::Renderer
 		gGlobalUniformBuffer.emplace(gFrameCount);
 
 		//Create default resources
-		const uint8_t white[] = { 255, 255, 255, 255 };
-		const uint8_t checkerboard[] = { 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255 };
-		const uint8_t purpleCheckerboard[] = { 255, 0, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 0, 255, 255 };
-		gDefaultWhiteImage.emplace(1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, (void*)white, sizeof(white));
-		gDefaultCheckerboardImage.emplace(2, 2, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, (void*)purpleCheckerboard, sizeof(purpleCheckerboard));
+		std::vector<uint8_t> whitePixels(64 * 64 * 4, 255);
+		std::vector<uint8_t> checkerPixels(64 * 64 * 4);
+		for (int y = 0; y < 64; ++y) {
+			for (int x = 0; x < 64; ++x) {
+				int tileX = x / 8;
+				int tileY = y / 8;
+				bool isPurple = (tileX + tileY) % 2 == 0;
+
+				int index = (y * 64 + x) * 4;
+				if (isPurple) {
+					checkerPixels[index + 0] = 255; // R
+					checkerPixels[index + 1] = 0;   // G
+					checkerPixels[index + 2] = 255; // B
+					checkerPixels[index + 3] = 255; // A
+				}
+				else {
+					checkerPixels[index + 0] = 0;
+					checkerPixels[index + 1] = 0;
+					checkerPixels[index + 2] = 0;
+					checkerPixels[index + 3] = 255;
+				}
+			}
+		}
+		gDefaultWhiteImage.emplace(64, 64, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, whitePixels.data(), whitePixels.size());
+		gDefaultCheckerboardImage.emplace(64, 64, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, checkerPixels.data(), checkerPixels.size());
 
 
 

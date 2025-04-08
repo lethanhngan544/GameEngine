@@ -66,7 +66,6 @@ namespace eg::Renderer
 
 		GPUBuffer(GPUBuffer&& other) noexcept
 		{
-			Logger::gTrace("GPUBuffer moved !");
 			this->mBuffer = other.mBuffer;
 			this->mAllocation = other.mAllocation;
 			other.mBuffer = nullptr;
@@ -75,7 +74,6 @@ namespace eg::Renderer
 
 		GPUBuffer& operator=(GPUBuffer&& other) noexcept
 		{
-			Logger::gTrace("GPUBuffer moved !");
 			this->mBuffer = other.mBuffer;
 			this->mAllocation = other.mAllocation;
 			other.mBuffer = nullptr;
@@ -105,7 +103,6 @@ namespace eg::Renderer
 
 		CPUBuffer(CPUBuffer&& other) noexcept
 		{
-			Logger::gTrace("CPUBuffer moved !");
 			this->mBuffer = other.mBuffer;
 			this->mAllocation = other.mAllocation;
 			other.mBuffer = nullptr;
@@ -114,7 +111,6 @@ namespace eg::Renderer
 
 		CPUBuffer& operator=(CPUBuffer&& other) noexcept
 		{
-			Logger::gTrace("CPUBuffer moved !");
 			this->mBuffer = other.mBuffer;
 			this->mAllocation = other.mAllocation;
 			other.mBuffer = nullptr;
@@ -143,7 +139,6 @@ namespace eg::Renderer
 		Image2D operator=(const Image2D&) = delete;
 		Image2D(Image2D&& other) noexcept
 		{
-			Logger::gTrace("Image2D moved !");
 			this->mImage = other.mImage;
 			this->mAllocation = other.mAllocation;
 			this->mImageView = other.mImageView;
@@ -154,7 +149,6 @@ namespace eg::Renderer
 		};
 		Image2D& operator=(Image2D&& other) noexcept
 		{
-			Logger::gTrace("Image2D moved !");
 			this->mImage = other.mImage;
 			this->mAllocation = other.mAllocation;
 			this->mImageView = other.mImageView;
@@ -191,14 +185,12 @@ namespace eg::Renderer
 		CombinedImageSampler2D(CombinedImageSampler2D&& other) noexcept :
 			mImage(std::move(other.mImage))
 		{
-			Logger::gTrace("CombinedImageSampler2D moved !");
 			this->mSampler = other.mSampler;
 
 			other.mSampler = nullptr;
 		};
 		CombinedImageSampler2D& operator=(CombinedImageSampler2D&& other) noexcept
 		{
-			Logger::gTrace("Image2D moved !");
 			this->mImage = std::move(other.mImage);
 			this->mSampler = other.mSampler;
 
