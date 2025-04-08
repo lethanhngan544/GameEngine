@@ -116,7 +116,9 @@ namespace eg::Data
 	private:
 		struct RawMesh
 		{
-			Renderer::GPUBuffer vertexBuffer;
+			Renderer::GPUBuffer positionBuffer;
+			Renderer::GPUBuffer normalBuffer;
+			Renderer::GPUBuffer uvBuffer;
 			Renderer::GPUBuffer indexBuffer;
 			uint32_t materialIndex = 0;
 			uint32_t vertexCount = 0;
@@ -203,4 +205,19 @@ namespace eg::Data
 		vk::DescriptorSetLayout getPointLightPerDescLayout();
 	};
 	
+
+	namespace DebugRenderer
+	{
+		struct VertexFormat
+		{
+			glm::vec3 pos;
+			glm::vec3 color;
+		};
+
+		void create();
+		void destroy();
+
+		void recordLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color);
+		void renderLines(vk::CommandBuffer cmd);
+	}
 }

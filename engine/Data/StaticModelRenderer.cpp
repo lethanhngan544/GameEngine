@@ -97,12 +97,14 @@ namespace eg::Data::StaticModelRenderer
 
 		//Create vertex layout
 		vk::VertexInputBindingDescription vertexBindingDescriptions[] = {
-			vk::VertexInputBindingDescription(0, sizeof(VertexFormat), vk::VertexInputRate::eVertex)
+			vk::VertexInputBindingDescription(0, sizeof(float) * 3, vk::VertexInputRate::eVertex),
+			vk::VertexInputBindingDescription(1, sizeof(float) * 3, vk::VertexInputRate::eVertex),
+			vk::VertexInputBindingDescription(2, sizeof(float) * 2, vk::VertexInputRate::eVertex)
 		};
 		vk::VertexInputAttributeDescription vertexAttributeDescriptions[] = {
-			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(VertexFormat, pos)),
-			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(VertexFormat, normal)),
-			vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(VertexFormat, uv))
+			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, 0),
+			vk::VertexInputAttributeDescription(1, 1, vk::Format::eR32G32B32Sfloat, 0),
+			vk::VertexInputAttributeDescription(2, 2, vk::Format::eR32G32Sfloat, 0)
 		};
 
 		vk::PipelineVertexInputStateCreateInfo vertexInputStateCI{};
@@ -279,7 +281,7 @@ namespace eg::Data::StaticModelRenderer
 			vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry, 0, sizeof(ps), &ps);
 		for (const auto& rawMesh : model.getRawMeshes())
 		{
-			cmd.bindVertexBuffers(0, { rawMesh.vertexBuffer.getBuffer() }, { 0 });
+			cmd.bindVertexBuffers(0, { rawMesh.positionBuffer.getBuffer(), rawMesh.normalBuffer.getBuffer(), rawMesh.uvBuffer.getBuffer() }, { 0, 0, 0 });
 			cmd.bindIndexBuffer(rawMesh.indexBuffer.getBuffer(), 0, vk::IndexType::eUint32);
 			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 				mPipelineLayout,

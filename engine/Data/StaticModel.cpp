@@ -34,7 +34,6 @@ namespace eg::Data
 
 		//Extract vertex datas
 		//mRawMeshes.reserve(model.meshes.size());
-		std::vector<StaticModelRenderer::VertexFormat> vertices;
 		std::vector<uint32_t> indices;
 		std::vector<glm::vec3> positions, normals;
 		std::vector<glm::vec2> uvs;
@@ -46,7 +45,6 @@ namespace eg::Data
 			{
 				if (primitive.material < 0)
 					throw std::runtime_error("Mesh must have a material !");
-				vertices.clear();
 				indices.clear();
 				positions.clear();
 				normals.clear();
@@ -127,14 +125,19 @@ namespace eg::Data
 					std::memcpy(uvs.data(), buffer.data.data() + bufferView.byteOffset, sizeof(glm::vec2) * accessor.count);
 				}
 
-				for (size_t i = 0; i < positions.size(); i++)
-				{
-					vertices.push_back({ positions.at(i), normals.at(i), uvs.at(i) });
-				}
+
 
 				RawMesh rawMesh{
-					Renderer::GPUBuffer(vertices.data(),
-					vertices.size() * sizeof(StaticModelRenderer::VertexFormat),
+					Renderer::GPUBuffer(positions.data(),
+					positions.size() * sizeof(glm::vec3),
+					vk::BufferUsageFlagBits::eVertexBuffer),
+
+					Renderer::GPUBuffer(normals.data(),
+					normals.size() * sizeof(glm::vec3),
+					vk::BufferUsageFlagBits::eVertexBuffer),
+
+					Renderer::GPUBuffer(uvs.data(),
+					uvs.size() * sizeof(glm::vec2),
 					vk::BufferUsageFlagBits::eVertexBuffer),
 
 					Renderer::GPUBuffer(indices.data(), indices.size() * sizeof(uint32_t),
