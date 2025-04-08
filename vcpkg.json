@@ -11,7 +11,12 @@
         "vulkan-binding"
       ]
     },
-    "joltphysics",
+    {
+      "name": "joltphysics",
+      "features": [
+        "debugrenderer"
+      ]
+    },
     "shaderc",
     "tinygltf",
     "vulkan",

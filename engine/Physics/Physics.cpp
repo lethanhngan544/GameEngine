@@ -1,8 +1,10 @@
 #include <Physics.h>
 
+#include <Data.h>
 #include <optional>
 
 // Jolt includes
+
 #include <Jolt/RegisterTypes.h>
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/TempAllocator.h>
@@ -13,6 +15,7 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Renderer/DebugRendererSimple.h>
 
 using namespace JPH;
 using namespace JPH::literals;
@@ -82,6 +85,22 @@ namespace eg::Physics
 	};
 
 
+	class DebugRenderer : public JPH::DebugRendererSimple
+	{
+	public:
+		virtual void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override
+		{
+			Data::DebugRenderer::recordLine(glm::vec3(inFrom.GetX(), inFrom.GetY(), inFrom.GetZ()),
+				glm::vec3(inTo.GetX(), inTo.GetY(), inTo.GetZ()),
+				glm::vec4(inColor.r, inColor.g, inColor.b, inColor.a));
+		}
+		virtual void DrawText3D(JPH::RVec3Arg inPosition, const std::string_view& inString, JPH::ColorArg inColor, float inHeight) override
+		{
+
+		}
+
+	};
+
 	std::optional<TempAllocatorImpl> gTempAllocator;
 	std::optional<JobSystemThreadPool> gJobSystem;
 	std::optional<BPLayerInterfaceImpl> gBroadPhaseLayerInterface;
@@ -91,6 +110,7 @@ namespace eg::Physics
 	BodyInterface* gBodyInterface = nullptr;
 
 	BodyID gFloorBody;
+	std::optional<DebugRenderer> gDebugRenderer;
 
 	const uint cMaxBodies = 65536;
 	const uint cNumBodyMutexes = 0;
@@ -111,6 +131,7 @@ namespace eg::Physics
 
 		// Now we can create the actual physics system.
 		gPhysicsSystem.emplace();
+		
 		gPhysicsSystem->Init(cMaxBodies,
 			cNumBodyMutexes,
 			cMaxBodyPairs,
@@ -127,10 +148,18 @@ namespace eg::Physics
 
 		// Create the actual rigid body
 		gFloorBody = gBodyInterface->CreateAndAddBody(floor_settings, EActivation::DontActivate); // Note that if we run out of bodies this can return nullptr
+		
+		gDebugRenderer.emplace();
 
 
+	}
 
-
+	void render()
+	{
+		JPH::BodyManager::DrawSettings settings;
+		settings.mDrawVelocity = true;
+		settings.mDrawBoundingBox = true;
+		gPhysicsSystem->DrawBodies(settings, &gDebugRenderer.value(), nullptr);
 	}
 
 	void update(float delta)

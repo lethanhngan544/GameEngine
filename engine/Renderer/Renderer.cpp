@@ -104,7 +104,7 @@ namespace eg::Renderer
 		std::ifstream file(filePath);
 		if (!file.is_open())
 		{
-			throw std::runtime_error("Failed to open shader file: " + filePath);
+			throw std::runtime_error("Failed to open shader file !");
 		}
 		std::stringstream ss;
 		ss << file.rdbuf();
@@ -118,7 +118,7 @@ namespace eg::Renderer
 		if (module.GetCompilationStatus() != shaderc_compilation_status_success)
 		{
 			Logger::gError(module.GetErrorMessage());
-			throw std::runtime_error("Failed to compile shader: " + filePath);
+			throw std::runtime_error("Failed to compile shader !");
 		}
 
 		return { module.cbegin(), module.cend() };
@@ -198,7 +198,7 @@ namespace eg::Renderer
 				vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
 				vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
 				vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
-			dbgMsgCI.pfnUserCallback = gDebugCallbackFn;
+			dbgMsgCI.pfnUserCallback = (vk::PFN_DebugUtilsMessengerCallbackEXT)gDebugCallbackFn;
 			dbgMsgCI.pUserData = nullptr; // Optional
 
 			vk::Result result = gInstance.createDebugUtilsMessengerEXT(&dbgMsgCI, nullptr, &gDbgMsg);

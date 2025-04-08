@@ -163,13 +163,6 @@ namespace eg::Data
 
 	namespace StaticModelRenderer
 	{
-		struct VertexFormat
-		{
-			glm::vec3 pos;
-			glm::vec3 normal;
-			glm::vec2 uv;
-		};
-
 		struct VertexPushConstant
 		{
 			glm::mat4x4 model;
@@ -218,6 +211,8 @@ namespace eg::Data
 		void destroy();
 
 		void recordLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color);
-		void renderLines(vk::CommandBuffer cmd);
+
+		void updateVertexBuffers(vk::CommandBuffer cmd);
+		void render(vk::CommandBuffer cmd);
 	}
 }

@@ -49,15 +49,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 {
 	using namespace eg;
 
-	using Clock = std::chrono::high_resolution_clock;
-	using TimePoint = std::chrono::time_point<Clock>;
-
-	constexpr double TICK_RATE = 128;
-	constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
-	constexpr int MAX_FPS = 60;
-	constexpr double FRAME_DURATION_CAP = 1.0 / MAX_FPS;
-	TimePoint lastTime = Clock::now();
-	double accumulator = 0.0;
+	
 	
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
@@ -68,6 +60,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Renderer::create(1600, 900);
 		Data::StaticModelRenderer::create();
 		Data::LightRenderer::create();
+		Data::DebugRenderer::create();
 		Physics::create();
 		
 
@@ -90,7 +83,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			gameObjManager.addGameObject(std::move(mo2));*/
 
 		
+			using Clock = std::chrono::high_resolution_clock;
+			using TimePoint = std::chrono::time_point<Clock>;
 
+			constexpr double TICK_RATE = 128;
+			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
+			constexpr int MAX_FPS = 60;
+			constexpr double FRAME_DURATION_CAP = 1.0 / MAX_FPS;
+			TimePoint lastTime = Clock::now();
+			double accumulator = 0.0;
 
 			while (!Window::shouldClose())
 			{
@@ -109,17 +110,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				//Update
 				Input::Mouse::update();
 
+				//Render 100 random lines
 				
-				
-				
+				Data::DebugRenderer::recordLine({ 0, 0, 0 }, { 1, 0, 0 }, { 1, 0, 0 });
+				Data::DebugRenderer::recordLine({ 0, 0, 0 }, { 0, 1, 0 }, { 0, 1, 0 });
+				Data::DebugRenderer::recordLine({ 0, 0, 0 }, { 0, 0, 1 }, { 0, 0, 1 });
 
 				//Render
+				Physics::render();
 				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));
 
 				ImGui::Begin("Debug");
 				ImGui::End();
 
-
+				Data::DebugRenderer::updateVertexBuffers(cmd);
 				Renderer::getDefaultRenderPass().begin(cmd);
 				//Subpass 0, gBuffer generation
 				Data::StaticModelRenderer::begin(cmd);
@@ -130,7 +134,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Data::LightRenderer::renderAmbient(cmd);
 				Data::LightRenderer::beginPointLight(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
-
+				Data::DebugRenderer::render(cmd);
 
 
 				Renderer::end();
@@ -146,6 +150,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			Renderer::waitIdle();
 		}
 		Data::StaticModelCache::clear();
+		Data::DebugRenderer::destroy();
 		Data::LightRenderer::destroy();
 		Data::StaticModelRenderer::destroy();
 		Renderer::destory();

@@ -4,8 +4,11 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Body/BodyID.h>
 
+
 namespace eg::Physics
 {
+
+
 	namespace Layers
 	{
 		static constexpr JPH::ObjectLayer NON_MOVING = 0;
@@ -23,6 +26,7 @@ namespace eg::Physics
 	//Global functions
 	void create();
 	void update(float delta);
+	void render();
 	void destroy();
 
 	JPH::PhysicsSystem& getPhysicsSystem();
