@@ -33,3 +33,6 @@ target_link_libraries(engine PRIVATE asio::asio)
 
 find_package(Jolt CONFIG REQUIRED)
 target_link_libraries(engine PRIVATE Jolt::Jolt)
+
+find_package(Stb REQUIRED)
+target_include_directories(engine PRIVATE ${Stb_INCLUDE_DIR})
