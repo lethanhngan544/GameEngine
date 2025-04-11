@@ -3,6 +3,8 @@
 #include <Data.h>
 #include <optional>
 
+#include <imgui.h>
+
 // Jolt includes
 
 #include <Jolt/RegisterTypes.h>
@@ -156,19 +158,23 @@ namespace eg::Physics
 
 	void render()
 	{
-		JPH::BodyManager::DrawSettings settings;
-		settings.mDrawVelocity = true;
-		settings.mDrawBoundingBox = true;
+		static JPH::BodyManager::DrawSettings settings;
+		ImGui::Begin("Physics Debug Renderer");
+		ImGui::Checkbox("Draw Velocity", &settings.mDrawVelocity);
+		ImGui::Checkbox("Draw Bounding Box", &settings.mDrawBoundingBox);
+		ImGui::Checkbox("Draw Mass and Inertia", &settings.mDrawMassAndInertia);
+		ImGui::Checkbox("Draw Shape", &settings.mDrawShape);
+		ImGui::Checkbox("Draw Shape Wireframe", &settings.mDrawShapeWireframe);
+		ImGui::Checkbox("Draw Center of Mass", &settings.mDrawCenterOfMassTransform);
+		ImGui::Checkbox("Draw Sleep Stat", &settings.mDrawSleepStats);
+		ImGui::End();
+
 		gPhysicsSystem->DrawBodies(settings, &gDebugRenderer.value(), nullptr);
 	}
 
 	void update(float delta)
 	{
-
-		// If you take larger steps than 1 / 60th of a second you need to do multiple collision steps in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
-		const int cCollisionSteps = 1;
-		// Step the world
-		gPhysicsSystem->Update(delta, cCollisionSteps, &gTempAllocator.value(), &gJobSystem.value());
+		gPhysicsSystem->Update(delta, 1, &gTempAllocator.value(), &gJobSystem.value());
 	}
 
 	void destroy()

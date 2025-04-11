@@ -94,12 +94,39 @@ namespace sndbx
 		velocity.SetY(velocity.GetY() - 9.8f * delta);
 
 		bodyInterface->SetLinearVelocity(mBody, velocity);
-		bodyInterface->SetRotation(mBody, JPH::Quat::sIdentity(), JPH::EActivation::Activate);
-		//Rotate body based on yaw
 		bodyInterface->SetRotation(mBody, JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)), JPH::EActivation::Activate);
 		
 
 		mLight.mUniformBuffer.position = glm::vec4(postionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);
+
+		if (mGrabOject)
+		{
+			JPH::Vec3 forward = JPH::Vec3(0, 0, -1);
+			forward = JPH::Quat::sRotation(JPH::Vec3(1, 0, 0), glm::radians(mPitch)) * forward;
+			forward = JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)) * forward;
+
+			//Ray cast
+			JPH::RRayCast ray;
+			ray.mOrigin = position + JPH::Vec3{ 0.0f, 0.8f, 0.0f };
+			ray.mDirection = forward;
+
+			JPH::RayCastResult result;
+			bool found = eg::Physics::getPhysicsSystem().GetNarrowPhaseQuery().CastRay(ray, result,
+				JPH::BroadPhaseLayerFilter{},
+				JPH::ObjectLayerFilter{},
+				JPH::IgnoreSingleBodyFilter(mBody));
+			if (found)
+			{
+				JPH::BodyID objectBody = result.mBodyID;
+				JPH::Vec3 grabbedBodyPos = bodyInterface->GetCenterOfMassPosition(objectBody);
+				JPH::Vec3 grabbedBodyVel = bodyInterface->GetLinearVelocity(objectBody);
+				JPH::Vec3 targetPos = position + forward * 3.0f;
+				JPH::Vec3 toTarget = targetPos - grabbedBodyPos;
+				JPH::Vec3 velocity = toTarget * 10.0f - grabbedBodyVel * 0.5f;
+				bodyInterface->AddForce(objectBody, velocity, JPH::EActivation::Activate);
+			}
+		}
+
 	}
 
 	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)

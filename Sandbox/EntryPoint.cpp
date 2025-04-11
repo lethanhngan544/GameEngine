@@ -14,6 +14,7 @@
 #include <Sandbox_Player.h>
 #include <SandBox_PlayerControlled.h>
 #include <SandBox_MapObject.h>
+#include <SandBox_MapPhysicsObject.h>
 #include <Physics.h>
 #include <Network.h>
 #include <Window.h>
@@ -79,6 +80,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			mo1->getTransform().mScale.z = 0.01f;
 			gameObjManager.addGameObject(std::move(mo1));
 
+
+			auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb");
+			gameObjManager.addGameObject(std::move(mo2));
+
 			/*auto mo2 = std::make_unique<sndbx::MapObject>("models/VC.glb");
 			gameObjManager.addGameObject(std::move(mo2));*/
 
@@ -117,11 +122,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Data::DebugRenderer::recordLine({ 0, 0, 0 }, { 0, 0, 1 }, { 0, 0, 1 });
 
 				//Render
-				Physics::render();
 				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));
+				Physics::render();
 
-				ImGui::Begin("Debug");
-				ImGui::End();
 
 				Data::DebugRenderer::updateVertexBuffers(cmd);
 				Renderer::getDefaultRenderPass().begin(cmd);

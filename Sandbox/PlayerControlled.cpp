@@ -14,6 +14,7 @@ namespace sndbx
 	{
 		mDirection = { 0.0f, 0.0f, 0.0f };
 		mJumpRequested = false;
+		mGrabOject = false;
 		mYaw -= eg::Input::Mouse::getDeltaX() * mMouseSensitivity;
 		mPitch -= eg::Input::Mouse::getDeltaY() * mMouseSensitivity;
 
@@ -45,6 +46,10 @@ namespace sndbx
 		{
 			mDirection.x -= glm::cos(glm::radians(mYaw));
 			mDirection.z += glm::sin(glm::radians(mYaw));
+		}
+		if (eg::Input::Keyboard::isKeyDown(GLFW_KEY_F))
+		{
+			mGrabOject = true;
 		}
 		if (eg::Input::Keyboard::isKeyDownOnce(GLFW_KEY_SPACE))
 		{

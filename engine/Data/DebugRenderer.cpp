@@ -5,7 +5,7 @@
 
 namespace eg::Data::DebugRenderer
 {
-	constexpr size_t MAX_LINE_COUNT = 65536;
+	constexpr size_t MAX_LINE_COUNT = 65536 * 2;
 	std::vector<VertexFormat> gLineVertices;
 	std::optional<Renderer::GPUBuffer> gLineVertexBuffer;
 	std::optional<Renderer::CPUBuffer> gLineStagingVertexBuffer;

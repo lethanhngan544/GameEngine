@@ -31,6 +31,7 @@ namespace sndbx
 		glm::vec3 mDirection = { 0, 0, 0 };
 		glm::vec3 mVelocity = { 0, 0, 0 };
 		bool mJumpRequested = false;
+		bool mGrabOject = false;
 		float mCameraDistance = 5.0f;
 		float mPlayerSpeed = 1.0f;
 		float mMouseSensitivity = 0.2f;
