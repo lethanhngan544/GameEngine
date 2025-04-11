@@ -117,8 +117,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Data::DebugRenderer::recordLine({ 0, 0, 0 }, { 0, 0, 1 }, { 0, 0, 1 });
 
 				//Render
-				Physics::render();
 				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));
+				Physics::render();
 
 				ImGui::Begin("Debug");
 				ImGui::End();

@@ -21,6 +21,7 @@
     "tinygltf",
     "vulkan",
     "vulkan-memory-allocator",
-    "vulkan-memory-allocator-hpp"
+    "vulkan-memory-allocator-hpp",
+    "stb"
   ]
 }

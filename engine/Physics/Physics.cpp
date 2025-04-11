@@ -1,5 +1,7 @@
 #include <Physics.h>
 
+#include <imgui.h>
+
 #include <Data.h>
 #include <optional>
 
@@ -156,9 +158,15 @@ namespace eg::Physics
 
 	void render()
 	{
-		JPH::BodyManager::DrawSettings settings;
-		settings.mDrawVelocity = true;
-		settings.mDrawBoundingBox = true;
+		static JPH::BodyManager::DrawSettings settings;
+		//use imgui to controll
+		ImGui::Begin("Physics");
+		ImGui::Checkbox("Draw Velocity", &settings.mDrawVelocity);
+		ImGui::Checkbox("Draw Bounding Box", &settings.mDrawBoundingBox);
+		ImGui::Checkbox("Draw Shape", &settings.mDrawShape);
+		
+		ImGui::End();
+		
 		gPhysicsSystem->DrawBodies(settings, &gDebugRenderer.value(), nullptr);
 	}
 
