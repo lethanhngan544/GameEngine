@@ -168,7 +168,7 @@ namespace eg::Renderer
 							(
 								{},
 								{},
-								vk::ImageLayout::eTransferSrcOptimal,
+								vk::ImageLayout::eTransferDstOptimal,
 								vk::ImageLayout::eShaderReadOnlyOptimal,
 								{},
 								{},

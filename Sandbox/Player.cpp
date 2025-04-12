@@ -101,7 +101,7 @@ namespace sndbx
 
 		if (mGrabOject)
 		{
-			JPH::Vec3 forward = JPH::Vec3(0, 0, -1);
+			JPH::Vec3 forward = JPH::Vec3(0, 0, 1);
 			forward = JPH::Quat::sRotation(JPH::Vec3(1, 0, 0), glm::radians(mPitch)) * forward;
 			forward = JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)) * forward;
 
@@ -117,12 +117,8 @@ namespace sndbx
 				JPH::IgnoreSingleBodyFilter(mBody));
 			if (found)
 			{
-				JPH::BodyID objectBody = result.mBodyID;
-				JPH::Vec3 grabbedBodyPos = bodyInterface->GetCenterOfMassPosition(objectBody);
-				JPH::Vec3 grabbedBodyVel = bodyInterface->GetLinearVelocity(objectBody);
-				JPH::Vec3 targetPos = position + forward * 3.0f;
-				JPH::Vec3 toTarget = targetPos - grabbedBodyPos;
-				JPH::Vec3 velocity = toTarget * 10.0f - grabbedBodyVel * 0.5f;
+				JPH::BodyID objectBody = result.mBodyID;				
+				JPH::Vec3 velocity = forward * 10.0f;
 				bodyInterface->AddForce(objectBody, velocity, JPH::EActivation::Activate);
 			}
 		}
