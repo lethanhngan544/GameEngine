@@ -12,25 +12,25 @@ namespace eg::Data::DebugRenderer
 	
 	vk::PipelineLayout gLinePipelineLayout;
 	vk::Pipeline gLinePipeline;
-	vk::DescriptorSetLayout gLineSetLayout;
-	vk::DescriptorSet gLineSet;
+	//vk::DescriptorSetLayout gLineSetLayout;
+	//vk::DescriptorSet gLineSet;
 	void create()
 	{
 		Logger::gTrace("Creating debug renderer !");
 
 		//Define shader layout
-		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
-		{
-			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
-		};
-		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
-		descLayoutCI.setBindings(descLayoutBindings);
+		//vk::DescriptorSetLayoutBinding descLayoutBindings[] =
+		//{
+		//	vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
+		//};
+		//vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
+		//descLayoutCI.setBindings(descLayoutBindings);
 
-		gLineSetLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
+		//gLineSetLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
 		//Allocate descriptor set right here
 
-		vk::DescriptorSetAllocateInfo ai{};
+	/*	vk::DescriptorSetAllocateInfo ai{};
 		ai.setDescriptorPool(Renderer::getDescriptorPool())
 			.setDescriptorSetCount(1)
 			.setSetLayouts(gLineSetLayout);
@@ -45,7 +45,7 @@ namespace eg::Data::DebugRenderer
 				1,
 				vk::DescriptorType::eInputAttachment,
 				&imageInfos[0])
-			}, {});
+			}, {});*/
 
 		//Load shaders
 		auto vertexBinary = Renderer::compileShaderFromFile("shaders/debug_line_vs.glsl", shaderc_glsl_vertex_shader);
@@ -66,7 +66,7 @@ namespace eg::Data::DebugRenderer
 		vk::DescriptorSetLayout setLayouts[] =
 		{
 			Renderer::getGlobalDescriptorSet(), // Slot0
-			gLineSetLayout, // Slot1
+			//gLineSetLayout, // Slot1
 		};
 
 		vk::PipelineLayoutCreateInfo pipelineLayoutCI{};
@@ -255,7 +255,7 @@ namespace eg::Data::DebugRenderer
 			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 				gLinePipelineLayout,
 				0,
-				{ Renderer::getCurrentFrameGUBODescSet(), gLineSet },
+				{ Renderer::getCurrentFrameGUBODescSet() },
 			{});
 			cmd.bindVertexBuffers(0, { gLineVertexBuffer->getBuffer() }, { 0 });
 

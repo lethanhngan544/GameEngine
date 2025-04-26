@@ -102,13 +102,14 @@ namespace eg::Renderer
 			vk::AttachmentReference(0, vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::AttachmentReference(1, vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::AttachmentReference(2, vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::AttachmentReference(3, vk::ImageLayout::eShaderReadOnlyOptimal), //Depth
 		};
+
 
 		vk::AttachmentReference pass1OutputAttachmentRef[] =
 		{
 			vk::AttachmentReference(4, vk::ImageLayout::eColorAttachmentOptimal),
 		};
+		vk::AttachmentReference pass1OutputDepthStencilAttachmentRef = vk::AttachmentReference(3, vk::ImageLayout::eDepthStencilAttachmentOptimal); //Depth;
 
 		
 		vk::SubpassDescription subpasses[] = {
@@ -127,7 +128,7 @@ namespace eg::Renderer
 				sizeof(pass1InputAttachmentRef) / sizeof(pass1InputAttachmentRef[0]), pass1InputAttachmentRef, // Input
 				sizeof(pass1OutputAttachmentRef) / sizeof(pass1OutputAttachmentRef[0]), pass1OutputAttachmentRef, //Output
 				nullptr, //Resolve
-				nullptr, //Depth
+				&pass1OutputDepthStencilAttachmentRef, //Depth
 				0, nullptr//Preserve
 			),
 			

@@ -12,7 +12,7 @@ namespace sndbx
 		JPH::BodyID mBody;
 		std::shared_ptr<eg::Data::StaticModel> mModel = nullptr;
 	public:
-		MapPhysicsObject(const std::string& modelPath);
+		MapPhysicsObject(const std::string& modelPath, const glm::vec3& position);
 
 		void update(float delta) override;
 		void render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage) override;

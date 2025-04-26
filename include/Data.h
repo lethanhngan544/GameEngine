@@ -12,9 +12,18 @@
 #include <glm/mat4x4.hpp>
 
 
+namespace tinygltf
+{
+	class Model;
+	class Image;
+}
 
 namespace eg::Data
 {
+	bool LoadImageData(tinygltf::Image* image, const int image_idx, std::string* err,
+		std::string* warn, int req_width, int req_height,
+		const unsigned char* bytes, int size, void* user_data);
+	
 	class IGameObject
 	{	
 	public:
@@ -128,6 +137,7 @@ namespace eg::Data
 		{
 			struct UniformBuffer
 			{
+				float albedoColor[3] = {};
 				uint32_t has_albedo = 0;
 				uint32_t has_normal = 0;
 				uint32_t has_mr = 0;
@@ -145,11 +155,13 @@ namespace eg::Data
 	public:
 		StaticModel() = delete;
 		StaticModel(const std::string& filePath);
+		StaticModel(const tinygltf::Model& model);
 		~StaticModel();
 
 		const std::vector<RawMesh>& getRawMeshes() const { return mRawMeshes; }
 		const std::vector<Material>& getMaterials() const { return mMaterials; }
-
+	private:
+		void loadTinygltfModel(const tinygltf::Model& model);
 	};
 
 	namespace StaticModelCache
@@ -181,7 +193,7 @@ namespace eg::Data
 
 		vk::DescriptorSetLayout getMaterialSetLayout();
 
-	};
+	}
 
 	namespace LightRenderer
 	{
@@ -196,7 +208,14 @@ namespace eg::Data
 			const PointLight& pointLight);
 
 		vk::DescriptorSetLayout getPointLightPerDescLayout();
-	};
+	}
+
+	namespace ParticleRenderer
+	{
+		void create();
+		void destroy();
+		void render(vk::CommandBuffer cmd, const vk::DescriptorSet& particleTexture, const glm::vec3& worldPosition);
+	}
 	
 
 	namespace DebugRenderer
@@ -215,4 +234,7 @@ namespace eg::Data
 		void updateVertexBuffers(vk::CommandBuffer cmd);
 		void render(vk::CommandBuffer cmd);
 	}
+
+
+	
 }

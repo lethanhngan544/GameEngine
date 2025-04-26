@@ -15,6 +15,11 @@ namespace eg::Data::LightRenderer
 	vk::DescriptorSetLayout mPointPerDescLayout; //Per light data
 	vk::DescriptorSet mPointSet;
 
+	vk::Pipeline mDirectionalPipeline;
+	vk::PipelineLayout mDirectionalLayout;
+	vk::DescriptorSetLayout mDirectionalDescLayout;
+	vk::DescriptorSet mDirectionalSet;
+
 	void createAmbientPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
 	void createPointPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
 

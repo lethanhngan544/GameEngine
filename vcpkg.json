@@ -22,7 +22,6 @@
     "tinygltf",
     "vulkan",
     "vulkan-memory-allocator",
-    "vulkan-memory-allocator-hpp",
-    "libtorch"
+    "vulkan-memory-allocator-hpp"
   ]
 }

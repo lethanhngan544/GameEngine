@@ -5,8 +5,10 @@
 #include <Physics.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/ShapeCast.h>
 
 namespace sndbx
 {
@@ -25,9 +27,9 @@ namespace sndbx
 				JPH::Quat::sIdentity(),
 				JPH::EMotionType::Dynamic,
 				eg::Physics::Layers::MOVING);
-			bodySetting.mFriction = 0.8f;
+			bodySetting.mFriction = 0.0f;
 			bodySetting.mMassPropertiesOverride.mMass = mMass;
-			bodySetting.mLinearDamping = 0.9f;
+			bodySetting.mLinearDamping = 0.0f;
 			bodySetting.mAngularDamping = 0.0f;
 			bodySetting.mAllowSleeping = false;
 			bodySetting.mMotionQuality = JPH::EMotionQuality::LinearCast;
@@ -48,24 +50,39 @@ namespace sndbx
 
 	void Player::update(float delta)
 	{
+		const JPH::BodyLockInterface& lockInterface = eg::Physics::getPhysicsSystem().GetBodyLockInterface(); // Or GetBodyLockInterfaceNoLock
 		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-		JPH::Vec3 position = bodyInterface->GetPosition(mBody);
-		glm::vec3 postionGlm = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
-		JPH::Vec3 velocity = bodyInterface->GetLinearVelocity(mBody);
+
+		JPH::Vec3 velocity = JPH::Vec3(0, 0, 0);
+		JPH::Vec3 position = JPH::Vec3(0, 0, 0);
+		glm::vec3 positionGlm = glm::vec3(0.0f, 0.0f, 0.0f);
 		JPH::Vec3 wishDir = JPH::Vec3(mDirection.x, mDirection.y, mDirection.z);
-		
+	
+		//Reading
+		{
+			JPH::BodyLockRead lockRead(lockInterface, mBody);
+			const JPH::Body& body = lockRead.GetBody();
+			if (!lockRead.Succeeded()) // body_id may no longer be valid
+			{
+				return;
+			}
+
+			position = body.GetPosition();
+			positionGlm = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
+			velocity = body.GetLinearVelocity();	
+		}
+
 		// Simple grounded check (raycast down)
 		JPH::RRayCast ray;
 		ray.mOrigin = position;
-		ray.mDirection = JPH::Vec3(0, -1, 0);
+		ray.mDirection = JPH::Vec3(0, -1.5f, 0);
+
 
 		JPH::RayCastResult result;
 		bool grounded = eg::Physics::getPhysicsSystem().GetNarrowPhaseQuery().CastRay(ray, result,
 			JPH::BroadPhaseLayerFilter{},
 			JPH::ObjectLayerFilter{},
 			JPH::IgnoreSingleBodyFilter(mBody));
-
-
 		float currentSpeed = velocity.Dot(wishDir);
 		if (grounded) {
 			float addSpeed = mGroundMaxSpeed - currentSpeed;
@@ -79,6 +96,8 @@ namespace sndbx
 			if (mJumpRequested) {
 				velocity.SetY(mJumpStrength);
 			}
+
+
 		}
 		else {
 			float addSpeed = mAirMaxSpeed - currentSpeed;
@@ -91,38 +110,22 @@ namespace sndbx
 			velocity.SetY(velocity.GetY() - 9.8f * delta); // Gravity
 		}
 
-		velocity.SetY(velocity.GetY() - 9.8f * delta);
 
-		bodyInterface->SetLinearVelocity(mBody, velocity);
-		bodyInterface->SetRotation(mBody, JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)), JPH::EActivation::Activate);
-		
-
-		mLight.mUniformBuffer.position = glm::vec4(postionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);
-
-		if (mGrabOject)
+		//Writing
 		{
-			JPH::Vec3 forward = JPH::Vec3(0, 0, 1);
-			forward = JPH::Quat::sRotation(JPH::Vec3(1, 0, 0), glm::radians(mPitch)) * forward;
-			forward = JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)) * forward;
-
-			//Ray cast
-			JPH::RRayCast ray;
-			ray.mOrigin = position + JPH::Vec3{ 0.0f, 0.8f, 0.0f };
-			ray.mDirection = forward;
-
-			JPH::RayCastResult result;
-			bool found = eg::Physics::getPhysicsSystem().GetNarrowPhaseQuery().CastRay(ray, result,
-				JPH::BroadPhaseLayerFilter{},
-				JPH::ObjectLayerFilter{},
-				JPH::IgnoreSingleBodyFilter(mBody));
-			if (found)
+			JPH::BodyLockWrite lockWrite(lockInterface, mBody);
+			JPH::Body& body = lockWrite.GetBody();
+			if (!lockWrite.Succeeded()) // body_id may no longer be valid
 			{
-				JPH::BodyID objectBody = result.mBodyID;				
-				JPH::Vec3 velocity = forward * 10.0f;
-				bodyInterface->AddForce(objectBody, velocity, JPH::EActivation::Activate);
+				return;
 			}
+			body.SetLinearVelocity(velocity);
+			body.GetMotionProperties()->SetLinearDamping(grounded ? mGroundDamping : mAirDamping);
 		}
+		bodyInterface->SetRotation(mBody, JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)), JPH::EActivation::Activate);
 
+	
+		mLight.mUniformBuffer.position = glm::vec4(positionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);
 	}
 
 	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)

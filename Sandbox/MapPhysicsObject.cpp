@@ -9,7 +9,7 @@
 
 namespace sndbx
 {
-	MapPhysicsObject::MapPhysicsObject(const std::string& modelPath)
+	MapPhysicsObject::MapPhysicsObject(const std::string& modelPath, const glm::vec3& position)
 	{
 		mModel = eg::Data::StaticModelCache::load(modelPath);
 
@@ -19,7 +19,7 @@ namespace sndbx
 			JPH::BoxShapeSettings shapeSettings(JPH::Vec3(1.0f, 1.0f, 1.0f));
 			shapeSettings.SetEmbedded();
 			JPH::BodyCreationSettings bodySetting(&shapeSettings,
-				JPH::RVec3(0.0f, 10.0f, 0.0f),
+				JPH::RVec3(position.x, position.y, position.z),
 				JPH::Quat::sIdentity(),
 				JPH::EMotionType::Dynamic,
 				eg::Physics::Layers::MOVING);
@@ -30,14 +30,15 @@ namespace sndbx
 			bodySetting.mAllowSleeping = false;
 			bodySetting.mMotionQuality = JPH::EMotionQuality::Discrete;
 
-
 			mBody = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::Activate);
 		}
 	}
 
 	void MapPhysicsObject::update(float delta)
 	{
-
+		auto pos = eg::Physics::getBodyInterface()->GetCenterOfMassPosition(mBody);
+		//Print
+		eg::Logger::gInfo("MapPhysicsObject: " + std::to_string(pos.GetX()) + " | " + std::to_string(pos.GetY()) + " | " + std::to_string(pos.GetZ()));
 	}
 
 	void MapPhysicsObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)

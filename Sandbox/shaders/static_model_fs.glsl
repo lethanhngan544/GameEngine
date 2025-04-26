@@ -11,6 +11,7 @@ layout(location = 2) out vec3 outMr;
 
 layout(set = 1, binding = 0) uniform UniformBuffer
 {
+    vec3 albedoColor;
     uint has_albedo;
     uint has_normal;
     uint has_mr;
@@ -47,7 +48,7 @@ void main() {
         mr = texture(uMr, fsUv).rgb;
     }
 
-    outAlbeo = albedo;
+    outAlbeo = ubo.albedoColor * albedo;
     outNormal = normal;
     outMr = mr;
 }

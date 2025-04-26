@@ -62,6 +62,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Data::StaticModelRenderer::create();
 		Data::LightRenderer::create();
 		Data::DebugRenderer::create();
+		Data::ParticleRenderer::create();
 		Physics::create();
 		
 
@@ -74,14 +75,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			gameObjManager.addGameObject(std::move(player1));
 			gameObjManager.addGameObject(std::move(player2));
 
-			auto mo1 = std::make_unique<sndbx::MapObject>("models/sponza.glb");
-			mo1->getTransform().mScale.x = 0.01f;
-			mo1->getTransform().mScale.y = 0.01f;
-			mo1->getTransform().mScale.z = 0.01f;
+			auto mo1 = std::make_unique<sndbx::MapObject>("models/map1.glb");
 			gameObjManager.addGameObject(std::move(mo1));
 
 
-			auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb");
+			//for (uint32_t i = 0; i < 10; i++)
+			//{
+			//	//Generate random position from 10 to 10
+
+			//	glm::vec3 position = { (float)(rand() % 10), 10.0f, (float)(rand() % 10)};
+			//	auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
+			//	gameObjManager.addGameObject(std::move(mo2));
+
+			//}
+			glm::vec3 position = {0.0f, 10.0f, 0.0f };
+			auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
 			gameObjManager.addGameObject(std::move(mo2));
 
 			/*auto mo2 = std::make_unique<sndbx::MapObject>("models/VC.glb");
@@ -152,8 +160,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			Renderer::waitIdle();
 		}
+
 		Data::StaticModelCache::clear();
 		Data::DebugRenderer::destroy();
+		Data::ParticleRenderer::destroy();
 		Data::LightRenderer::destroy();
 		Data::StaticModelRenderer::destroy();
 		Renderer::destory();
