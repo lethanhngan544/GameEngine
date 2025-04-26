@@ -1,7 +1,6 @@
-🚀 A custom 3D game engine built from scratch using Vulkan, C++, CMake, and vcpkg.
-Supports real-time rendering, deferred shading, and physics integration.
+# 🚀 A custom 3D game engine built from scratch using Vulkan, C++, CMake, and vcpkg. Supports real-time rendering, deferred shading, and physics integration.
 
-✨ Features
+# ✨ Features
 Custom engine architecture
 
 Real-time rendering with Vulkan
@@ -13,39 +12,36 @@ Physics integration (e.g., Jolt Physics)
 Asset management system
 
 
-📦 Build Instructions
+# 📦 Build Instructions
 Prerequisites
-CMake (version >= 3.20)
+- CMake (version >= 3.20)
+- C++17 compatible compiler (Visual Studio 2022, GCC 11+, Clang 13+)
+- vcpkg
+- Vulkan SDK installed (from LunarG)
 
-C++17 compatible compiler (Visual Studio 2022, GCC 11+, Clang 13+)
-
-vcpkg
-
-Vulkan SDK installed (from LunarG)
-
-Install Dependencies
+# Install Dependencies
 If you haven't set up vcpkg yet:
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 ./bootstrap-vcpkg.bat   # (Windows)
-# or
+or
 ./bootstrap-vcpkg.sh    # (Linux)
 Navigate to project folder and run the following command to install dependencies:
 ./vcpkg install
 
-🛠️ Technologies Used
-Vulkan API
+# 🛠️ Technologies Used
+- Vulkan API
 
-C++
+- C++
 
-CMake
+- CMake
 
-vcpkg
+- vcpkg
 
-GLFW
+- GLFW
 
-GLM
+- GLM
 
-SPIR-V
+- SPIR-V
 
-Jolt Physics (optional)
+- Jolt Physics (optional)
