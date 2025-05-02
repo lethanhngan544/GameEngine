@@ -25,10 +25,11 @@ namespace sndbx
 				eg::Physics::Layers::MOVING);
 			bodySetting.mFriction = 0.2f;
 			bodySetting.mMassPropertiesOverride.mMass = 10.0f;
-			bodySetting.mLinearDamping = 0.9f;
+			bodySetting.mLinearDamping = 1.001f;
 			bodySetting.mAngularDamping = 0.0f;
 			bodySetting.mAllowSleeping = false;
 			bodySetting.mMotionQuality = JPH::EMotionQuality::Discrete;
+			bodySetting.mRestitution = 0.9f;
 
 			mBody = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::Activate);
 		}
@@ -36,9 +37,7 @@ namespace sndbx
 
 	void MapPhysicsObject::update(float delta)
 	{
-		auto pos = eg::Physics::getBodyInterface()->GetCenterOfMassPosition(mBody);
-		//Print
-		eg::Logger::gInfo("MapPhysicsObject: " + std::to_string(pos.GetX()) + " | " + std::to_string(pos.GetY()) + " | " + std::to_string(pos.GetZ()));
+		
 	}
 
 	void MapPhysicsObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)

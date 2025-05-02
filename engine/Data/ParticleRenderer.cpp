@@ -110,16 +110,17 @@ namespace eg::Data::ParticleRenderer
 
 		vk::PipelineColorBlendAttachmentState colorBlendAttachmentState{};
 		colorBlendAttachmentState
-			.setColorWriteMask(vk::ColorComponentFlagBits::eR |
+			.setColorWriteMask(
+				vk::ColorComponentFlagBits::eR |
 				vk::ColorComponentFlagBits::eG |
 				vk::ColorComponentFlagBits::eB |
 				vk::ColorComponentFlagBits::eA)
 			.setBlendEnable(true)
-			.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
-			.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
+			.setDstColorBlendFactor(vk::BlendFactor::eOne)
 			.setColorBlendOp(vk::BlendOp::eAdd)
 			.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
-			.setDstAlphaBlendFactor(vk::BlendFactor::eZero)
+			.setDstAlphaBlendFactor(vk::BlendFactor::eOne)
 			.setAlphaBlendOp(vk::BlendOp::eAdd);
 
 		vk::PipelineColorBlendStateCreateInfo colorBlendStateCI{};

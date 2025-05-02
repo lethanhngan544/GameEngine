@@ -88,9 +88,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			//	gameObjManager.addGameObject(std::move(mo2));
 
 			//}
-			glm::vec3 position = {0.0f, 10.0f, 0.0f };
-			auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
-			gameObjManager.addGameObject(std::move(mo2));
+			for (auto i = 0; i < 200; i++)
+			{
+				//Generate random position
+				glm::vec3 position = { (float)(rand() % 10), 50.0f, (float)(rand() % 10) };
+				auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
+				gameObjManager.addGameObject(std::move(mo2));
+			}
+			
 
 			/*auto mo2 = std::make_unique<sndbx::MapObject>("models/VC.glb");
 			gameObjManager.addGameObject(std::move(mo2));*/
@@ -99,9 +104,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			using Clock = std::chrono::high_resolution_clock;
 			using TimePoint = std::chrono::time_point<Clock>;
 
-			constexpr double TICK_RATE = 128;
+			constexpr double TICK_RATE = 60;
 			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
-			constexpr int MAX_FPS = 60;
+			constexpr int MAX_FPS = 120;
 			constexpr double FRAME_DURATION_CAP = 1.0 / MAX_FPS;
 			TimePoint lastTime = Clock::now();
 			double accumulator = 0.0;
@@ -122,12 +127,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				}
 				//Update
 				Input::Mouse::update();
-
-				//Render 100 random lines
-				
-				Data::DebugRenderer::recordLine({ 0, 0, 0 }, { 1, 0, 0 }, { 1, 0, 0 });
-				Data::DebugRenderer::recordLine({ 0, 0, 0 }, { 0, 1, 0 }, { 0, 1, 0 });
-				Data::DebugRenderer::recordLine({ 0, 0, 0 }, { 0, 0, 1 }, { 0, 0, 1 });
 
 				//Render
 				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));

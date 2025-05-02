@@ -143,30 +143,31 @@ namespace eg::Data::DebugRenderer
 			.setAlphaToCoverageEnable(false)
 			.setAlphaToOneEnable(false);
 
-		vk::PipelineColorBlendAttachmentState attachments[] = {
-			//Normal
-			vk::PipelineColorBlendAttachmentState(false,
-				vk::BlendFactor::eOne,
-				vk::BlendFactor::eZero,
-				vk::BlendOp::eAdd,
-				vk::BlendFactor::eOne,
-				vk::BlendFactor::eOne,
-				vk::BlendOp::eAdd,
+
+		vk::PipelineColorBlendAttachmentState colorBlendAttachmentState{};
+		colorBlendAttachmentState
+			.setColorWriteMask(
 				vk::ColorComponentFlagBits::eR |
 				vk::ColorComponentFlagBits::eG |
-				vk::ColorComponentFlagBits::eB
-			),
-		};
+				vk::ColorComponentFlagBits::eB |
+				vk::ColorComponentFlagBits::eA)
+			.setBlendEnable(true)
+			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
+			.setDstColorBlendFactor(vk::BlendFactor::eOne)
+			.setColorBlendOp(vk::BlendOp::eAdd)
+			.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
+			.setDstAlphaBlendFactor(vk::BlendFactor::eOne)
+			.setAlphaBlendOp(vk::BlendOp::eAdd);
 
 
 		vk::PipelineColorBlendStateCreateInfo colorBlendStateCI{};
 		colorBlendStateCI.setLogicOpEnable(false)
 			.setLogicOp(vk::LogicOp::eCopy)
-			.setAttachments(attachments)
+			.setAttachments(colorBlendAttachmentState)
 			.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
 		depthStencilStateCI.setDepthTestEnable(true)
-			.setDepthWriteEnable(true)
+			.setDepthWriteEnable(false)
 			.setDepthCompareOp(vk::CompareOp::eLess)
 			.setDepthBoundsTestEnable(false)
 			.setStencilTestEnable(false)
@@ -239,14 +240,17 @@ namespace eg::Data::DebugRenderer
 
 	void updateVertexBuffers(vk::CommandBuffer cmd)
 	{
-		Renderer::immediateSubmit([&](vk::CommandBuffer cmd)
+		if (gLineVertices.size() > 0)
 		{
-			gLineStagingVertexBuffer->write(gLineVertices.data(), sizeof(VertexFormat) * gLineVertices.size());
+			Renderer::immediateSubmit([&](vk::CommandBuffer cmd)
+				{
+					gLineStagingVertexBuffer->write(gLineVertices.data(), sizeof(VertexFormat) * gLineVertices.size());
 
-			vk::BufferCopy copyRegion{};
-			copyRegion.setSize(sizeof(VertexFormat) * gLineVertices.size());
-			cmd.copyBuffer(gLineStagingVertexBuffer->getBuffer(), gLineVertexBuffer->getBuffer(), copyRegion);
-		});
+					vk::BufferCopy copyRegion{};
+					copyRegion.setSize(sizeof(VertexFormat) * gLineVertices.size());
+					cmd.copyBuffer(gLineStagingVertexBuffer->getBuffer(), gLineVertexBuffer->getBuffer(), copyRegion);
+				});
+		}
 	}
 	void render(vk::CommandBuffer cmd)
 	{

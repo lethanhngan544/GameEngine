@@ -18,12 +18,12 @@ namespace sndbx
 
 		float mHeight = 1.8f;
 		float mRadius = 0.3f;
-		float mMass = 80000.0f;
-		float mGroundAccel = 10.0f;
-		float mAirAccel = 2.0f;
+		float mMass = 80.0f;
+		float mGroundAccel = 20.0f;
+		float mAirAccel = 10.0f;
 		float mJumpStrength = 10.5f;
-		float mGroundMaxSpeed = 5.0f;
-		float mAirMaxSpeed = 2.0f;
+		float mGroundMaxSpeed = 6.0f;
+		float mAirMaxSpeed = 6.0f;
 		float mGroundDamping = 5.0f;
 		float mAirDamping = 0.0f;
 

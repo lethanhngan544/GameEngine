@@ -50,79 +50,86 @@ namespace sndbx
 
 	void Player::update(float delta)
 	{
-		const JPH::BodyLockInterface& lockInterface = eg::Physics::getPhysicsSystem().GetBodyLockInterface(); // Or GetBodyLockInterfaceNoLock
+		const JPH::BodyLockInterface& lockInterface = eg::Physics::getPhysicsSystem().GetBodyLockInterface();
 		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
 
-		JPH::Vec3 velocity = JPH::Vec3(0, 0, 0);
-		JPH::Vec3 position = JPH::Vec3(0, 0, 0);
-		glm::vec3 positionGlm = glm::vec3(0.0f, 0.0f, 0.0f);
-		JPH::Vec3 wishDir = JPH::Vec3(mDirection.x, mDirection.y, mDirection.z);
-	
-		//Reading
+		JPH::Vec3 velocity(0, 0, 0);
+		JPH::Vec3 position(0, 0, 0);
+		glm::vec3 positionGlm;
+		JPH::Vec3 wishDir(mDirection.x, mDirection.y, mDirection.z);
+
+		// Reading body state
 		{
 			JPH::BodyLockRead lockRead(lockInterface, mBody);
+			if (!lockRead.Succeeded()) return;
 			const JPH::Body& body = lockRead.GetBody();
-			if (!lockRead.Succeeded()) // body_id may no longer be valid
-			{
-				return;
-			}
-
 			position = body.GetPosition();
 			positionGlm = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
-			velocity = body.GetLinearVelocity();	
+			velocity = body.GetLinearVelocity();
 		}
 
-		// Simple grounded check (raycast down)
-		JPH::RRayCast ray;
-		ray.mOrigin = position;
-		ray.mDirection = JPH::Vec3(0, -1.5f, 0);
+		// Grounded check (simple downward ray)
+		bool grounded = false;
+		{
+			JPH::RRayCast ray;
+			ray.mOrigin = position;
+			ray.mDirection = JPH::Vec3(0, -1.5f, 0); // Short ray down
 
-
-		JPH::RayCastResult result;
-		bool grounded = eg::Physics::getPhysicsSystem().GetNarrowPhaseQuery().CastRay(ray, result,
-			JPH::BroadPhaseLayerFilter{},
-			JPH::ObjectLayerFilter{},
-			JPH::IgnoreSingleBodyFilter(mBody));
-		float currentSpeed = velocity.Dot(wishDir);
-		if (grounded) {
-			float addSpeed = mGroundMaxSpeed - currentSpeed;
-			if (addSpeed <= 0.0f) addSpeed = 0.0f;
-			float accelSpeed = mGroundAccel * delta * mGroundMaxSpeed;
-			if (accelSpeed > addSpeed)
-				accelSpeed = addSpeed;
-
-			velocity += wishDir * accelSpeed;
-
-			if (mJumpRequested) {
-				velocity.SetY(mJumpStrength);
-			}
-
-
-		}
-		else {
-			float addSpeed = mAirMaxSpeed - currentSpeed;
-			if (addSpeed <= 0.0f) addSpeed = 0.0f;
-			float accelSpeed = mAirAccel * delta * mAirMaxSpeed;
-			if (accelSpeed > addSpeed)
-				accelSpeed = addSpeed;
-
-			velocity += wishDir * accelSpeed;
-			velocity.SetY(velocity.GetY() - 9.8f * delta); // Gravity
+			JPH::RayCastResult result;
+			grounded = eg::Physics::getPhysicsSystem().GetNarrowPhaseQuery().CastRay(ray, result,
+				JPH::BroadPhaseLayerFilter{},
+				JPH::ObjectLayerFilter{},
+				JPH::IgnoreSingleBodyFilter(mBody));
 		}
 
+		// Separate horizontal and vertical velocity
+		JPH::Vec3 flatVelocity = velocity;
+		flatVelocity.SetY(0.0f);
 
-		//Writing
+		float flatSpeed = flatVelocity.Length();
+		float wishSpeed = grounded ? mGroundMaxSpeed : mAirMaxSpeed;
+
+		// Normalize wishdir safely
+		if (wishDir.LengthSq() > 0.0f)
+			wishDir = wishDir.Normalized();
+
+		// Calculate acceleration
+		float addSpeed = wishSpeed - flatVelocity.Dot(wishDir);
+		if (addSpeed > 0.0f)
+		{
+			float accel = (grounded ? mGroundAccel : mAirAccel) * delta * wishSpeed;
+			if (accel > addSpeed)
+				accel = addSpeed;
+			flatVelocity += wishDir * accel;
+		}
+
+		// Jumping
+		if (mJumpRequested && grounded)
+		{
+			velocity.SetY(mJumpStrength); // Launch upward
+		}
+		else
+		{
+			// Gravity (if not jumping newly)
+			velocity.SetY(velocity.GetY() - 9.8f * delta);
+		}
+
+		// Combine updated horizontal and vertical movement
+		velocity.SetX(flatVelocity.GetX());
+		velocity.SetZ(flatVelocity.GetZ());
+
+		// Writing body state
 		{
 			JPH::BodyLockWrite lockWrite(lockInterface, mBody);
+			if (!lockWrite.Succeeded()) return;
 			JPH::Body& body = lockWrite.GetBody();
-			if (!lockWrite.Succeeded()) // body_id may no longer be valid
-			{
-				return;
-			}
 			body.SetLinearVelocity(velocity);
 			body.GetMotionProperties()->SetLinearDamping(grounded ? mGroundDamping : mAirDamping);
 		}
+
+		// Set character facing direction
 		bodyInterface->SetRotation(mBody, JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)), JPH::EActivation::Activate);
+
 
 	
 		mLight.mUniformBuffer.position = glm::vec4(positionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);

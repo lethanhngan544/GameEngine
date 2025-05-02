@@ -228,18 +228,20 @@ namespace eg::Data::LightRenderer
 			.setAlphaToCoverageEnable(false)
 			.setAlphaToOneEnable(false);
 
+
 		vk::PipelineColorBlendAttachmentState colorBlendAttachmentState{};
 		colorBlendAttachmentState
-			.setColorWriteMask(vk::ColorComponentFlagBits::eR |
+			.setColorWriteMask(
+				vk::ColorComponentFlagBits::eR |
 				vk::ColorComponentFlagBits::eG |
 				vk::ColorComponentFlagBits::eB |
 				vk::ColorComponentFlagBits::eA)
 			.setBlendEnable(true)
-			.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
-			.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
+			.setDstColorBlendFactor(vk::BlendFactor::eOne)
 			.setColorBlendOp(vk::BlendOp::eAdd)
 			.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
-			.setDstAlphaBlendFactor(vk::BlendFactor::eZero)
+			.setDstAlphaBlendFactor(vk::BlendFactor::eOne)
 			.setAlphaBlendOp(vk::BlendOp::eAdd);
 
 		vk::PipelineColorBlendStateCreateInfo colorBlendStateCI{};
@@ -442,7 +444,8 @@ namespace eg::Data::LightRenderer
 
 		vk::PipelineColorBlendAttachmentState colorBlendAttachmentState{};
 		colorBlendAttachmentState
-			.setColorWriteMask(vk::ColorComponentFlagBits::eR |
+			.setColorWriteMask(
+				vk::ColorComponentFlagBits::eR |
 				vk::ColorComponentFlagBits::eG |
 				vk::ColorComponentFlagBits::eB |
 				vk::ColorComponentFlagBits::eA)
@@ -450,9 +453,10 @@ namespace eg::Data::LightRenderer
 			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
 			.setDstColorBlendFactor(vk::BlendFactor::eOne)
 			.setColorBlendOp(vk::BlendOp::eAdd)
-			.setSrcAlphaBlendFactor(vk::BlendFactor::eZero)
-			.setDstAlphaBlendFactor(vk::BlendFactor::eZero)
+			.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
+			.setDstAlphaBlendFactor(vk::BlendFactor::eOne)
 			.setAlphaBlendOp(vk::BlendOp::eAdd);
+
 
 		vk::PipelineColorBlendStateCreateInfo colorBlendStateCI{};
 		colorBlendStateCI.setLogicOpEnable(false)
