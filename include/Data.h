@@ -199,10 +199,19 @@ namespace eg::Data
 
 	namespace LightRenderer
 	{
+		struct DirectionalLight //This will act like uniform buffer
+		{
+			glm::vec3 direction = { 1, -1, 0 };
+			float intensity = 5.0f;
+			glm::vec4 color = { 1, 1, 1, 1 };
+			//TODO: Shadowmap config
+		};
+
 		void create();
 		void destroy();
 
 		void renderAmbient(vk::CommandBuffer cmd);
+		void renderDirectionalLight(vk::CommandBuffer cmd);
 
 		void beginPointLight(vk::CommandBuffer cmd);
 

@@ -96,7 +96,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			constexpr double TICK_RATE = 60;
 			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
-			constexpr int MAX_FPS = 120;
+			constexpr int MAX_FPS = 360;
 			constexpr double FRAME_DURATION_CAP = 1.0 / MAX_FPS;
 			TimePoint lastTime = Clock::now();
 			double accumulator = 0.0;
@@ -135,6 +135,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				//Subpass 1, lighting
 				cmd.nextSubpass(vk::SubpassContents::eInline);
 				Data::LightRenderer::renderAmbient(cmd);
+				Data::LightRenderer::renderDirectionalLight(cmd);
 				Data::LightRenderer::beginPointLight(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
 				Data::ParticleRenderer::render(cmd);
