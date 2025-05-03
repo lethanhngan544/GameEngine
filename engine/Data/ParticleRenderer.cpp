@@ -8,16 +8,45 @@
 
 namespace eg::Data::ParticleRenderer
 {
+	static constexpr uint32_t MAX_PARTICLES = 10000; // Max particles to render
+
+	struct ParticleVertex {
+		glm::vec2 position;
+		glm::vec2 uv;
+	};
+	std::vector<ParticleVertex> particleVertices = {
+		{{-0.5f, -0.5f}, {0.0f, 0.0f}},
+		{{ 0.5f, -0.5f}, {1.0f, 0.0f}},
+		{{-0.5f,  0.5f}, {0.0f, 1.0f}},
+		{{ 0.5f,  0.5f}, {1.0f, 1.0f}},
+	};
+
+	struct ParticleAtlas
+	{
+		glm::uvec2 size; // Size of the atlas
+		std::vector<ParticleInstance> instances;
+		std::optional<Renderer::GPUBuffer> buffer;
+	};
+
+
+	std::unordered_map<VkDescriptorSet, ParticleAtlas> gParticleMap;
+
 	vk::Pipeline gPipeline;
 	vk::PipelineLayout gPipelineLayout;
 	vk::DescriptorSetLayout gDescLayout;
+	std::optional<Renderer::GPUBuffer> gVertexBuffer;
+	std::optional<Renderer::CPUBuffer> gInstanceBufferCPU;
 
 	void create()
 	{
+		gVertexBuffer.emplace(particleVertices.data(), particleVertices.size() * sizeof(ParticleVertex), vk::BufferUsageFlagBits::eVertexBuffer);
+		gInstanceBufferCPU.emplace(nullptr, sizeof(ParticleInstance) * MAX_PARTICLES, vk::BufferUsageFlagBits::eTransferSrc);
+		
+
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
 		{
-			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Texture atlas
 		};
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 		descLayoutCI.setBindings(descLayoutBindings);
@@ -26,8 +55,8 @@ namespace eg::Data::ParticleRenderer
 
 
 		//Load shaders
-		auto vertexBinary = Renderer::compileShaderFromFile("shaders/fullscreen_quad.glsl", shaderc_glsl_vertex_shader);
-		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/particle.glsl", shaderc_glsl_fragment_shader);
+		auto vertexBinary = Renderer::compileShaderFromFile("shaders/particle_vs.glsl", shaderc_glsl_vertex_shader);
+		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/particle_fs.glsl", shaderc_glsl_fragment_shader);
 
 		//Create shader modules
 		vk::ShaderModuleCreateInfo vertexShaderModuleCI{}, fragmentShaderModuleCI{};
@@ -43,12 +72,19 @@ namespace eg::Data::ParticleRenderer
 		vk::DescriptorSetLayout setLayouts[] =
 		{
 			Renderer::getGlobalDescriptorSet(), // Slot0
+			gDescLayout, // Slot 1
 		};
+
+		//Push constant
+		vk::PushConstantRange pushConstantRange{};
+		pushConstantRange.setOffset(0)
+			.setSize(sizeof(VertexPushConstant))
+			.setStageFlags(vk::ShaderStageFlagBits::eVertex);
 		vk::PipelineLayoutCreateInfo pipelineLayoutCI{};
 		pipelineLayoutCI.setFlags(vk::PipelineLayoutCreateFlags{})
 			.setSetLayouts(setLayouts)
-			.setPushConstantRangeCount(0)
-			.setPPushConstantRanges(nullptr);
+			.setPushConstantRanges(pushConstantRange);
+
 		gPipelineLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
 
 		//Create graphics pipeline
@@ -70,13 +106,28 @@ namespace eg::Data::ParticleRenderer
 			}
 		};
 
+		vk::VertexInputBindingDescription vertexInputBindingDescriptions[] = {
+			vk::VertexInputBindingDescription(0, sizeof(ParticleVertex), vk::VertexInputRate::eVertex),
+			vk::VertexInputBindingDescription(1, sizeof(ParticleInstance), vk::VertexInputRate::eInstance),
+		};
+
+		vk::VertexInputAttributeDescription vertexInputAttributeDescriptions[] = {
+			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32Sfloat, offsetof(ParticleVertex, position)),
+			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32Sfloat, offsetof(ParticleVertex, uv)),
+			vk::VertexInputAttributeDescription(2, 1, vk::Format::eR32G32B32A32Sfloat, offsetof(ParticleInstance, positionSize)),
+			vk::VertexInputAttributeDescription(3, 1, vk::Format::eR32G32Uint, offsetof(ParticleInstance, frameIndex)),
+		};
+
+
 
 		vk::PipelineVertexInputStateCreateInfo vertexInputStateCI{};
-		vertexInputStateCI.setFlags(vk::PipelineVertexInputStateCreateFlags{});
+		vertexInputStateCI.setFlags(vk::PipelineVertexInputStateCreateFlags{})
+			.setVertexBindingDescriptions(vertexInputBindingDescriptions)
+			.setVertexAttributeDescriptions(vertexInputAttributeDescriptions);
 
 		vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateCI{};
 		inputAssemblyStateCI.setFlags(vk::PipelineInputAssemblyStateCreateFlags{})
-			.setTopology(vk::PrimitiveTopology::eTriangleList)
+			.setTopology(vk::PrimitiveTopology::eTriangleStrip)
 			.setPrimitiveRestartEnable(false);
 
 		vk::Viewport viewport{};
@@ -176,12 +227,101 @@ namespace eg::Data::ParticleRenderer
 		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
+
+
+	void recordParticle(const ParticleInstance instance, vk::DescriptorSet textureAtlas, glm::uvec2 atlasSize)
+	{
+		gParticleMap[textureAtlas].size = atlasSize;
+		gParticleMap[textureAtlas].instances.push_back(instance);
+	}
+
+
+	vk::DescriptorSetLayout getTextureAtlasDescLayout()
+	{
+		return gDescLayout;
+	}
+
+	void updateBuffers(vk::CommandBuffer cmd)
+	{
+		for (auto& [set, atlas] : gParticleMap)
+		{
+			if (!atlas.buffer.has_value())
+			{
+				atlas.buffer.emplace(nullptr,
+					sizeof(ParticleInstance) * MAX_PARTICLES,
+					vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer);
+			}
+
+			//Update buffer
+			if (atlas.instances.size() == 0)
+			{
+				continue;
+			}
+			if (atlas.instances.size() > MAX_PARTICLES)
+			{
+				atlas.instances.resize(MAX_PARTICLES);
+			}
+			if (atlas.instances.size() > 0)
+			{
+				Renderer::immediateSubmit([&](vk::CommandBuffer cmd)
+					{
+						gInstanceBufferCPU->write(atlas.instances.data(), atlas.instances.size() * sizeof(ParticleInstance));
+
+						vk::BufferCopy copyRegion{};
+						copyRegion.setSize(sizeof(ParticleInstance) * atlas.instances.size());
+						cmd.copyBuffer(gInstanceBufferCPU->getBuffer(), atlas.buffer->getBuffer(), copyRegion);
+					});
+			}
+		}	
+	}
+	void render(vk::CommandBuffer cmd)
+	{
+		
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, gPipeline);
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+			gPipelineLayout,
+			0,
+			{ Renderer::getCurrentFrameGUBODescSet() },
+			{}
+		);
+		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
+			static_cast<float>(Renderer::getDrawExtent().extent.width),
+			static_cast<float>(Renderer::getDrawExtent().extent.height),
+			0.0f, 1.0f } });
+		cmd.setScissor(0, Renderer::getDrawExtent());
+		
+
+		for (auto& [set, atlas] : gParticleMap)
+		{
+			VertexPushConstant ps;
+			ps.atlasSize = atlas.size;
+			cmd.pushConstants(gPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(VertexPushConstant), &ps);
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+				gPipelineLayout,
+				1,
+				{ set },
+				{}
+			);
+
+			cmd.bindVertexBuffers(0, { gVertexBuffer->getBuffer(), atlas.buffer->getBuffer() }, { 0, 0 });
+			cmd.draw(4, atlas.instances.size(), 0, 0);
+		}
+
+
+		for (auto& [set, atlas] : gParticleMap)
+		{
+			atlas.instances.clear();
+		}
+	}
 	
 	void destroy()
 	{
 		Renderer::getDevice().destroyPipeline(gPipeline);
 		Renderer::getDevice().destroyPipelineLayout(gPipelineLayout);
 		Renderer::getDevice().destroyDescriptorSetLayout(gDescLayout);
+		gVertexBuffer.reset();
+		gInstanceBufferCPU.reset();
+		gParticleMap.clear();
 	}
 
 }

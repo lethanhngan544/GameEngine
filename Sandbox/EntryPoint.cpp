@@ -23,6 +23,8 @@
 #include <chrono>
 #include <thread>
 
+#include <stb_image.h>
+
 
 class VisualStudioLogger  final : public eg::Logger
 {
@@ -78,27 +80,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			auto mo1 = std::make_unique<sndbx::MapObject>("models/map1.glb");
 			gameObjManager.addGameObject(std::move(mo1));
 
-
-			//for (uint32_t i = 0; i < 10; i++)
-			//{
-			//	//Generate random position from 10 to 10
-
-			//	glm::vec3 position = { (float)(rand() % 10), 10.0f, (float)(rand() % 10)};
-			//	auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
-			//	gameObjManager.addGameObject(std::move(mo2));
-
-			//}
-			for (auto i = 0; i < 200; i++)
+			
+			for (auto i = 0; i < 100; i++)
 			{
 				//Generate random position
 				glm::vec3 position = { (float)(rand() % 10), 50.0f, (float)(rand() % 10) };
 				auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
 				gameObjManager.addGameObject(std::move(mo2));
 			}
-			
-
-			/*auto mo2 = std::make_unique<sndbx::MapObject>("models/VC.glb");
-			gameObjManager.addGameObject(std::move(mo2));*/
+		
 
 		
 			using Clock = std::chrono::high_resolution_clock;
@@ -121,19 +111,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				while (accumulator >= TICK_INTERVAL) {
 					
 					Physics::update(TICK_INTERVAL);
-					gameObjManager.update(TICK_INTERVAL);
-					Input::Keyboard::update();
+					gameObjManager.fixedUpdate(TICK_INTERVAL);
 					accumulator -= TICK_INTERVAL;
 				}
 				//Update
+				gameObjManager.update(deltaTime);
+				Input::Keyboard::update();
 				Input::Mouse::update();
+
 
 				//Render
 				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));
 				Physics::render();
-
-
+				
 				Data::DebugRenderer::updateVertexBuffers(cmd);
+				Data::ParticleRenderer::updateBuffers(cmd);
+
 				Renderer::getDefaultRenderPass().begin(cmd);
 				//Subpass 0, gBuffer generation
 				Data::StaticModelRenderer::begin(cmd);
@@ -144,6 +137,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Data::LightRenderer::renderAmbient(cmd);
 				Data::LightRenderer::beginPointLight(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
+				Data::ParticleRenderer::render(cmd);
 				Data::DebugRenderer::render(cmd);
 
 
@@ -159,7 +153,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			Renderer::waitIdle();
 		}
-
+		Data::ParticleEmitter::clearAtlasTextures();
 		Data::StaticModelCache::clear();
 		Data::DebugRenderer::destroy();
 		Data::ParticleRenderer::destroy();

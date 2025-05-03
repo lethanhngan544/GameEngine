@@ -17,6 +17,14 @@ namespace eg::Data
 			gameObject->update(delta);
 		}
 	}
+
+	void GameObjectManager::fixedUpdate(float delta)
+	{
+		for (const auto& gameObject : mGameObjects)
+		{
+			gameObject->fixedUpdate(delta);
+		}
+	}
 	void GameObjectManager::render(vk::CommandBuffer cmd, Renderer::RenderStage stage)
 	{
 		for (const auto& gameObject : mGameObjects)

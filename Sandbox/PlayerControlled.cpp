@@ -10,6 +10,10 @@
 
 namespace sndbx
 {
+	void PlayerControlled::fixedUpdate(float delta)
+	{
+		Player::fixedUpdate(delta);
+	}
 	void PlayerControlled::update(float delta)
 	{
 		mDirection = { 0.0f, 0.0f, 0.0f };
@@ -46,10 +50,6 @@ namespace sndbx
 		{
 			mDirection.x -= glm::cos(glm::radians(mYaw));
 			mDirection.z += glm::sin(glm::radians(mYaw));
-		}
-		if (eg::Input::Keyboard::isKeyDown(GLFW_KEY_F))
-		{
-			mGrabOject = true;
 		}
 		if (eg::Input::Keyboard::isKeyDownOnce(GLFW_KEY_SPACE))
 		{

@@ -31,6 +31,7 @@ namespace eg::Data
 		virtual ~IGameObject() = default;
 
 		virtual void update(float delta) = 0;
+		virtual void fixedUpdate(float delta) = 0;
 		virtual void render(vk::CommandBuffer cmd, Renderer::RenderStage stage) = 0;
 
 	};
@@ -45,6 +46,7 @@ namespace eg::Data
 		void removeGameObject(const IGameObject* gameObject);
 
 		void update(float delta);
+		void fixedUpdate(float delta);
 		void render(vk::CommandBuffer cmd, Renderer::RenderStage stage);
 	};
 	
@@ -210,13 +212,71 @@ namespace eg::Data
 		vk::DescriptorSetLayout getPointLightPerDescLayout();
 	}
 
+
+	
+
 	namespace ParticleRenderer
 	{
+		struct VertexPushConstant
+		{
+			glm::ivec2 atlasSize; // vi du 4x4
+		};
+
+		struct ParticleInstance {
+			glm::vec4 positionSize; // xyz = position, w = size
+			glm::ivec2 frameIndex; // offset into the texture grid
+		};
+
 		void create();
 		void destroy();
-		void render(vk::CommandBuffer cmd, const vk::DescriptorSet& particleTexture, const glm::vec3& worldPosition);
+		void recordParticle(const ParticleInstance instance, vk::DescriptorSet textureAtlasSet, glm::uvec2 atlasSize);
+		void updateBuffers(vk::CommandBuffer cmd);
+		void render(vk::CommandBuffer cmd);
+
+		vk::DescriptorSetLayout getTextureAtlasDescLayout();
 	}
 	
+	class ParticleEmitter
+	{
+	//Static data, for caching atlas textures
+	private:
+		struct AtlasTexture
+		{
+			std::optional<Renderer::CombinedImageSampler2D> texture;
+			vk::DescriptorSet set;
+			glm::uvec2 size;
+		};
+
+		static std::unordered_map<std::string, std::shared_ptr<AtlasTexture>> mAtlasTextures;
+		static std::shared_ptr<AtlasTexture> getAtlasTexture(const std::string& textureAtlas, glm::uvec2 atlasSize);
+	public:
+		static void clearAtlasTextures();
+	private:
+		struct ParticleEntity
+		{
+			ParticleRenderer::ParticleInstance particle;
+			glm::vec3 velocity;
+			float age;
+		};
+
+		glm::vec3 mPosition = { 0, 0, 0 };
+		glm::vec3 mDirection = { 0, 0, 1 };
+		float mLifeSpan = 2.0f;
+		float mGenerateRate = 0.005f;
+		float mGenerateRateCounter = 0.0f;
+
+		std::shared_ptr<AtlasTexture> mAtlasTexture;
+		std::vector<ParticleEntity> mParticles;
+
+	public:
+		ParticleEmitter(const std::string& textureAtlas, glm::uvec2 atlasSize);
+		~ParticleEmitter() = default;
+		void update(float delta);
+		void record();
+
+		inline void setPosition(const glm::vec3& position) { mPosition = position; }
+		inline void setDirection(const glm::vec3& direction) { mDirection = direction; }
+	};
 
 	namespace DebugRenderer
 	{

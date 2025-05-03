@@ -130,9 +130,12 @@ namespace sndbx
 		// Set character facing direction
 		bodyInterface->SetRotation(mBody, JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)), JPH::EActivation::Activate);
 
-
-	
 		mLight.mUniformBuffer.position = glm::vec4(positionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);
+	}
+
+	void Player::fixedUpdate(float delta)
+	{
+	
 	}
 
 	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)

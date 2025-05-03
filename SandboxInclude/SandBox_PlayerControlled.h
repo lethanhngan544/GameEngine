@@ -11,7 +11,9 @@ namespace sndbx
 	public:
 		PlayerControlled() : Player(false) {}
 		~PlayerControlled() = default;
+
 		void update(float delta) override;
+		void fixedUpdate(float delta) override;
 		void render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage) override;
 
 

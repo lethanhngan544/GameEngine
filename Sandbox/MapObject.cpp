@@ -127,10 +127,6 @@ namespace sndbx
 
 	}
 
-	void MapObject::update(float delta)
-	{
-		
-	}
 
 	void MapObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
 	{

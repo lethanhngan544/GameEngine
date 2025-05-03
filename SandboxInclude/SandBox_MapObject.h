@@ -16,7 +16,8 @@ namespace sndbx
 	public:
 		MapObject(const std::string& modelPath);
 
-		void update(float delta) override;
+		void update(float delta) override {}
+		void fixedUpdate(float delta) override {}
 		void render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage) override;
 	};
 }

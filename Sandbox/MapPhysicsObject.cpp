@@ -9,8 +9,10 @@
 
 namespace sndbx
 {
-	MapPhysicsObject::MapPhysicsObject(const std::string& modelPath, const glm::vec3& position)
+	MapPhysicsObject::MapPhysicsObject(const std::string& modelPath, const glm::vec3& position) :
+		mParticleEmitter("particles/explosion_atlas2.png", { 8, 8 })
 	{
+		mParticleEmitter.setDirection(glm::vec3{ 0, 1, 0 });
 		mModel = eg::Data::StaticModelCache::load(modelPath);
 
 		//Create rigid body
@@ -37,7 +39,15 @@ namespace sndbx
 
 	void MapPhysicsObject::update(float delta)
 	{
+		mParticleEmitter.record();
 		
+	}
+	void MapPhysicsObject::fixedUpdate(float delta)
+	{
+		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
+		JPH::Vec3 position = bodyInterface->GetCenterOfMassPosition(mBody);
+		mParticleEmitter.setPosition(glm::vec3{ position.GetX(), position.GetY() + 0.5f, position.GetZ() });
+		mParticleEmitter.update(delta);
 	}
 
 	void MapPhysicsObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
@@ -54,6 +64,8 @@ namespace sndbx
 			eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
 			break;
 		}
+
+
 		default:
 			break;
 		}
