@@ -1,6 +1,6 @@
 # 🚀 A custom 3D game engine built from scratch using Vulkan, C++, CMake, and vcpkg. Supports real-time rendering, deferred shading, and physics integration.
 
-![image](https://github.com/user-attachments/assets/b74d7a27-1e40-4c54-9cdc-f9a7e3808834)
+![image](https://github.com/user-attachments/assets/6ad58be5-fb9a-4b54-abc6-74ad5c7483af)
 
 
 # ✨ Features
