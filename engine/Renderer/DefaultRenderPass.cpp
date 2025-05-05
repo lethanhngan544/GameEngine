@@ -195,6 +195,7 @@ namespace eg::Renderer
 		cmd.beginRenderPass(renderPassBI, vk::SubpassContents::eInline);
 	}
 
+
 	DefaultRenderPass::~DefaultRenderPass()
 	{
 		getDevice().destroyFramebuffer(mFramebuffer);

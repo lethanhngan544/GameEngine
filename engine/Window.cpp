@@ -9,19 +9,16 @@
 namespace eg::Window
 {
 	static GLFWwindow* gWindow = nullptr;
-	static uint32_t gWidth, gHeight;
 	static std::string gTitle;
 
 	void create(uint32_t width, uint32_t height, const char* title)
 	{
-		gWidth = width;
-		gHeight = height; 
 
 		if (!glfwInit())
 			throw std::runtime_error("Failed to init glfw !");
 		
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 		gWindow = glfwCreateWindow(width, height, title, NULL, NULL);
 		if (!gWindow)
 		{

@@ -98,6 +98,31 @@ namespace eg::Data
 
 	};
 
+
+	class DirectionalLight //This will act like uniform buffer
+	{
+	public:
+		struct UniformBuffer
+		{
+			glm::vec3 direction = { 1, -1, 0 };
+			float intensity = 5.0f;
+			glm::vec4 color = { 1, 1, 1, 1 };
+		} mUniformBuffer;
+
+		Renderer::CPUBuffer mBuffer;
+	private:
+		vk::DescriptorSet mSet;
+	public:
+		DirectionalLight();
+		~DirectionalLight();
+
+		void update();
+
+		glm::mat4x4 getDirectionalLightViewProj(const Camera& camera) const;
+
+		inline vk::DescriptorSet getSet() const { return mSet; }
+	};
+
 	class PointLight
 	{
 	public:
@@ -116,6 +141,8 @@ namespace eg::Data
 	public:
 		PointLight();
 		~PointLight();
+
+		void update();
 
 		const Renderer::CPUBuffer& getBuffer() const { return mBuffer; }
 		vk::DescriptorSet getDescriptorSet() const { return mSet; }
@@ -193,25 +220,26 @@ namespace eg::Data
 			glm::mat4x4 worldTransform);
 
 
+		void beginShadow(vk::CommandBuffer cmd);
+
+		void renderShadow(vk::CommandBuffer cmd,
+			const StaticModel& model,
+			glm::mat4x4 worldTransform);
+
+
 		vk::DescriptorSetLayout getMaterialSetLayout();
 
 	}
 
 	namespace LightRenderer
 	{
-		struct DirectionalLight //This will act like uniform buffer
-		{
-			glm::vec3 direction = { 1, -1, 0 };
-			float intensity = 5.0f;
-			glm::vec4 color = { 1, 1, 1, 1 };
-			//TODO: Shadowmap config
-		};
+	
 
 		void create();
 		void destroy();
 
 		void renderAmbient(vk::CommandBuffer cmd);
-		void renderDirectionalLight(vk::CommandBuffer cmd);
+		void renderDirectionalLight(vk::CommandBuffer cmd, const DirectionalLight& light);
 
 		void beginPointLight(vk::CommandBuffer cmd);
 
@@ -219,6 +247,7 @@ namespace eg::Data
 			const PointLight& pointLight);
 
 		vk::DescriptorSetLayout getPointLightPerDescLayout();
+		vk::DescriptorSetLayout getDirectionalPerDescLayout();
 	}
 
 

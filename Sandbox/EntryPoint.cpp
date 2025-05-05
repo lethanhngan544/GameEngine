@@ -60,7 +60,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
-		Renderer::create(1600, 900);
+		Renderer::create(1600, 900, 2048);
 		Data::StaticModelRenderer::create();
 		Data::LightRenderer::create();
 		Data::DebugRenderer::create();
@@ -70,6 +70,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 		{
 			Data::GameObjectManager gameObjManager;
+			Data::DirectionalLight directionalLight;
+			directionalLight.mUniformBuffer.intensity = 1.0f;
+
+			Renderer::setDirectionalLight(&directionalLight);
 			
 			auto player1 = std::make_unique<sndbx::PlayerControlled>();
 			auto player2 = std::make_unique<sndbx::Player>(true);
@@ -121,11 +125,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 
 				//Render
-				auto cmd = Renderer::begin(vk::Rect2D(vk::Offset2D{ 0, 0 }, vk::Extent2D{1600, 900}));
+				//Retrieve with and height of the glfw window
+				auto cmd = Renderer::begin();
 				Physics::render();
 				
 				Data::DebugRenderer::updateVertexBuffers(cmd);
 				Data::ParticleRenderer::updateBuffers(cmd);
+
+
+				Renderer::getShadowRenderPass().begin(cmd);
+				Data::StaticModelRenderer::beginShadow(cmd);
+				gameObjManager.render(cmd, Renderer::RenderStage::SHADOW);
+
+				cmd.endRenderPass();
 
 				Renderer::getDefaultRenderPass().begin(cmd);
 				//Subpass 0, gBuffer generation
@@ -135,7 +147,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				//Subpass 1, lighting
 				cmd.nextSubpass(vk::SubpassContents::eInline);
 				Data::LightRenderer::renderAmbient(cmd);
-				Data::LightRenderer::renderDirectionalLight(cmd);
+
+				directionalLight.update();
+				Data::LightRenderer::renderDirectionalLight(cmd, directionalLight);
 				Data::LightRenderer::beginPointLight(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
 				Data::ParticleRenderer::render(cmd);

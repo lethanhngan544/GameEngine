@@ -130,17 +130,26 @@ namespace sndbx
 
 	void MapObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
 	{
+
+		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
+		JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
+		glm::mat4x4 glmMatrix;
+		std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
+
 		switch (stage)
 		{
+		case eg::Renderer::RenderStage::SHADOW:
+			if (mModel)
+			{
+				eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, glmMatrix);
+			}
+			break;
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 			if (mModel)
 			{
-				JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-				JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
-				glm::mat4x4 glmMatrix;
-				std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
 				eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
 			}
+
 			break;
 		default:
 			break;

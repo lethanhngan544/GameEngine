@@ -19,19 +19,19 @@ namespace eg::Data::LightRenderer
 	vk::Pipeline mDirectionalPipeline;
 	vk::PipelineLayout mDirectionalLayout;
 	vk::DescriptorSetLayout mDirectionalDescLayout;
+	vk::DescriptorSetLayout mDirectionalPerDescLayout;
 	vk::DescriptorSet mDirectionalSet;
-	DirectionalLight mDirectionalLight;
-	std::optional<Renderer::CPUBuffer> mDirectionalLightBuffer;
+
 
 	void createAmbientPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
 	void createPointPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
-	void createDirectionalPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout);
+	void createDirectionalPipeline(const Renderer::DefaultRenderPass& renderPass, const Renderer::ShadowRenderPass& shadowPass, vk::DescriptorSetLayout globalSetLayout);
 
 	void create()
 	{
 		createAmbientPipeline(Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
 		createPointPipeline(Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
-		createDirectionalPipeline(Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
+		createDirectionalPipeline(Renderer::getDefaultRenderPass(), Renderer::getShadowRenderPass(), Renderer::getGlobalDescriptorSet());
 	}
 	void destroy()
 	{
@@ -49,22 +49,21 @@ namespace eg::Data::LightRenderer
 		Renderer::getDevice().destroyPipeline(mDirectionalPipeline);
 		Renderer::getDevice().destroyPipelineLayout(mDirectionalLayout);
 		Renderer::getDevice().destroyDescriptorSetLayout(mDirectionalDescLayout);
+		Renderer::getDevice().destroyDescriptorSetLayout(mDirectionalPerDescLayout);
 		Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), mDirectionalSet);
-		mDirectionalLightBuffer.reset();
 		
 
 	}
 
-	void renderDirectionalLight(vk::CommandBuffer cmd)
+	void renderDirectionalLight(vk::CommandBuffer cmd, const DirectionalLight& light)
 	{
 		//Update uniform buffer
-		mDirectionalLightBuffer->write(&mDirectionalLight, sizeof(DirectionalLight));
-
+		
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mDirectionalPipeline);
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mDirectionalLayout,
 			0,
-			{ Renderer::getCurrentFrameGUBODescSet(), mDirectionalSet },
+			{ Renderer::getCurrentFrameGUBODescSet(), mDirectionalSet, light.getSet()},
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
@@ -114,8 +113,6 @@ namespace eg::Data::LightRenderer
 	void renderPointLight(vk::CommandBuffer cmd,
 		const PointLight& pointLight)
 	{
-		//Copy data to uniform buffer
-		std::memcpy(pointLight.getBuffer().getInfo().pMappedData, &pointLight.mUniformBuffer, sizeof(Data::PointLight::UniformBuffer));
 
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mPointLayout,
@@ -131,6 +128,12 @@ namespace eg::Data::LightRenderer
 	{
 		return mPointPerDescLayout;
 	}
+
+	vk::DescriptorSetLayout getDirectionalPerDescLayout()
+	{
+		return mDirectionalPerDescLayout;
+	}
+
 
 	void createAmbientPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout)
 	{
@@ -544,7 +547,7 @@ namespace eg::Data::LightRenderer
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
 
-	void createDirectionalPipeline(const Renderer::DefaultRenderPass& renderPass, vk::DescriptorSetLayout globalSetLayout)
+	void createDirectionalPipeline(const Renderer::DefaultRenderPass& renderPass, const Renderer::ShadowRenderPass& shadowPass, vk::DescriptorSetLayout globalSetLayout)
 	{
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
@@ -553,8 +556,7 @@ namespace eg::Data::LightRenderer
 			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Albedo
 			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Mr
 			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
-			vk::DescriptorSetLayoutBinding(4, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment, {}), //Uniform buffer
-
+			vk::DescriptorSetLayoutBinding(4, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
 		};
 
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
@@ -562,9 +564,15 @@ namespace eg::Data::LightRenderer
 
 		mDirectionalDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
-		//Allocate uniform buffer
-		mDirectionalLightBuffer.emplace(nullptr, sizeof(DirectionalLight), vk::BufferUsageFlagBits::eUniformBuffer);
-		
+		//Per light
+		vk::DescriptorSetLayoutBinding descLayoutBindings2[] =
+		{
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment, {}), //UniformBuffer
+
+		};
+		descLayoutCI.setBindings(descLayoutBindings2);
+		mDirectionalPerDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
+
 
 		//Allocate descriptor set right here
 
@@ -579,12 +587,10 @@ namespace eg::Data::LightRenderer
 			vk::DescriptorImageInfo(nullptr, renderPass.getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(shadowPass.getDepthSampler(), shadowPass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
-		vk::DescriptorBufferInfo bufferInfo;
-		bufferInfo.setBuffer(mDirectionalLightBuffer->getBuffer())
-			.setOffset(0)
-			.setRange(sizeof(DirectionalLight));
+	
 
 
 		Renderer::getDevice().updateDescriptorSets({
@@ -606,9 +612,8 @@ namespace eg::Data::LightRenderer
 				&imageInfos[3]),
 			vk::WriteDescriptorSet(mDirectionalSet, 4, 0,
 				1,
-				vk::DescriptorType::eUniformBuffer, 
-				nullptr, 
-				&bufferInfo)
+				vk::DescriptorType::eCombinedImageSampler,
+				&imageInfos[4])
 			},
 
 		{});
@@ -632,6 +637,7 @@ namespace eg::Data::LightRenderer
 		{
 			globalSetLayout, // Slot0
 			mDirectionalDescLayout, //Slot 1
+			mDirectionalPerDescLayout //Slot 2
 		};
 		vk::PipelineLayoutCreateInfo pipelineLayoutCI{};
 		pipelineLayoutCI.setFlags(vk::PipelineLayoutCreateFlags{})

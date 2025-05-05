@@ -40,6 +40,8 @@ namespace eg::Renderer
 		uint32_t swapchainIndex = 0;
 	};
 	static const Data::Camera* gCamera = nullptr;
+	static const Data::DirectionalLight* gDirectionalLight = nullptr;
+
 	static shaderc::Compiler gShaderCompiler;
 	static shaderc::CompileOptions gShaderCompilerOptions;
 	static vk::Rect2D gDrawExtent;
@@ -79,6 +81,8 @@ namespace eg::Renderer
 
 	static std::optional<DefaultRenderPass> gDefaultRenderPass;
 
+	static uint32_t gShadowMapResolution;
+	static std::optional<ShadowRenderPass> gShadowRenderPass;
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL gDebugCallbackFn(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -97,6 +101,7 @@ namespace eg::Renderer
 
 		return VK_FALSE;
 	}
+
 
 	std::vector<uint32_t> compileShaderFromFile(const std::string& filePath, uint32_t kind)
 	{
@@ -149,9 +154,10 @@ namespace eg::Renderer
 		gDevice.waitIdle();
 	}
 
-	void create(uint32_t width, uint32_t height)
+	void create(uint32_t width, uint32_t height, uint32_t shadowMapRes)
 	{
 		gDrawExtent = vk::Rect2D{ {0, 0}, {width, height} };
+		gShadowMapResolution = shadowMapRes;
 		VULKAN_HPP_DEFAULT_DISPATCHER.init();
 		//Create instance
 		vk::ApplicationInfo instanceAI{};
@@ -345,6 +351,7 @@ namespace eg::Renderer
 				.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
 			gSwapchainImageViews.push_back(gDevice.createImageView(imageViewCI));
 		}
+
 		//Create command pool
 		vk::CommandPoolCreateInfo commandPoolCI{};
 		commandPoolCI.setQueueFamilyIndex(gGraphicsQueueFamilyIndex)
@@ -418,6 +425,7 @@ namespace eg::Renderer
 
 
 		gDefaultRenderPass.emplace(width, height, gSurfaceFormat.format);
+		gShadowRenderPass.emplace(shadowMapRes);
 
 		//Init imgui
 		IMGUI_CHECKVERSION();
@@ -455,9 +463,15 @@ namespace eg::Renderer
 		gCamera = camera;
 	}
 
+	void setDirectionalLight(const Data::DirectionalLight* directionalLight)
+	{
+		gDirectionalLight = directionalLight;
+	}
+
 	void destory()
 	{
 		gDefaultRenderPass.reset();
+		gShadowRenderPass.reset();
 		gGlobalUniformBuffer.reset();
 
 		gDefaultWhiteImage.reset();
@@ -493,9 +507,8 @@ namespace eg::Renderer
 	}
 
 
-	vk::CommandBuffer begin(vk::Rect2D drawExtent)
+	vk::CommandBuffer begin()
 	{
-		gDrawExtent = drawExtent;
 		auto& frameData = gFrameData[gCurrentFrame];
 		if (gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000) != vk::Result::eSuccess)
 		{
@@ -515,6 +528,7 @@ namespace eg::Renderer
 		GlobalUBOData.mProjection = gCamera->buildProjection(gDrawExtent.extent);
 		GlobalUBOData.mView = gCamera->buildView();
 		GlobalUBOData.mCameraPosition = gCamera->mPosition;
+		GlobalUBOData.mDirectionaLightViewProj = gDirectionalLight->getDirectionalLightViewProj(*gCamera);
 		gGlobalUniformBuffer->update(GlobalUBOData, gCurrentFrame);
 
 		vk::CommandBuffer& cmd = frameData.commandBuffer;
@@ -621,6 +635,16 @@ namespace eg::Renderer
 	const DefaultRenderPass& getDefaultRenderPass()
 	{
 		return *gDefaultRenderPass;
+	}
+
+	const ShadowRenderPass& getShadowRenderPass()
+	{
+		return *gShadowRenderPass;
+	}
+
+	const uint32_t getShadowMapResolution() 
+	{
+		return gShadowMapResolution;
 	}
 
 	vk::DescriptorSet getCurrentFrameGUBODescSet()

@@ -32,4 +32,9 @@ namespace eg::Data
 	{
 		Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), mSet);
 	}
+
+	void PointLight::update()
+	{
+		mBuffer.write(&mUniformBuffer, sizeof(UniformBuffer));
+	}
 }

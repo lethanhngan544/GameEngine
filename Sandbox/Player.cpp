@@ -13,10 +13,10 @@
 namespace sndbx
 {
 	
-	Player::Player(bool visible) 
+	Player::Player(bool visible) :
+		mVisible(visible)
 	{
-		if(visible)
-			mModel = eg::Data::StaticModelCache::load("models/DamagedHelmet.glb");
+		mModel = eg::Data::StaticModelCache::load("models/DamagedHelmet.glb");
 		//Create rigid body
 		{
 
@@ -140,22 +140,29 @@ namespace sndbx
 
 	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
 	{
+		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
+		JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
+		glm::mat4x4 glmMatrix;
+		std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
+
 		switch (stage)
 		{
+
+		case eg::Renderer::RenderStage::SHADOW:
+		{
+			eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, glmMatrix);
+			break;
+		}
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 		{
-			if (mModel)
+			if (mVisible)
 			{
-				JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-				JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
-				glm::mat4x4 glmMatrix;
-				std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
-
 				eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
 			}
 			break;
 		}
 		case eg::Renderer::RenderStage::SUBPASS1_POINTLIGHT:
+			mLight.update();
 			eg::Data::LightRenderer::renderPointLight(cmd, mLight);
 			break;
 		default:

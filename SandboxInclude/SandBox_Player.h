@@ -16,6 +16,7 @@ namespace sndbx
 		std::shared_ptr<eg::Data::StaticModel> mModel = nullptr;
 		JPH::BodyID mBody;
 
+		bool mVisible;
 		float mHeight = 1.8f;
 		float mRadius = 0.3f;
 		float mMass = 80.0f;

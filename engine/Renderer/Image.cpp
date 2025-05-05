@@ -210,7 +210,6 @@ namespace eg::Renderer
 
 	}
 
-
 	CombinedImageSampler2D::CombinedImageSampler2D(uint32_t width, uint32_t height,
 		vk::Format format,
 		vk::ImageUsageFlags usage,
