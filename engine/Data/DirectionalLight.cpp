@@ -46,7 +46,7 @@ namespace eg::Data
 
 	glm::mat4x4 DirectionalLight::getDirectionalLightViewProj(const Camera& camera) const
 	{
-		glm::mat4x4 view = glm::lookAt(camera.mPosition, camera.mPosition + mUniformBuffer.direction * 5.0f, glm::vec3(0, 1, 0));
+		glm::mat4x4 view = glm::lookAt(camera.mPosition, camera.mPosition + glm::normalize(mUniformBuffer.direction), glm::vec3(0, 1, 0));
 		glm::mat4x4 proj = glm::orthoRH_ZO(-10.0f, 10.0f, -10.0f, 10.0f, -100.0f, 100.0f);
 		proj[1][1] *= -1;
 		return proj * view;

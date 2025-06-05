@@ -39,7 +39,7 @@ void main() {
     vec3 L = normalize(-ubo.direction);
     vec3 R = reflect(-L, N);
 
-    float shininess = 32.0;
+    float shininess = 64.0;
     vec3 lightColor = ubo.color.rgb * ubo.intensity;
 
     // Phong shading
@@ -56,7 +56,7 @@ void main() {
     shadowCoord.xy = shadowCoord.xy * 0.5 + 0.5; 
     float closestDepth = texture(uDepthMap, shadowCoord.xy).r;   
     float currentDepth = shadowCoord.z;  
-    float shadow = currentDepth < closestDepth + 0.005  ? 1.0 : 0.0; 
+    float shadow = currentDepth < closestDepth + 0.0001 ? 1.0 : 0.0; 
 
     vec3 lighting = ambient + shadow * (diffuse + specular);
     outColor = vec4(lighting, 1.0);
