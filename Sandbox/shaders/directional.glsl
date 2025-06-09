@@ -39,7 +39,7 @@ void main() {
     vec3 L = normalize(-ubo.direction);
     vec3 R = reflect(-L, N);
 
-    float shininess = 32.0;
+    float shininess = 64.0;
     vec3 lightColor = ubo.color.rgb * ubo.intensity;
 
     // Phong shading
