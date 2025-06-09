@@ -44,19 +44,24 @@ void main() {
 
     // Phong shading
     float diff = max(dot(N, L), 0.0);
-    float spec = pow(max(dot(R, V), 0.0), shininess);
+    float dotProduct = max(dot(R, V), 0.0);
+    float spec = pow(dotProduct, shininess);
 
     vec3 ambient = 0.1 * albedo;
     vec3 diffuse = diff * albedo * lightColor;
     vec3 specular = spec * lightColor;
 
     // Shadow map
+
     vec4 fragPosLightSpace = gUBO.directionalViewProj * vec4(fragPos, 1.0);
     vec3 shadowCoord = fragPosLightSpace.xyz / fragPosLightSpace.w;
     shadowCoord.xy = shadowCoord.xy * 0.5 + 0.5; 
     float closestDepth = texture(uDepthMap, shadowCoord.xy).r;   
     float currentDepth = shadowCoord.z;  
-    float shadow = currentDepth < closestDepth + 0.005  ? 1.0 : 0.0; 
+
+    float bias = max(0.05 * (1.0 - dot(N, L)), 0.005);  
+    float shadow = currentDepth < closestDepth ? 1.0 : 0.0; 
+   
 
     vec3 lighting = ambient + shadow * (diffuse + specular);
     outColor = vec4(lighting, 1.0);

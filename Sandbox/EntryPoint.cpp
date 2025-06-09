@@ -60,7 +60,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
-		Renderer::create(1600, 900, 2048);
+		Renderer::create(1600, 900, 4096);
 		Data::StaticModelRenderer::create();
 		Data::LightRenderer::create();
 		Data::DebugRenderer::create();
@@ -71,7 +71,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		{
 			Data::GameObjectManager gameObjManager;
 			Data::DirectionalLight directionalLight;
-			directionalLight.mUniformBuffer.intensity = 1.0f;
+			directionalLight.mUniformBuffer.intensity = 5.0f;
+			directionalLight.mUniformBuffer.direction = { 1.01f, -1.0f, 0.0f };
 
 			Renderer::setDirectionalLight(&directionalLight);
 			
@@ -128,6 +129,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				//Retrieve with and height of the glfw window
 				auto cmd = Renderer::begin();
 				Physics::render();
+
+				ImGui::Begin("Light");
+				if (ImGui::DragFloat3("Direction", &directionalLight.mUniformBuffer.direction.x, 0.01f))
+				{
+					directionalLight.mUniformBuffer.direction = glm::normalize(directionalLight.mUniformBuffer.direction);
+				}
+				ImGui::End();
 				
 				Data::DebugRenderer::updateVertexBuffers(cmd);
 				Data::ParticleRenderer::updateBuffers(cmd);
