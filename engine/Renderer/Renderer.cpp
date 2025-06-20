@@ -1,4 +1,5 @@
 #include <Data.h>
+#include <Components.h>
 #include <Window.h>
 #include <GLFW/glfw3.h>
 
@@ -39,8 +40,10 @@ namespace eg::Renderer
 		vk::CommandBuffer commandBuffer;
 		uint32_t swapchainIndex = 0;
 	};
-	static const Data::Camera* gCamera = nullptr;
-	static const Data::DirectionalLight* gDirectionalLight = nullptr;
+
+	static Components::Camera gDummyCamera;
+	static const Components::Camera* gCamera = &gDummyCamera;
+	static const Components::DirectionalLight* gDirectionalLight = nullptr;
 
 	static shaderc::Compiler gShaderCompiler;
 	static shaderc::CompileOptions gShaderCompilerOptions;
@@ -458,12 +461,12 @@ namespace eg::Renderer
 
 	}
 
-	void setCamera(const Data::Camera* camera)
+	void setCamera(const Components::Camera* camera)
 	{
 		gCamera = camera;
 	}
 
-	void setDirectionalLight(const Data::DirectionalLight* directionalLight)
+	void setDirectionalLight(const Components::DirectionalLight* directionalLight)
 	{
 		gDirectionalLight = directionalLight;
 	}

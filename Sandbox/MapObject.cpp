@@ -1,4 +1,5 @@
 #include <SandBox_MapObject.h>
+#include <Data.h>
 
 #include <tiny_gltf.h>
 #include <Physics.h>
@@ -7,8 +8,45 @@
 
 namespace sndbx
 {
-	MapObject::MapObject(const std::string& modelPath)
+	void MapObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
 	{
+		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
+		JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody.mBodyID);
+		glm::mat4x4 glmMatrix;
+		std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
+
+		switch (stage)
+		{
+		case eg::Renderer::RenderStage::SHADOW:
+			if (mModel)
+			{
+				eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, glmMatrix);
+			}
+			break;
+		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
+			if (mModel)
+			{
+				eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
+			}
+
+			break;
+		default:
+			break;
+		}
+	}
+
+	void MapObject::fromJson(const nlohmann::json& json)
+	{
+		std::string modelPath(json["model"]["model_path"].get<std::string>());
+		glm::vec3 position = { json["body"]["position"].at(0).get<float>(),
+		json["body"]["position"].at(1).get<float>(),
+		json["body"]["position"].at(2).get<float>() };
+		glm::quat rotation;
+		rotation.x = json["body"]["rotation"].at(0).get<float>();
+		rotation.y = json["body"]["rotation"].at(1).get<float>();
+		rotation.z = json["body"]["rotation"].at(2).get<float>();
+		rotation.w = json["body"]["rotation"].at(3).get<float>();
+
 		tinygltf::Model model;
 		tinygltf::TinyGLTF loader;
 		loader.SetImageLoader(eg::Data::LoadImageData, nullptr);
@@ -27,7 +65,8 @@ namespace sndbx
 			throw std::runtime_error("Failed to load map object: " + modelPath);
 		}
 
-		mModel = std::make_shared<eg::Data::StaticModel>(model);
+		//We will not be caching this model
+		mModel = std::make_shared<eg::Components::StaticModel>(modelPath, model);
 
 		//Create rigid body
 		{
@@ -46,7 +85,7 @@ namespace sndbx
 						const auto& bufferView = model.bufferViews.at(accessor.bufferView);
 						const auto& buffer = model.buffers.at(bufferView.buffer);
 
-						
+
 						switch (accessor.componentType)
 						{
 						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
@@ -111,8 +150,8 @@ namespace sndbx
 			JPH::MeshShapeSettings shapeSettings(vertices, indexList);
 			shapeSettings.SetEmbedded();
 			JPH::BodyCreationSettings bodySetting(&shapeSettings,
-				JPH::RVec3(0.0f, 10.0f, 0.0f),
-				JPH::Quat::sIdentity(),
+				JPH::RVec3(position.x, position.y, position.z),
+				JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
 				JPH::EMotionType::Static,
 				eg::Physics::Layers::NON_MOVING);
 			bodySetting.mFriction = 0.8f;
@@ -122,37 +161,10 @@ namespace sndbx
 			bodySetting.mAllowSleeping = false;
 			bodySetting.mMotionQuality = JPH::EMotionQuality::Discrete;
 
-			mBody = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::DontActivate);
-		}
-
-	}
-
-
-	void MapObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
-	{
-
-		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-		JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
-		glm::mat4x4 glmMatrix;
-		std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
-
-		switch (stage)
-		{
-		case eg::Renderer::RenderStage::SHADOW:
-			if (mModel)
-			{
-				eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, glmMatrix);
-			}
-			break;
-		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
-			if (mModel)
-			{
-				eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
-			}
-
-			break;
-		default:
-			break;
+			mBody.mBodyID = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::DontActivate);
+			mBody.mMass = 0.0f;
+			mBody.mFriction = 0.8f;
+			mBody.mRestitution = 1.0f;
 		}
 	}
 }

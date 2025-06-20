@@ -9,12 +9,12 @@
 
 #include <Logger.h>
 
-namespace eg::Data
+namespace eg::Components
 {
-	class StaticModel;
 	class Camera;
-	class PointLight;
 	class DirectionalLight;
+	class PointLight;
+	class StaticModel;
 }
 
 namespace eg::Renderer
@@ -26,13 +26,12 @@ namespace eg::Renderer
 
 
 	void create(uint32_t width, uint32_t height, uint32_t shadowMapRes);
-	void setCamera(const Data::Camera* camera);
-	void setDirectionalLight(const Data::DirectionalLight* directionalLight);
+	void setCamera(const Components::Camera* camera);
+	void setDirectionalLight(const Components::DirectionalLight* directionalLight);
 	void waitIdle();
 	void destory();
 
 	vk::CommandBuffer begin();
-	void renderStaticModel(vk::CommandBuffer cmd, const Data::StaticModel& staticMesh);
 	void end();
 
 

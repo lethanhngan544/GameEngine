@@ -55,7 +55,7 @@ namespace eg::Data::LightRenderer
 
 	}
 
-	void renderDirectionalLight(vk::CommandBuffer cmd, const DirectionalLight& light)
+	void renderDirectionalLight(vk::CommandBuffer cmd, const Components::DirectionalLight& light)
 	{
 		//Update uniform buffer
 		
@@ -111,7 +111,7 @@ namespace eg::Data::LightRenderer
 	}
 
 	void renderPointLight(vk::CommandBuffer cmd,
-		const PointLight& pointLight)
+		const Components::PointLight& pointLight)
 	{
 
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,

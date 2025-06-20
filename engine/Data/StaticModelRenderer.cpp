@@ -56,7 +56,7 @@ namespace eg::Data::StaticModelRenderer
 	}
 
 	void render(vk::CommandBuffer cmd,
-		const StaticModel& model,
+		const Components::StaticModel& model,
 		glm::mat4x4 worldTransform)
 	{
 		//Build model matrix
@@ -94,7 +94,7 @@ namespace eg::Data::StaticModelRenderer
 	}
 
 	void renderShadow(vk::CommandBuffer cmd,
-		const StaticModel& model,
+		const Components::StaticModel& model,
 		glm::mat4x4 worldTransform)
 	{
 		//Build model matrix

@@ -20,6 +20,7 @@
 #include <Window.h>
 #include <Data.h>
 #include <Input.h>
+#include <World.h>
 #include <chrono>
 #include <thread>
 
@@ -60,41 +61,70 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
-		Renderer::create(1600, 900, 4096);
+		Renderer::create(1600, 900, 8192);
 		Data::StaticModelRenderer::create();
 		Data::LightRenderer::create();
 		Data::DebugRenderer::create();
 		Data::ParticleRenderer::create();
 		Physics::create();
-		
 
 		{
-			Data::GameObjectManager gameObjManager;
-			Data::DirectionalLight directionalLight;
-			directionalLight.mUniformBuffer.intensity = 5.0f;
+			
+			World::GameObjectManager gameObjManager;
+			Components::DirectionalLight directionalLight;
+			directionalLight.mUniformBuffer.intensity = 1.0f;
 			directionalLight.mUniformBuffer.direction = { 1.01f, -1.0f, 0.0f };
 
 			Renderer::setDirectionalLight(&directionalLight);
 			
-			auto player1 = std::make_unique<sndbx::PlayerControlled>();
-			auto player2 = std::make_unique<sndbx::Player>(true);
-			Renderer::setCamera(&player1->getCamera());
-			gameObjManager.addGameObject(std::move(player1));
-			gameObjManager.addGameObject(std::move(player2));
+			//auto player1 = std::make_unique<sndbx::PlayerControlled>();
+			//auto player2 = std::make_unique<sndbx::Player>();
+			//Renderer::setCamera(&player1->getCamera());
+			//gameObjManager.addGameObject(std::move(player1));
+			//gameObjManager.addGameObject(std::move(player2));
 
-			auto mo1 = std::make_unique<sndbx::MapObject>("models/map1.glb");
-			gameObjManager.addGameObject(std::move(mo1));
+			//auto mo1 = std::make_unique<sndbx::MapObject>("models/map1.glb");
+			//gameObjManager.addGameObject(std::move(mo1));
 
-			
-			for (auto i = 0; i < 100; i++)
-			{
-				//Generate random position
-				glm::vec3 position = { (float)(rand() % 10), 50.0f, (float)(rand() % 10) };
-				auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
-				gameObjManager.addGameObject(std::move(mo2));
-			}
+			//
+			//for (auto i = 0; i < 100; i++)
+			//{
+			//	//Generate random position
+			//	glm::vec3 position = { (float)(rand() % 10), 50.0f, (float)(rand() % 10) };
+			//	auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
+			//	gameObjManager.addGameObject(std::move(mo2));
+			//}
 		
-
+			World::JsonToIGameObjectDispatcher jsonDispatcher =
+				[](const nlohmann::json& jsonObj, const std::string& type) -> std::unique_ptr<World::IGameObject>
+				{
+					if (type == "PlayerControlled")
+					{
+						auto player = std::make_unique<sndbx::PlayerControlled>();
+						Renderer::setCamera(&player->getCamera());
+						return player;
+					}
+					else if (type == "Player")
+					{
+						auto player = std::make_unique<sndbx::Player>();
+						return player;
+					}
+					else if (type == "MapObject")
+					{
+						auto mapObject = std::make_unique<sndbx::MapObject>();
+						return mapObject;
+					}
+					else if (type == "MapPhysicsObject")
+					{
+						auto mapPhysicsObject = std::make_unique<sndbx::MapPhysicsObject>();
+						return mapPhysicsObject;
+					}
+					else
+					{
+						throw World::JsonToIGameObjectException(type, "Unknown game object type");
+						return nullptr;
+					}
+				};
 		
 			using Clock = std::chrono::high_resolution_clock;
 			using TimePoint = std::chrono::time_point<Clock>;
@@ -134,6 +164,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				if (ImGui::DragFloat3("Direction", &directionalLight.mUniformBuffer.direction.x, 0.01f))
 				{
 					directionalLight.mUniformBuffer.direction = glm::normalize(directionalLight.mUniformBuffer.direction);
+				}
+				ImGui::End();
+
+				ImGui::Begin("World");
+				if (ImGui::Button("Save"))
+				{
+					gameObjManager.save("world.json", "Sandbox World");
+				}
+				if (ImGui::Button("Load"))
+				{
+					gameObjManager.load("world.json", jsonDispatcher);
 				}
 				ImGui::End();
 				
@@ -176,17 +217,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			Renderer::waitIdle();
 		}
-		Data::ParticleEmitter::clearAtlasTextures();
-		Data::StaticModelCache::clear();
-		Data::DebugRenderer::destroy();
-		Data::ParticleRenderer::destroy();
-		Data::LightRenderer::destroy();
-		Data::StaticModelRenderer::destroy();
-		Renderer::destory();
-		Window::destroy();
-		Physics::destroy();
+		
 	}
-	catch (std::exception& e)
+	catch (std::exception e)
 	{
 		MessageBox(nullptr, e.what(), "Standard exception", MB_ICONEXCLAMATION);
 	}
@@ -195,5 +228,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	{
 		MessageBox(nullptr, "TODO", "Unknown exception", MB_ICONEXCLAMATION);
 	}
+
+	Components::ParticleEmitter::clearAtlasTextures();
+	Components::StaticModel::clearCache();
+	Data::DebugRenderer::destroy();
+	Data::ParticleRenderer::destroy();
+	Data::LightRenderer::destroy();
+	Data::StaticModelRenderer::destroy();
+	Renderer::destory();
+	Window::destroy();
+	Physics::destroy();
+
 	return 0;
 }

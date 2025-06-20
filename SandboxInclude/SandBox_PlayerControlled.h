@@ -7,7 +7,7 @@ namespace sndbx
 	class PlayerControlled : public Player
 	{
 	private:
-		eg::Data::Camera mCamera;
+		eg::Components::Camera mCamera;
 	public:
 		PlayerControlled() : Player(false) {}
 		~PlayerControlled() = default;
@@ -17,7 +17,25 @@ namespace sndbx
 		void render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage) override;
 
 
-		const eg::Data::Camera& getCamera() const { return mCamera; }
+		const char* getType() const override { return "PlayerControlled"; }
+
+		nlohmann::json toJson() const override
+		{
+			return {
+				{"type", getType()},
+				{"camera", mCamera.toJson()},
+				{"player", Player::toJson()}
+			};
+		}
+
+		void fromJson(const nlohmann::json& json) override
+		{
+			mCamera.fromJson(json["camera"]);
+			Player::fromJson(json["player"]);
+		}
+
+
+		const eg::Components::Camera& getCamera() const { return mCamera; }
 	};
 
 

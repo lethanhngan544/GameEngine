@@ -24,7 +24,7 @@ namespace eg::Data::ParticleRenderer
 	struct ParticleAtlas
 	{
 		glm::uvec2 size; // Size of the atlas
-		std::vector<ParticleInstance> instances;
+		std::vector<Components::ParticleInstance> instances;
 		std::optional<Renderer::GPUBuffer> buffer;
 	};
 
@@ -40,7 +40,7 @@ namespace eg::Data::ParticleRenderer
 	void create()
 	{
 		gVertexBuffer.emplace(particleVertices.data(), particleVertices.size() * sizeof(ParticleVertex), vk::BufferUsageFlagBits::eVertexBuffer);
-		gInstanceBufferCPU.emplace(nullptr, sizeof(ParticleInstance) * MAX_PARTICLES, vk::BufferUsageFlagBits::eTransferSrc);
+		gInstanceBufferCPU.emplace(nullptr, sizeof(Components::ParticleInstance) * MAX_PARTICLES, vk::BufferUsageFlagBits::eTransferSrc);
 		
 
 		//Define shader layout
@@ -108,14 +108,14 @@ namespace eg::Data::ParticleRenderer
 
 		vk::VertexInputBindingDescription vertexInputBindingDescriptions[] = {
 			vk::VertexInputBindingDescription(0, sizeof(ParticleVertex), vk::VertexInputRate::eVertex),
-			vk::VertexInputBindingDescription(1, sizeof(ParticleInstance), vk::VertexInputRate::eInstance),
+			vk::VertexInputBindingDescription(1, sizeof(Components::ParticleInstance), vk::VertexInputRate::eInstance),
 		};
 
 		vk::VertexInputAttributeDescription vertexInputAttributeDescriptions[] = {
 			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32Sfloat, offsetof(ParticleVertex, position)),
 			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32Sfloat, offsetof(ParticleVertex, uv)),
-			vk::VertexInputAttributeDescription(2, 1, vk::Format::eR32G32B32A32Sfloat, offsetof(ParticleInstance, positionSize)),
-			vk::VertexInputAttributeDescription(3, 1, vk::Format::eR32G32Uint, offsetof(ParticleInstance, frameIndex)),
+			vk::VertexInputAttributeDescription(2, 1, vk::Format::eR32G32B32A32Sfloat, offsetof(Components::ParticleInstance, positionSize)),
+			vk::VertexInputAttributeDescription(3, 1, vk::Format::eR32G32Uint, offsetof(Components::ParticleInstance, frameIndex)),
 		};
 
 
@@ -229,7 +229,7 @@ namespace eg::Data::ParticleRenderer
 	}
 
 
-	void recordParticle(const ParticleInstance instance, vk::DescriptorSet textureAtlas, glm::uvec2 atlasSize)
+	void recordParticle(const Components::ParticleInstance instance, vk::DescriptorSet textureAtlas, glm::uvec2 atlasSize)
 	{
 		gParticleMap[textureAtlas].size = atlasSize;
 		gParticleMap[textureAtlas].instances.push_back(instance);
@@ -248,7 +248,7 @@ namespace eg::Data::ParticleRenderer
 			if (!atlas.buffer.has_value())
 			{
 				atlas.buffer.emplace(nullptr,
-					sizeof(ParticleInstance) * MAX_PARTICLES,
+					sizeof(Components::ParticleInstance) * MAX_PARTICLES,
 					vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer);
 			}
 
@@ -265,10 +265,10 @@ namespace eg::Data::ParticleRenderer
 			{
 				Renderer::immediateSubmit([&](vk::CommandBuffer cmd)
 					{
-						gInstanceBufferCPU->write(atlas.instances.data(), atlas.instances.size() * sizeof(ParticleInstance));
+						gInstanceBufferCPU->write(atlas.instances.data(), atlas.instances.size() * sizeof(Components::ParticleInstance));
 
 						vk::BufferCopy copyRegion{};
-						copyRegion.setSize(sizeof(ParticleInstance) * atlas.instances.size());
+						copyRegion.setSize(sizeof(Components::ParticleInstance) * atlas.instances.size());
 						cmd.copyBuffer(gInstanceBufferCPU->getBuffer(), atlas.buffer->getBuffer(), copyRegion);
 					});
 			}

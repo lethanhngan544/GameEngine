@@ -1,5 +1,6 @@
 #include <SandBox_MapPhysicsObject.h>
-
+#include <RenderStages.h>
+#include <Data.h>
 
 #include <Physics.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
@@ -9,11 +10,19 @@
 
 namespace sndbx
 {
-	MapPhysicsObject::MapPhysicsObject(const std::string& modelPath, const glm::vec3& position) :
-		mParticleEmitter("particles/explosion_atlas2.png", { 8, 8 })
+	void MapPhysicsObject::fromJson(const nlohmann::json& json)
 	{
-		mParticleEmitter.setDirection(glm::vec3{ 0, 1, 0 });
-		mModel = eg::Data::StaticModelCache::load(modelPath);
+		std::string modelPath = json["model"]["model_path"].get<std::string>();
+		glm::vec3 position = { json["rigidBody"]["position"].at(0).get<float>(),
+			json["rigidBody"]["position"].at(1).get<float>(),
+			json["rigidBody"]["position"].at(2).get<float>() };
+		glm::quat rotation;
+		rotation.x = json["rigidBody"]["rotation"].at(0).get<float>();
+		rotation.y = json["rigidBody"]["rotation"].at(1).get<float>();
+		rotation.z = json["rigidBody"]["rotation"].at(2).get<float>();
+		rotation.w = json["rigidBody"]["rotation"].at(3).get<float>();
+
+		mModel = eg::Components::StaticModel::load(modelPath);
 
 		//Create rigid body
 		{
@@ -22,7 +31,7 @@ namespace sndbx
 			shapeSettings.SetEmbedded();
 			JPH::BodyCreationSettings bodySetting(&shapeSettings,
 				JPH::RVec3(position.x, position.y, position.z),
-				JPH::Quat::sIdentity(),
+				JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
 				JPH::EMotionType::Dynamic,
 				eg::Physics::Layers::MOVING);
 			bodySetting.mFriction = 0.2f;
@@ -33,40 +42,38 @@ namespace sndbx
 			bodySetting.mMotionQuality = JPH::EMotionQuality::Discrete;
 			bodySetting.mRestitution = 0.9f;
 
-			mBody = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::Activate);
+			mBody.mBodyID = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::Activate);
+			mBody.mMass = 10.0f;
+			mBody.mFriction = 0.2f;
+			mBody.mRestitution = 0.9f;
+
 		}
 	}
 
 	void MapPhysicsObject::update(float delta)
 	{
-		mParticleEmitter.record();
+		
 		
 	}
 	void MapPhysicsObject::fixedUpdate(float delta)
 	{
-		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-		JPH::Vec3 position = bodyInterface->GetCenterOfMassPosition(mBody);
-		mParticleEmitter.setPosition(glm::vec3{ position.GetX(), position.GetY() + 0.5f, position.GetZ() });
-		mParticleEmitter.update(delta);
+
 	}
 
 	void MapPhysicsObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
 	{
-		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-		JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody);
-		glm::mat4x4 glmMatrix;
-		std::memcpy(&glmMatrix[0][0], &matrix, sizeof(glmMatrix));
+		glm::mat4x4 mat = mBody.getBodyMatrix();
 
 		switch (stage)
 		{
 		case eg::Renderer::RenderStage::SHADOW:
 		{
-			eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, glmMatrix);
+			eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, mat);
 			break;
 		}
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 		{
-			eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
+			eg::Data::StaticModelRenderer::render(cmd, *mModel, mat);
 			break;
 		}
 

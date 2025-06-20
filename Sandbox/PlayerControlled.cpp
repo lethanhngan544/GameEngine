@@ -60,11 +60,10 @@ namespace sndbx
 		{
 			mDirection = glm::normalize(mDirection);
 		}
-		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
-		JPH::Vec3 position = bodyInterface->GetPosition(mBody);
-		glm::vec3 postionGlm = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
+		glm::mat4x4 bodyMatrix = mBody.getBodyMatrix();
+		glm::vec3 positionGlm = { bodyMatrix[3][0], bodyMatrix[3][1], bodyMatrix[3][2] };
 
-		mCamera.mPosition = postionGlm + glm::vec3{ 0.0f, 0.8f, 0.0f };
+		mCamera.mPosition = positionGlm + glm::vec3{ 0.0f, 0.8f, 0.0f };
 		mCamera.mPitch = -mPitch;
 		mCamera.mYaw = -mYaw;
 

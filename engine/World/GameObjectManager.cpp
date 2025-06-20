@@ -1,0 +1,102 @@
+#include <World.h>
+#include <Components.h>
+#include <Logger.h>
+
+#include <fstream>
+
+namespace eg::World
+{
+	void GameObjectManager::addGameObject(std::unique_ptr<IGameObject> gameobject)
+	{
+		mGameObjects.push_back(std::move(gameobject));
+	}
+	void GameObjectManager::removeGameObject(const IGameObject* gameObject)
+	{
+		//TODO
+	}
+	void GameObjectManager::update(float delta)
+	{
+		for (const auto& gameObject : mGameObjects)
+		{
+			gameObject->update(delta);
+		}
+	}
+
+	void GameObjectManager::fixedUpdate(float delta)
+	{
+		for (const auto& gameObject : mGameObjects)
+		{
+			gameObject->fixedUpdate(delta);
+		}
+	}
+	void GameObjectManager::render(vk::CommandBuffer cmd, Renderer::RenderStage stage)
+	{
+		for (const auto& gameObject : mGameObjects)
+		{
+			gameObject->render(cmd, stage);
+		}
+	}
+
+	void GameObjectManager::save(const std::string& filename, const std::string& worldName) const
+	{
+		nlohmann::json mainJson;
+		mainJson["worldName"] = worldName;
+		nlohmann::json gameObjectsJson = nlohmann::json::array();
+		for (const auto& gameObject : mGameObjects)
+		{
+			nlohmann::json objJson = gameObject->toJson();
+			objJson["type"] = std::string(gameObject->getType()); // Ensure type is included
+			gameObjectsJson.push_back(objJson);
+		}
+		mainJson["gameObjects"] = gameObjectsJson;
+		std::ofstream file(filename);
+		if (file.is_open())
+		{
+			file << mainJson.dump(4); // Pretty print with 4 spaces
+			file.close();
+		}
+		else
+		{
+			eg::Logger::gError("Failed to open file for saving game objects: " + filename);
+		}
+	}
+
+	void GameObjectManager::load(const std::string& filename, JsonToIGameObjectDispatcher dispatcher)
+	{
+		//Load json file
+		std::ifstream file(filename);
+		if (!file.is_open())
+		{
+			throw std::runtime_error("Failed to open file for loading game objects: " + filename);
+		}
+
+		nlohmann::json mainJson;
+		file >> mainJson;
+		file.close();
+		if (!mainJson.contains("gameObjects") || !mainJson["gameObjects"].is_array())
+		{
+			throw std::runtime_error("Invalid game object data in file: " + filename);
+		}
+		for (const auto& objJson : mainJson["gameObjects"])
+		{
+			if (!objJson.contains("type") || !objJson["type"].is_string())
+			{
+				eg::Logger::gError("Game object type is missing or invalid in JSON: " + objJson.dump());
+				continue;
+			}
+			std::string type = objJson["type"];
+			std::unique_ptr<IGameObject> gameObject = nullptr;
+			try
+			{
+				gameObject = dispatcher(objJson, type);
+			}
+			catch (const JsonToIGameObjectException& e)
+			{
+				eg::Logger::gError(e.what());
+				continue; // Skip this object if the type is unknown
+			}
+			gameObject->fromJson(objJson);
+			addGameObject(std::move(gameObject));
+		}
+	}
+}

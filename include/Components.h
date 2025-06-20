@@ -1,0 +1,310 @@
+#pragma once
+
+#include <optional>
+#include <glm/vec3.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/mat4x4.hpp>
+#include <MyVulkan.h>
+#include <nlohmann/json.hpp>
+#include <tiny_gltf.h>
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Body/BodyID.h>
+
+#include <Renderer.h>
+
+
+namespace eg::Components
+{
+
+	class RigidBody
+	{
+	public:
+		JPH::BodyID mBodyID;
+		float mMass;
+		float mFriction;
+		float mRestitution;
+
+	public:
+		RigidBody() = default;
+		~RigidBody() = default;
+
+		glm::mat4x4 getBodyMatrix() const;
+
+		nlohmann::json toJson() const;
+	};
+	
+
+	/*class Transform
+	{
+	public:
+		glm::vec3 mPosition = { 0, 0, 0 };
+		glm::quat mRotation = { 1, 0, 0, 0 };
+		glm::vec3 mScale = { 1, 1, 1 };
+	public:
+		Transform() = default;
+		Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale) :
+			mPosition(position), mRotation(rotation), mScale(scale) {
+		}
+
+		void identity()
+		{
+			mPosition = { 0, 0, 0 };
+			mRotation = { 1, 0, 0, 0 };
+			mScale = { 1, 1, 1 };
+		}
+
+		glm::mat4x4 build() const
+		{
+			glm::mat4x4 matrix(1.0f);
+			matrix = glm::translate(matrix, mPosition);
+			matrix *= glm::mat4_cast(mRotation);
+			matrix = glm::scale(matrix, mScale);
+			return matrix;
+		}
+
+
+	};*/
+
+
+	class Camera
+	{
+	public:
+		glm::vec3 mPosition = { 0, 0, 0 };
+		float mPitch = 0.0f, mYaw = 0.0f, mRoll = 0.0f;
+		float mFov = 90.0f;
+		float mNear = 0.1f;
+		float mFar = 1000.0f;
+
+	public:
+		Camera() = default;
+
+
+		glm::mat4x4 buildProjection(vk::Extent2D extent) const;
+		glm::mat4x4 buildView() const;
+
+		nlohmann::json toJson() const
+		{
+			nlohmann::json json;
+			json["position"] = { mPosition.x, mPosition.y, mPosition.z };
+			json["pitch"] = mPitch;
+			json["yaw"] = mYaw;
+			json["roll"] = mRoll;
+			json["fov"] = mFov;
+			json["near"] = mNear;
+			json["far"] = mFar;
+			return json;
+		}
+		void fromJson(const nlohmann::json& json)
+		{
+			if (json.contains("position")) {
+				auto pos = json["position"];
+				mPosition = { pos[0], pos[1], pos[2] };
+			}
+			if (json.contains("pitch")) mPitch = json["pitch"];
+			if (json.contains("yaw")) mYaw = json["yaw"];
+			if (json.contains("roll")) mRoll = json["roll"];
+			if (json.contains("fov")) mFov = json["fov"];
+			if (json.contains("near")) mNear = json["near"];
+			if (json.contains("far")) mFar = json["far"];
+		}
+	};
+
+	class DirectionalLight
+	{
+	public:
+		struct UniformBuffer
+		{
+			glm::vec3 direction = { 1, -1, 0 };
+			float intensity = 5.0f;
+			glm::vec4 color = { 1, 1, 1, 1 };
+		} mUniformBuffer;
+
+		Renderer::CPUBuffer mBuffer;
+	private:
+		vk::DescriptorSet mSet;
+	public:
+		DirectionalLight();
+		~DirectionalLight();
+
+		void update();
+
+		glm::mat4x4 getDirectionalLightViewProj(const Camera& camera) const;
+
+		inline vk::DescriptorSet getSet() const { return mSet; }
+	};
+
+	class PointLight
+	{
+	public:
+		struct UniformBuffer
+		{
+			glm::vec4 position = { 0, 0, 0, 1 };
+			glm::vec4 color = { 1, 1, 1, 1 };
+			float intensity = 1.0f;
+			float constant = 1.0f;
+			float linear = 0.1f;
+			float exponent = 0.01f;
+		} mUniformBuffer{};
+	private:
+		vk::DescriptorSet mSet;
+		Renderer::CPUBuffer	mBuffer;
+	public:
+		PointLight();
+		~PointLight();
+
+		void update();
+
+		nlohmann::json toJson() const
+		{
+			return
+			{
+				{ "position", { mUniformBuffer.position.x, mUniformBuffer.position.y, mUniformBuffer.position.z } },
+				{ "color", { mUniformBuffer.color.r, mUniformBuffer.color.g, mUniformBuffer.color.b } },
+				{ "intensity", mUniformBuffer.intensity },
+				{ "constant", mUniformBuffer.constant },
+				{ "linear", mUniformBuffer.linear },
+				{ "exponent", mUniformBuffer.exponent },
+			};
+		}
+
+		void fromJson(const nlohmann::json& json)
+		{
+			if (json.contains("position")) {
+				auto pos = json["position"];
+				mUniformBuffer.position = { pos[0], pos[1], pos[2], 1.0f };
+			}
+			if (json.contains("color")) {
+				auto col = json["color"];
+				mUniformBuffer.color = { col[0], col[1], col[2], 1.0f };
+			}
+			if (json.contains("intensity")) mUniformBuffer.intensity = json["intensity"];
+			if (json.contains("constant")) 
+mUniformBuffer.constant = json["constant"];
+			if (json.contains("linear")) 
+				mUniformBuffer.linear = json["linear"];
+			if (json.contains("exponent")) 
+				mUniformBuffer.exponent = json["exponent"];
+		}
+
+		const Renderer::CPUBuffer& getBuffer() const { return mBuffer; }
+		vk::DescriptorSet getDescriptorSet() const { return mSet; }
+	};
+
+	class StaticModel
+	{
+	private:
+		struct RawMesh
+		{
+			Renderer::GPUBuffer positionBuffer;
+			Renderer::GPUBuffer normalBuffer;
+			Renderer::GPUBuffer uvBuffer;
+			Renderer::GPUBuffer indexBuffer;
+			uint32_t materialIndex = 0;
+			uint32_t vertexCount = 0;
+		};
+
+		struct Material
+		{
+			struct UniformBuffer
+			{
+				float albedoColor[3] = {};
+				uint32_t has_albedo = 0;
+				uint32_t has_normal = 0;
+				uint32_t has_mr = 0;
+			};
+			std::shared_ptr<Renderer::CPUBuffer> mUniformBuffer;
+			std::shared_ptr<Renderer::CombinedImageSampler2D> mAlbedo;
+			std::shared_ptr<Renderer::CombinedImageSampler2D> mNormal;
+			std::shared_ptr<Renderer::CombinedImageSampler2D> mMr;
+			vk::DescriptorSet mSet;
+		};
+
+		std::vector<RawMesh> mRawMeshes;
+		std::vector<std::shared_ptr<Renderer::CombinedImageSampler2D>> mImages;
+		std::vector<Material> mMaterials;
+
+		std::string mFilePath;
+	public:
+		StaticModel() = delete;
+		StaticModel(const std::string& filePath);
+		StaticModel(const std::string& filePath, const tinygltf::Model& model);
+		~StaticModel();
+
+		const std::vector<RawMesh>& getRawMeshes() const { return mRawMeshes; }
+		const std::vector<Material>& getMaterials() const { return mMaterials; }
+
+		nlohmann::json toJson() const
+		{
+			return { {"model_path", mFilePath} };
+		}
+
+		
+	private:
+		void loadTinygltfModel(const tinygltf::Model& model);
+
+	//Static datas
+	private:
+		static std::unordered_map<std::string, std::shared_ptr<StaticModel>> sCache;
+	public:
+		static std::shared_ptr<StaticModel> load(const std::string& filePath);
+		static std::shared_ptr<StaticModel> loadFromJson(const nlohmann::json& json)
+		{
+			if (json.contains("model_path")) {
+				auto modelPath = json["model_path"].get<std::string>();
+				auto model = load(modelPath);
+				model->mFilePath = modelPath; // Ensure the file path is set correctly
+				return model;
+			}
+			return nullptr;
+		}
+		static void clearCache();
+	};
+
+	struct ParticleInstance {
+		glm::vec4 positionSize; // xyz = position, w = size
+		glm::ivec2 frameIndex; // offset into the texture grid
+	};
+
+	class ParticleEmitter
+	{
+	private:
+		struct AtlasTexture
+		{
+			std::optional<Renderer::CombinedImageSampler2D> texture;
+			vk::DescriptorSet set;
+			glm::uvec2 size;
+		};
+
+		static std::unordered_map<std::string, std::shared_ptr<AtlasTexture>> mAtlasTextures;
+		static std::shared_ptr<AtlasTexture> getAtlasTexture(const std::string& textureAtlas, glm::uvec2 atlasSize);
+	public:
+		static void clearAtlasTextures();
+	private:
+		struct ParticleEntity
+		{
+			ParticleInstance particle;
+			glm::vec3 velocity;
+			float age;
+		};
+
+		glm::vec3 mPosition = { 0, 0, 0 };
+		glm::vec3 mDirection = { 0, 0, 1 };
+		float mLifeSpan = 2.0f;
+		float mGenerateRate = 0.005f;
+		float mGenerateRateCounter = 0.0f;
+
+		std::shared_ptr<AtlasTexture> mAtlasTexture;
+		std::vector<ParticleEntity> mParticles;
+
+	public:
+		ParticleEmitter(const std::string& textureAtlas, glm::uvec2 atlasSize);
+		~ParticleEmitter() = default;
+		void update(float delta);
+		void record();
+
+		inline void setPosition(const glm::vec3& position) { mPosition = position; }
+		inline void setDirection(const glm::vec3& direction) { mDirection = direction; }
+	};
+
+
+}

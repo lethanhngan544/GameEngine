@@ -1,23 +1,34 @@
 #pragma once
 
-#include <Data.h>
-#include <Jolt/Jolt.h>
-#include <Jolt/Physics/Body/BodyID.h>
-
+#include <World.h>
+#include <Components.h>
 
 namespace sndbx
 {
-	class MapObject : public eg::Data::IGameObject
+	class MapObject : public eg::World::IGameObject
 	{
 	private:
-		std::shared_ptr<eg::Data::StaticModel> mModel = nullptr;
-		JPH::BodyID mBody;
+		std::shared_ptr<eg::Components::StaticModel> mModel = nullptr;
+		eg::Components::RigidBody mBody;
 
 	public:
-		MapObject(const std::string& modelPath);
+		MapObject() = default;
 
 		void update(float delta) override {}
 		void fixedUpdate(float delta) override {}
 		void render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage) override;
+
+		const char* getType() const override { return "MapObject"; }
+
+		nlohmann::json toJson() const override
+		{
+			return {
+				{"type", getType()},
+				{"model", mModel->toJson()},
+				{"body", mBody.toJson()}
+			};
+		}
+
+		void fromJson(const nlohmann::json& json) override;
 	};
 }
