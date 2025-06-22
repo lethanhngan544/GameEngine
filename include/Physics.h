@@ -28,6 +28,7 @@ namespace eg::Physics
 	void update(float delta);
 	void render();
 	void destroy();
+	void reset();
 
 	JPH::PhysicsSystem& getPhysicsSystem();
 	JPH::BodyInterface* getBodyInterface();

@@ -15,6 +15,7 @@
 #include <SandBox_PlayerControlled.h>
 #include <SandBox_MapObject.h>
 #include <SandBox_MapPhysicsObject.h>
+#include <SandBox_Debugger.h>
 #include <Physics.h>
 #include <Network.h>
 #include <Window.h>
@@ -25,6 +26,7 @@
 #include <thread>
 
 #include <stb_image.h>
+#include <ImGuiFileDialog.h>
 
 
 class VisualStudioLogger  final : public eg::Logger
@@ -69,7 +71,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Physics::create();
 
 		{
-			
+			sndbx::Debugger debugger;
 			World::GameObjectManager gameObjManager;
 			Components::DirectionalLight directionalLight;
 			directionalLight.mUniformBuffer.intensity = 1.0f;
@@ -77,23 +79,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			Renderer::setDirectionalLight(&directionalLight);
 			
-			//auto player1 = std::make_unique<sndbx::PlayerControlled>();
-			//auto player2 = std::make_unique<sndbx::Player>();
-			//Renderer::setCamera(&player1->getCamera());
-			//gameObjManager.addGameObject(std::move(player1));
-			//gameObjManager.addGameObject(std::move(player2));
-
-			//auto mo1 = std::make_unique<sndbx::MapObject>("models/map1.glb");
-			//gameObjManager.addGameObject(std::move(mo1));
-
-			//
-			//for (auto i = 0; i < 100; i++)
-			//{
-			//	//Generate random position
-			//	glm::vec3 position = { (float)(rand() % 10), 50.0f, (float)(rand() % 10) };
-			//	auto mo2 = std::make_unique<sndbx::MapPhysicsObject>("models/box.glb", position);
-			//	gameObjManager.addGameObject(std::move(mo2));
-			//}
 		
 			World::JsonToIGameObjectDispatcher jsonDispatcher =
 				[](const nlohmann::json& jsonObj, const std::string& type) -> std::unique_ptr<World::IGameObject>
@@ -119,11 +104,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 						auto mapPhysicsObject = std::make_unique<sndbx::MapPhysicsObject>();
 						return mapPhysicsObject;
 					}
-					else
-					{
-						throw World::JsonToIGameObjectException(type, "Unknown game object type");
-						return nullptr;
-					}
+					throw World::JsonToIGameObjectException(type, "Unknown game object type");
+					return nullptr;
 				};
 		
 			using Clock = std::chrono::high_resolution_clock;
@@ -131,7 +113,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			constexpr double TICK_RATE = 60;
 			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
-			constexpr int MAX_FPS = 360;
+			constexpr int MAX_FPS = 60;
 			constexpr double FRAME_DURATION_CAP = 1.0 / MAX_FPS;
 			TimePoint lastTime = Clock::now();
 			double accumulator = 0.0;
@@ -150,6 +132,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 					accumulator -= TICK_INTERVAL;
 				}
 				//Update
+				debugger.checkKeyboardInput();
 				gameObjManager.update(deltaTime);
 				Input::Keyboard::update();
 				Input::Mouse::update();
@@ -158,25 +141,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				//Render
 				//Retrieve with and height of the glfw window
 				auto cmd = Renderer::begin();
-				Physics::render();
+				debugger.drawPhysicsDebuggerDialog();
+				debugger.drawLightDebuggerDialog(directionalLight);
+				debugger.drawWorldDebuggerDialog(gameObjManager, jsonDispatcher);
+				
 
-				ImGui::Begin("Light");
-				if (ImGui::DragFloat3("Direction", &directionalLight.mUniformBuffer.direction.x, 0.01f))
-				{
-					directionalLight.mUniformBuffer.direction = glm::normalize(directionalLight.mUniformBuffer.direction);
-				}
-				ImGui::End();
-
-				ImGui::Begin("World");
-				if (ImGui::Button("Save"))
-				{
-					gameObjManager.save("world.json", "Sandbox World");
-				}
-				if (ImGui::Button("Load"))
-				{
-					gameObjManager.load("world.json", jsonDispatcher);
-				}
-				ImGui::End();
 				
 				Data::DebugRenderer::updateVertexBuffers(cmd);
 				Data::ParticleRenderer::updateBuffers(cmd);
@@ -207,12 +176,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 				Renderer::end();
 				Window::poll();
-
-				TimePoint frameEnd = Clock::now();
-				double frameTime = std::chrono::duration<double>(frameEnd - now).count();
-				if (frameTime < FRAME_DURATION_CAP) {
-					std::this_thread::sleep_for(std::chrono::duration<double>(FRAME_DURATION_CAP - frameTime));
-				}
 			}
 
 			Renderer::waitIdle();
@@ -229,8 +192,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		MessageBox(nullptr, "TODO", "Unknown exception", MB_ICONEXCLAMATION);
 	}
 
-	Components::ParticleEmitter::clearAtlasTextures();
-	Components::StaticModel::clearCache();
+	
 	Data::DebugRenderer::destroy();
 	Data::ParticleRenderer::destroy();
 	Data::LightRenderer::destroy();

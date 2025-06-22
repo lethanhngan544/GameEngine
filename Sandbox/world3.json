@@ -1,0 +1,2143 @@
+{
+    "gameObjects": [
+        {
+            "camera": {
+                "far": 1000.0,
+                "fov": 90.0,
+                "near": 0.10000000149011612,
+                "pitch": 57.50027084350586,
+                "position": [
+                    -14.71446418762207,
+                    3.9799892902374268,
+                    -16.81206703186035
+                ],
+                "roll": 0.0,
+                "yaw": 167.5975341796875
+            },
+            "player": {
+                "airAccel": 10.0,
+                "airDamping": 0.0,
+                "airMaxSpeed": 6.0,
+                "body": {
+                    "position": [
+                        -14.71446418762207,
+                        3.1799893379211426,
+                        -16.81206703186035
+                    ],
+                    "rotation": [
+                        0.0,
+                        0.9941486120223999,
+                        0.0,
+                        -0.10802078992128372
+                    ]
+                },
+                "cameraDistance": 5.0,
+                "groundAccel": 20.0,
+                "groundDamping": 5.0,
+                "groundMaxSpeed": 6.0,
+                "height": 1.7999999523162842,
+                "jumpStrength": 10.5,
+                "light": {
+                    "color": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "constant": 1.0,
+                    "exponent": 0.009999999776482582,
+                    "intensity": 1.0,
+                    "linear": 0.10000000149011612,
+                    "position": [
+                        -14.71446418762207,
+                        3.6799893379211426,
+                        -16.81206703186035
+                    ]
+                },
+                "mass": 80.0,
+                "model": {
+                    "model_path": "models/human1.glb"
+                },
+                "mouseSensitivity": 0.20000000298023224,
+                "pitch": -57.50027084350586,
+                "pitchClamp": 89.5,
+                "playerSpeed": 1.0,
+                "radius": 0.30000001192092896,
+                "visible": false,
+                "yaw": -167.5975341796875
+            },
+            "type": "PlayerControlled"
+        },
+        {
+            "airAccel": 10.0,
+            "airDamping": 0.0,
+            "airMaxSpeed": 6.0,
+            "body": {
+                "position": [
+                    -8.710161209106445,
+                    3.1799893379211426,
+                    -2.999083995819092
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ]
+            },
+            "cameraDistance": 5.0,
+            "groundAccel": 20.0,
+            "groundDamping": 5.0,
+            "groundMaxSpeed": 6.0,
+            "height": 1.7999999523162842,
+            "jumpStrength": 10.5,
+            "light": {
+                "color": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "constant": 1.0,
+                "exponent": 0.009999999776482582,
+                "intensity": 1.0,
+                "linear": 0.10000000149011612,
+                "position": [
+                    -8.710161209106445,
+                    3.6799893379211426,
+                    -2.999083995819092
+                ]
+            },
+            "mass": 80.0,
+            "model": {
+                "model_path": "models/human1.glb"
+            },
+            "mouseSensitivity": 0.20000000298023224,
+            "pitch": 0.0,
+            "pitchClamp": 89.5,
+            "playerSpeed": 1.0,
+            "radius": 0.30000001192092896,
+            "type": "Player",
+            "visible": true,
+            "yaw": 0.0
+        },
+        {
+            "body": {
+                "position": [
+                    0.0,
+                    1.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ]
+            },
+            "model": {
+                "model_path": "models/map1.glb"
+            },
+            "type": "MapObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -2.135599136352539,
+                    2.9999895095825195,
+                    10.272223472595215
+                ],
+                "rotation": [
+                    0.496056467294693,
+                    0.503912627696991,
+                    -0.503912627696991,
+                    0.4960566461086273
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    3.7080326080322266,
+                    2.9995009899139404,
+                    -1.1900067329406738
+                ],
+                "rotation": [
+                    -0.00016849934763740748,
+                    0.16344916820526123,
+                    7.57528312078648e-07,
+                    0.9865517616271973
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    16.703916549682617,
+                    2.999894857406616,
+                    5.568146228790283
+                ],
+                "rotation": [
+                    0.9683059453964233,
+                    -2.1174841094762087e-05,
+                    0.24976710975170135,
+                    2.7110003429697827e-05
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    10.073439598083496,
+                    2.999818801879883,
+                    12.873982429504395
+                ],
+                "rotation": [
+                    6.569345600837551e-07,
+                    -0.11001156270503998,
+                    7.598137017339468e-05,
+                    0.9939302802085876
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -1.049298882484436,
+                    2.9995296001434326,
+                    2.8546202182769775
+                ],
+                "rotation": [
+                    -0.00020304060308262706,
+                    0.06475573033094406,
+                    -1.4219474905985408e-05,
+                    0.9979011416435242
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    6.005505561828613,
+                    5.371438503265381,
+                    4.627103805541992
+                ],
+                "rotation": [
+                    0.2630375921726227,
+                    -0.1861724704504013,
+                    0.052603188902139664,
+                    0.945189893245697
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -0.49107280373573303,
+                    2.999687433242798,
+                    7.949504375457764
+                ],
+                "rotation": [
+                    -9.039633732754737e-05,
+                    0.22654518485069275,
+                    3.7888519727857783e-05,
+                    0.9740006923675537
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -3.4445619583129883,
+                    2.999948501586914,
+                    -2.0185811519622803
+                ],
+                "rotation": [
+                    -6.391521310433745e-06,
+                    0.28648361563682556,
+                    -1.9145338228554465e-05,
+                    0.9580851197242737
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    5.444786548614502,
+                    2.999624729156494,
+                    0.3320196866989136
+                ],
+                "rotation": [
+                    -0.00017579352424945682,
+                    0.23744575679302216,
+                    4.325946792960167e-05,
+                    0.971400797367096
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    8.360742568969727,
+                    2.999988317489624,
+                    6.4644012451171875
+                ],
+                "rotation": [
+                    4.858872557633731e-07,
+                    0.17506857216358185,
+                    2.5324334274046123e-07,
+                    0.984556257724762
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -10.465081214904785,
+                    2.9999892711639404,
+                    4.35444974899292
+                ],
+                "rotation": [
+                    -2.4116104668792104e-07,
+                    0.7304266691207886,
+                    -8.828885000866649e-08,
+                    0.682991087436676
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -0.6534698605537415,
+                    4.663415431976318,
+                    0.7169681191444397
+                ],
+                "rotation": [
+                    -0.18581059575080872,
+                    -0.43796506524086,
+                    0.30946531891822815,
+                    0.8233420848846436
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -1.0642648935317993,
+                    2.998303174972534,
+                    -1.1251070499420166
+                ],
+                "rotation": [
+                    0.00018456032557878643,
+                    0.30499961972236633,
+                    0.00030492711812257767,
+                    0.9523524045944214
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -4.424851894378662,
+                    2.998988628387451,
+                    7.6553215980529785
+                ],
+                "rotation": [
+                    9.804373985389248e-05,
+                    0.18829546868801117,
+                    0.0001283667515963316,
+                    0.9821124076843262
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    12.541302680969238,
+                    2.9996399879455566,
+                    5.963462829589844
+                ],
+                "rotation": [
+                    0.00015072817041072994,
+                    0.1087401807308197,
+                    -3.445056063355878e-05,
+                    0.9940701723098755
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    14.45737075805664,
+                    4.555872440338135,
+                    6.145994186401367
+                ],
+                "rotation": [
+                    -0.6676580905914307,
+                    -0.1561027467250824,
+                    0.28693103790283203,
+                    0.6689807772636414
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -1.5670511722564697,
+                    2.9999523162841797,
+                    15.441533088684082
+                ],
+                "rotation": [
+                    4.87953639094485e-06,
+                    0.38662225008010864,
+                    -9.109721759159584e-06,
+                    0.9222381711006165
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    16.461750030517578,
+                    2.9999887943267822,
+                    -1.9625129699707031
+                ],
+                "rotation": [
+                    0.20878911018371582,
+                    -0.20878984034061432,
+                    0.6755790114402771,
+                    -0.6755789518356323
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    5.446760654449463,
+                    2.9999890327453613,
+                    16.9742431640625
+                ],
+                "rotation": [
+                    0.6010414958000183,
+                    -0.372490793466568,
+                    0.37249037623405457,
+                    0.6010413765907288
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    3.834594964981079,
+                    4.176637649536133,
+                    3.2014076709747314
+                ],
+                "rotation": [
+                    -0.027192091569304466,
+                    0.12993784248828888,
+                    -0.3777608871459961,
+                    0.9163370132446289
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    1.6834092140197754,
+                    2.999135732650757,
+                    -0.7141039967536926
+                ],
+                "rotation": [
+                    -5.428083022707142e-05,
+                    0.16835176944732666,
+                    0.00021521025337278843,
+                    0.9857269525527954
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    1.214470624923706,
+                    2.99637508392334,
+                    1.8806344270706177
+                ],
+                "rotation": [
+                    0.00030070432694628835,
+                    0.1407875418663025,
+                    -0.00018673855811357498,
+                    0.9900397658348083
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -0.1853218674659729,
+                    4.931097984313965,
+                    4.4254279136657715
+                ],
+                "rotation": [
+                    0.03308424353599548,
+                    0.605937123298645,
+                    -0.39715707302093506,
+                    0.6884852051734924
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -1.6844205856323242,
+                    2.9998819828033447,
+                    -3.239502429962158
+                ],
+                "rotation": [
+                    8.42332883621566e-06,
+                    0.21199262142181396,
+                    -3.0320357836899348e-05,
+                    0.9772712588310242
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    1.426238775253296,
+                    2.999988555908203,
+                    9.311199188232422
+                ],
+                "rotation": [
+                    -2.922299415786256e-07,
+                    0.19195835292339325,
+                    -3.2245054626400815e-07,
+                    0.9814030528068542
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    10.267523765563965,
+                    4.999724864959717,
+                    4.765172004699707
+                ],
+                "rotation": [
+                    5.612932000076398e-05,
+                    0.2880173623561859,
+                    -1.04530463431729e-05,
+                    0.9576252102851868
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -0.4591675102710724,
+                    4.999508857727051,
+                    7.865943908691406
+                ],
+                "rotation": [
+                    0.28169170022010803,
+                    0.28190740942955017,
+                    0.6485509872436523,
+                    0.648505687713623
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    11.609101295471191,
+                    2.999981641769409,
+                    16.892515182495117
+                ],
+                "rotation": [
+                    -0.15365497767925262,
+                    -3.813716375589138e-06,
+                    0.9881246089935303,
+                    -1.8146986136002852e-08
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    0.9702250957489014,
+                    4.401946544647217,
+                    -2.5307693481445313
+                ],
+                "rotation": [
+                    -0.4317997992038727,
+                    -0.10223006457090378,
+                    0.22612342238426208,
+                    0.8671598434448242
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    14.878000259399414,
+                    2.999904155731201,
+                    12.385974884033203
+                ],
+                "rotation": [
+                    -3.0102244636509567e-05,
+                    0.08634328842163086,
+                    7.4956951721105725e-06,
+                    0.9962654709815979
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    5.036731243133545,
+                    2.9952762126922607,
+                    4.981243133544922
+                ],
+                "rotation": [
+                    0.00204857112839818,
+                    0.16508075594902039,
+                    -2.1237803593976423e-05,
+                    0.9862778782844543
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -10.970364570617676,
+                    2.9999895095825195,
+                    0.21872995793819427
+                ],
+                "rotation": [
+                    0.16050110757350922,
+                    -0.16050100326538086,
+                    -0.6886502504348755,
+                    0.6886506080627441
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    14.598160743713379,
+                    2.999845266342163,
+                    9.89581298828125
+                ],
+                "rotation": [
+                    2.06229215109488e-05,
+                    -0.03177321329712868,
+                    5.0942406232934445e-05,
+                    0.9994950890541077
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -7.78123140335083,
+                    2.9999871253967285,
+                    0.3463099002838135
+                ],
+                "rotation": [
+                    9.077805316337617e-07,
+                    -0.050529271364212036,
+                    1.429016975862396e-07,
+                    0.9987225532531738
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    5.928816795349121,
+                    2.999804973602295,
+                    9.523394584655762
+                ],
+                "rotation": [
+                    4.867441748501733e-05,
+                    0.11605466157197952,
+                    4.425490988069214e-05,
+                    0.9932428002357483
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    6.9808526039123535,
+                    2.9999635219573975,
+                    4.393796443939209
+                ],
+                "rotation": [
+                    0.12685464322566986,
+                    0.12684637308120728,
+                    0.6956363320350647,
+                    0.6956349611282349
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -10.685042381286621,
+                    2.99997878074646,
+                    11.459595680236816
+                ],
+                "rotation": [
+                    0.0014814403839409351,
+                    0.0014744193758815527,
+                    0.7071051001548767,
+                    0.7071054577827454
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -4.901724338531494,
+                    2.999980926513672,
+                    -5.127715587615967
+                ],
+                "rotation": [
+                    0.6687656044960022,
+                    -0.2296726256608963,
+                    0.2296740710735321,
+                    0.6687697172164917
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    8.647141456604004,
+                    2.9999256134033203,
+                    -2.1820688247680664
+                ],
+                "rotation": [
+                    0.0415053591132164,
+                    -0.041504524648189545,
+                    0.7059072852134705,
+                    -0.7058680057525635
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    4.038519859313965,
+                    2.999720335006714,
+                    10.510869979858398
+                ],
+                "rotation": [
+                    6.468489300459623e-05,
+                    0.0813363790512085,
+                    -6.907316128490493e-05,
+                    0.9966866970062256
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    16.500593185424805,
+                    2.9999890327453613,
+                    2.590275526046753
+                ],
+                "rotation": [
+                    -2.695931584639766e-07,
+                    0.5388577580451965,
+                    1.5272975417701673e-07,
+                    0.8423967361450195
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    1.918649435043335,
+                    5.405117511749268,
+                    3.157830238342285
+                ],
+                "rotation": [
+                    0.699104905128479,
+                    0.3711426258087158,
+                    0.10405272990465164,
+                    0.6022279858589172
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    4.407766342163086,
+                    2.9999895095825195,
+                    -4.583096981048584
+                ],
+                "rotation": [
+                    5.570289829393005e-08,
+                    0.0367143377661705,
+                    6.618208203690301e-08,
+                    0.9993258118629456
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    6.024312973022461,
+                    2.999821901321411,
+                    7.224868297576904
+                ],
+                "rotation": [
+                    0.15298207104206085,
+                    -0.15305005013942719,
+                    0.6903645396232605,
+                    -0.6903398036956787
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    0.7149486541748047,
+                    3.7077102661132813,
+                    14.216456413269043
+                ],
+                "rotation": [
+                    0.5926492214202881,
+                    0.007415194995701313,
+                    0.6710953116416931,
+                    0.44535723328590393
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    3.2707903385162354,
+                    2.9999876022338867,
+                    14.156320571899414
+                ],
+                "rotation": [
+                    5.850621960235003e-07,
+                    -0.7035329937934875,
+                    5.105086984258378e-07,
+                    0.7106626629829407
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    7.319892406463623,
+                    4.563711643218994,
+                    1.8530912399291992
+                ],
+                "rotation": [
+                    -0.07249831408262253,
+                    0.08552595227956772,
+                    0.4000162184238434,
+                    0.9096242785453796
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    7.647433757781982,
+                    2.997497797012329,
+                    11.530767440795898
+                ],
+                "rotation": [
+                    -0.0005577125120908022,
+                    0.06558810919523239,
+                    0.0019134331960231066,
+                    0.9978448152542114
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    11.981093406677246,
+                    2.999908208847046,
+                    -0.27461138367652893
+                ],
+                "rotation": [
+                    -1.7335416941932635e-06,
+                    0.049095749855041504,
+                    2.8096395908505656e-05,
+                    0.9987940788269043
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    13.948493003845215,
+                    2.9999890327453613,
+                    -3.317891836166382
+                ],
+                "rotation": [
+                    -0.14073516428470612,
+                    0.14073477685451508,
+                    -0.6929600834846497,
+                    0.6929600834846497
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    2.9215776920318604,
+                    4.713933944702148,
+                    6.127886772155762
+                ],
+                "rotation": [
+                    0.390469491481781,
+                    0.19055551290512085,
+                    0.2492481917142868,
+                    0.8655042052268982
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    19.268190383911133,
+                    2.9999895095825195,
+                    11.846827507019043
+                ],
+                "rotation": [
+                    0.26704472303390503,
+                    -0.6547418832778931,
+                    0.6547421216964722,
+                    0.26704490184783936
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    3.5876219272613525,
+                    4.999127388000488,
+                    -1.7981526851654053
+                ],
+                "rotation": [
+                    0.7004424333572388,
+                    0.09574956446886063,
+                    -0.09570474177598953,
+                    0.700751781463623
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    10.700750350952148,
+                    2.9999759197235107,
+                    7.016784191131592
+                ],
+                "rotation": [
+                    -1.7741942883731099e-06,
+                    0.13514143228530884,
+                    -6.054973255231744e-06,
+                    0.9908263087272644
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    3.2219390869140625,
+                    2.999913454055786,
+                    8.168181419372559
+                ],
+                "rotation": [
+                    0.18005307018756866,
+                    0.1800275444984436,
+                    0.68378746509552,
+                    0.6838169693946838
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -5.415699005126953,
+                    2.999983549118042,
+                    5.719043731689453
+                ],
+                "rotation": [
+                    3.88980225807245e-07,
+                    -0.5513901710510254,
+                    -2.5159095002891263e-06,
+                    0.8342475295066833
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    3.3667819499969482,
+                    2.9984235763549805,
+                    1.1843878030776978
+                ],
+                "rotation": [
+                    0.0003457230923231691,
+                    0.1493142545223236,
+                    -4.0131293644662946e-05,
+                    0.9887897372245789
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -8.077219009399414,
+                    2.9999887943267822,
+                    14.734956741333008
+                ],
+                "rotation": [
+                    0.6052127480506897,
+                    -0.36567413806915283,
+                    0.3656746447086334,
+                    0.6052124500274658
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    10.653641700744629,
+                    4.999804496765137,
+                    1.174606442451477
+                ],
+                "rotation": [
+                    0.0903257206082344,
+                    -0.09024971723556519,
+                    -0.7013096213340759,
+                    0.7013280987739563
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    9.083799362182617,
+                    2.9997260570526123,
+                    -0.023263409733772278
+                ],
+                "rotation": [
+                    -5.2233837777748704e-05,
+                    0.14762721955776215,
+                    3.553957867552526e-05,
+                    0.9890430569648743
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    8.256916999816895,
+                    2.9999895095825195,
+                    -5.960404396057129
+                ],
+                "rotation": [
+                    1.7591584366982715e-07,
+                    0.17292049527168274,
+                    1.6713195805095893e-07,
+                    0.9849357604980469
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -7.755810260772705,
+                    2.999566078186035,
+                    11.688173294067383
+                ],
+                "rotation": [
+                    0.5846863389015198,
+                    0.39780163764953613,
+                    -0.39716771245002747,
+                    0.5849388241767883
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    5.358503341674805,
+                    4.999706745147705,
+                    9.000158309936523
+                ],
+                "rotation": [
+                    0.13799165189266205,
+                    0.13791996240615845,
+                    0.6935030817985535,
+                    0.6935344338417053
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    5.795861721038818,
+                    3.4117703437805176,
+                    2.6113100051879883
+                ],
+                "rotation": [
+                    0.05936248600482941,
+                    0.1422942578792572,
+                    0.38351842761039734,
+                    0.9105724096298218
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -3.923795461654663,
+                    2.9999632835388184,
+                    0.4258324205875397
+                ],
+                "rotation": [
+                    1.2891991900687572e-05,
+                    0.10020899772644043,
+                    -1.2148569794590003e-06,
+                    0.9949663877487183
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -1.7184107303619385,
+                    2.9999887943267822,
+                    -7.426504611968994
+                ],
+                "rotation": [
+                    4.1131238504021894e-07,
+                    -0.08545224368572235,
+                    -3.248219826446075e-08,
+                    0.9963423013687134
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -8.072488784790039,
+                    2.999979257583618,
+                    3.634524345397949
+                ],
+                "rotation": [
+                    -0.07247941941022873,
+                    -0.0724857971072197,
+                    0.7033818960189819,
+                    0.703382134437561
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    10.274638175964355,
+                    2.998685598373413,
+                    -6.373960971832275
+                ],
+                "rotation": [
+                    0.00015212343714665622,
+                    0.16280300915241241,
+                    -0.00017076863150577992,
+                    0.9866585731506348
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    11.071861267089844,
+                    4.461393356323242,
+                    -2.1240017414093018
+                ],
+                "rotation": [
+                    0.010722015053033829,
+                    0.9124429821968079,
+                    -0.38756218552589417,
+                    -0.13087554275989532
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    8.083417892456055,
+                    2.9995646476745605,
+                    9.149627685546875
+                ],
+                "rotation": [
+                    6.136921729194e-05,
+                    0.04490971192717552,
+                    1.4613528946938459e-05,
+                    0.9989910125732422
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    10.114543914794922,
+                    4.129871368408203,
+                    10.619772911071777
+                ],
+                "rotation": [
+                    0.062170639634132385,
+                    -0.33926132321357727,
+                    0.8759932518005371,
+                    0.3371533751487732
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    3.003009796142578,
+                    4.998896598815918,
+                    0.5279778838157654
+                ],
+                "rotation": [
+                    0.07218734174966812,
+                    -0.0003604284720495343,
+                    0.9973910450935364,
+                    9.049164509633556e-05
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    5.605495452880859,
+                    2.999988317489624,
+                    14.184309005737305
+                ],
+                "rotation": [
+                    0.09891950339078903,
+                    0.09891980141401291,
+                    0.7001540064811707,
+                    0.7001530528068542
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    18.216371536254883,
+                    2.999988555908203,
+                    7.9609375
+                ],
+                "rotation": [
+                    4.6124921482260106e-07,
+                    -0.2646917998790741,
+                    1.9848786791953899e-07,
+                    0.9643330574035645
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -0.0966697409749031,
+                    2.9998888969421387,
+                    11.748307228088379
+                ],
+                "rotation": [
+                    0.5067079663276672,
+                    0.5066618919372559,
+                    0.49324846267700195,
+                    0.49320051074028015
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    1.1919851303100586,
+                    2.9945783615112305,
+                    6.333364963531494
+                ],
+                "rotation": [
+                    0.7041628360748291,
+                    -0.06946985423564911,
+                    -0.07189397513866425,
+                    -0.7029651403427124
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    13.665238380432129,
+                    2.9984023571014404,
+                    -7.675251483917236
+                ],
+                "rotation": [
+                    -0.40121519565582275,
+                    -0.4007990062236786,
+                    0.5821495652198792,
+                    0.5826565027236938
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    2.0979907512664795,
+                    4.2490081787109375,
+                    11.7684965133667
+                ],
+                "rotation": [
+                    0.06553898751735687,
+                    -0.018576422706246376,
+                    0.9282559156417847,
+                    0.3656507730484009
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -6.700534820556641,
+                    2.9999825954437256,
+                    -1.9659970998764038
+                ],
+                "rotation": [
+                    -1.013860355669749e-06,
+                    -0.4303385317325592,
+                    1.2790932260031695e-06,
+                    0.9026675820350647
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -1.1509255170822144,
+                    2.996546506881714,
+                    5.973559856414795
+                ],
+                "rotation": [
+                    -0.0011807125993072987,
+                    0.827226996421814,
+                    4.488063859753311e-05,
+                    0.5618666410446167
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -3.110365390777588,
+                    2.999988317489624,
+                    13.130574226379395
+                ],
+                "rotation": [
+                    0.03007410280406475,
+                    -0.030074462294578552,
+                    0.7064671516418457,
+                    -0.7064668536186218
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    6.343623161315918,
+                    4.998502254486084,
+                    11.118013381958008
+                ],
+                "rotation": [
+                    0.0008702412596903741,
+                    0.09400977194309235,
+                    -2.28229819185799e-05,
+                    0.9955708980560303
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    9.320698738098145,
+                    2.9997878074645996,
+                    2.8763930797576904
+                ],
+                "rotation": [
+                    0.07982564717531204,
+                    -0.07977025955915451,
+                    0.7025992274284363,
+                    -0.7025802135467529
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    5.696625232696533,
+                    2.999980926513672,
+                    -2.2367708683013916
+                ],
+                "rotation": [
+                    2.763198096999986e-07,
+                    0.13587845861911774,
+                    4.194213943264913e-06,
+                    0.9907255172729492
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    1.533925175666809,
+                    2.999891757965088,
+                    -4.538093566894531
+                ],
+                "rotation": [
+                    0.34357360005378723,
+                    0.3435351550579071,
+                    0.6180470585823059,
+                    0.6180281043052673
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -3.250843048095703,
+                    4.54181432723999,
+                    5.697310924530029
+                ],
+                "rotation": [
+                    -0.12909077107906342,
+                    0.16844908893108368,
+                    -0.34819918870925903,
+                    0.9130815267562866
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    1.5437968969345093,
+                    2.9999887943267822,
+                    -8.607991218566895
+                ],
+                "rotation": [
+                    0.9958845376968384,
+                    1.796614235161087e-08,
+                    -0.09063152968883514,
+                    2.7096740407017705e-09
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    7.02516508102417,
+                    4.584571838378906,
+                    -0.5687857866287231
+                ],
+                "rotation": [
+                    -0.0033245806116610765,
+                    0.18413345515727997,
+                    0.38977327942848206,
+                    0.9023085236549377
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    13.039192199707031,
+                    2.9999866485595703,
+                    14.51108455657959
+                ],
+                "rotation": [
+                    0.5022335648536682,
+                    0.4977569580078125,
+                    -0.4977576732635498,
+                    0.5022318363189697
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    10.014042854309082,
+                    2.999960422515869,
+                    4.915757179260254
+                ],
+                "rotation": [
+                    -3.072016397709376e-06,
+                    0.1739044487476349,
+                    -1.3691521417058539e-05,
+                    0.9847625494003296
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -3.5879430770874023,
+                    2.999976396560669,
+                    3.445983409881592
+                ],
+                "rotation": [
+                    -7.986262744452688e-07,
+                    -0.006216078530997038,
+                    -6.074625616747653e-06,
+                    0.9999806880950928
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    2.1785244941711426,
+                    2.9999892711639404,
+                    17.497360229492188
+                ],
+                "rotation": [
+                    0.7051277160644531,
+                    0.7051276564598083,
+                    -0.052867330610752106,
+                    -0.052867591381073
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    13.505126953125,
+                    4.9995503425598145,
+                    10.934803009033203
+                ],
+                "rotation": [
+                    0.6972250938415527,
+                    0.6973866820335388,
+                    0.11734531074762344,
+                    0.11729894578456879
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -4.2217302322387695,
+                    2.999910354614258,
+                    10.095455169677734
+                ],
+                "rotation": [
+                    3.95406641473528e-05,
+                    0.012570355087518692,
+                    -5.15847375481826e-07,
+                    0.9999209642410278
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    11.904889106750488,
+                    2.9996821880340576,
+                    9.08646011352539
+                ],
+                "rotation": [
+                    0.00011723116040229797,
+                    0.1144542321562767,
+                    -4.5378550566965714e-05,
+                    0.9934285283088684
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    13.176912307739258,
+                    4.998475074768066,
+                    2.5197529792785645
+                ],
+                "rotation": [
+                    0.001473505632020533,
+                    0.5030993819236755,
+                    0.0006887674680911005,
+                    0.8642270565032959
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    13.145035743713379,
+                    2.9995272159576416,
+                    1.9485642910003662
+                ],
+                "rotation": [
+                    0.00020695055718533695,
+                    0.266781210899353,
+                    -6.132595444796607e-05,
+                    0.9637570977210999
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    11.122638702392578,
+                    2.999880790710449,
+                    -4.222813129425049
+                ],
+                "rotation": [
+                    2.8913582355016842e-05,
+                    0.1787519007921219,
+                    2.1118750737514347e-05,
+                    0.9838941693305969
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    -8.403572082519531,
+                    2.999988317489624,
+                    6.970044136047363
+                ],
+                "rotation": [
+                    0.8293407559394836,
+                    -4.5642769919140846e-07,
+                    0.5587432384490967,
+                    -5.44170688954182e-07
+                ]
+            },
+            "type": "MapPhysicsObject"
+        },
+        {
+            "model": {
+                "model_path": "models/box.glb"
+            },
+            "particleEmitter": null,
+            "rigidBody": {
+                "position": [
+                    1.7160378694534302,
+                    2.9978153705596924,
+                    4.095407009124756
+                ],
+                "rotation": [
+                    0.06700703501701355,
+                    0.06843479722738266,
+                    0.7038485407829285,
+                    0.7038636803627014
+                ]
+            },
+            "type": "MapPhysicsObject"
+        }
+    ],
+    "worldName": "Sandbox World"
+}

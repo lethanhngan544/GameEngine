@@ -1,11 +1,17 @@
 #include <World.h>
 #include <Components.h>
 #include <Logger.h>
+#include <Physics.h>
 
 #include <fstream>
 
 namespace eg::World
 {
+
+	GameObjectManager::~GameObjectManager()
+	{
+		cleanup();
+	}
 	void GameObjectManager::addGameObject(std::unique_ptr<IGameObject> gameobject)
 	{
 		mGameObjects.push_back(std::move(gameobject));
@@ -37,10 +43,10 @@ namespace eg::World
 		}
 	}
 
-	void GameObjectManager::save(const std::string& filename, const std::string& worldName) const
+	void GameObjectManager::save(const std::string& filename) const
 	{
 		nlohmann::json mainJson;
-		mainJson["worldName"] = worldName;
+		mainJson["worldName"] = mWorldName;
 		nlohmann::json gameObjectsJson = nlohmann::json::array();
 		for (const auto& gameObject : mGameObjects)
 		{
@@ -61,8 +67,19 @@ namespace eg::World
 		}
 	}
 
+	void GameObjectManager::cleanup()
+	{
+		//Clean up 
+		Renderer::waitIdle();
+		Components::ParticleEmitter::clearAtlasTextures();
+		Components::StaticModel::clearCache();
+		mGameObjects.clear();
+		Physics::reset();
+	}
+
 	void GameObjectManager::load(const std::string& filename, JsonToIGameObjectDispatcher dispatcher)
 	{
+		cleanup();
 		//Load json file
 		std::ifstream file(filename);
 		if (!file.is_open())
@@ -77,6 +94,7 @@ namespace eg::World
 		{
 			throw std::runtime_error("Invalid game object data in file: " + filename);
 		}
+		mWorldName = mainJson.at("worldName").get<std::string>();
 		for (const auto& objJson : mainJson["gameObjects"])
 		{
 			if (!objJson.contains("type") || !objJson["type"].is_string())

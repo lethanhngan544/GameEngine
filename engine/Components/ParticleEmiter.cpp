@@ -72,7 +72,7 @@ namespace eg::Components
 		for (const auto& [atlasName, texture] : mAtlasTextures)
 		{
 			//Free descriptor set
-			Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(),  texture->set);
+			Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), texture->set);
 		}
 		mAtlasTextures.clear();
 	}

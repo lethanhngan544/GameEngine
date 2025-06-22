@@ -89,22 +89,6 @@ namespace eg::Physics
 	};
 
 
-	class DebugRenderer : public JPH::DebugRendererSimple
-	{
-	public:
-		virtual void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override
-		{
-			Data::DebugRenderer::recordLine(glm::vec3(inFrom.GetX(), inFrom.GetY(), inFrom.GetZ()),
-				glm::vec3(inTo.GetX(), inTo.GetY(), inTo.GetZ()),
-				glm::vec4(inColor.r, inColor.g, inColor.b, inColor.a));
-		}
-		virtual void DrawText3D(JPH::RVec3Arg inPosition, const std::string_view& inString, JPH::ColorArg inColor, float inHeight) override
-		{
-
-		}
-
-	};
-
 	std::optional<TempAllocatorImpl> gTempAllocator;
 	std::optional<JobSystemThreadPool> gJobSystem;
 	std::optional<BPLayerInterfaceImpl> gBroadPhaseLayerInterface;
@@ -113,8 +97,6 @@ namespace eg::Physics
 	std::optional< PhysicsSystem> gPhysicsSystem;
 	BodyInterface* gBodyInterface = nullptr;
 
-	BodyID gFloorBody;
-	std::optional<DebugRenderer> gDebugRenderer;
 
 	const uint cMaxBodies = 65536;
 	const uint cNumBodyMutexes = 0;
@@ -145,45 +127,35 @@ namespace eg::Physics
 			gObjectVsObjectLayerFilter.value());
 
 		gBodyInterface = &gPhysicsSystem->GetBodyInterface();
-
-		BoxShapeSettings floor_shape_settings(Vec3(100.0f, 1.0f, 100.0f));
-		floor_shape_settings.SetEmbedded(); // A ref counted object on the stack (base class RefTarget) should be marked as such to prevent it from being freed when its reference count goes to 0.
-		BodyCreationSettings floor_settings(&floor_shape_settings, RVec3(0.0_r, -1.0_r, 0.0_r), Quat::sIdentity(), EMotionType::Static, Layers::NON_MOVING);
-
-		// Create the actual rigid body
-		gFloorBody = gBodyInterface->CreateAndAddBody(floor_settings, EActivation::DontActivate); // Note that if we run out of bodies this can return nullptr
-		
-		gDebugRenderer.emplace();
-
-
 	}
 
-	void render()
-	{
-		static JPH::BodyManager::DrawSettings settings;
-		ImGui::Begin("Physics Debug Renderer");
-		ImGui::Checkbox("Draw Velocity", &settings.mDrawVelocity);
-		ImGui::Checkbox("Draw Bounding Box", &settings.mDrawBoundingBox);
-		ImGui::Checkbox("Draw Mass and Inertia", &settings.mDrawMassAndInertia);
-		ImGui::Checkbox("Draw Shape", &settings.mDrawShape);
-		ImGui::Checkbox("Draw Shape Wireframe", &settings.mDrawShapeWireframe);
-		ImGui::Checkbox("Draw Center of Mass", &settings.mDrawCenterOfMassTransform);
-		ImGui::Checkbox("Draw Sleep Stat", &settings.mDrawSleepStats);
-		ImGui::End();
 
-		gPhysicsSystem->DrawBodies(settings, &gDebugRenderer.value(), nullptr);
-	}
 
 	void update(float delta)
 	{
 		gPhysicsSystem->Update(delta, 1, &gTempAllocator.value(), &gJobSystem.value());
 	}
+	void reset()
+	{
+		gPhysicsSystem.reset();
+		gBodyInterface = nullptr;
 
+		gPhysicsSystem.emplace();
+
+		gPhysicsSystem->Init(cMaxBodies,
+			cNumBodyMutexes,
+			cMaxBodyPairs,
+			cMaxContactConstraints,
+			gBroadPhaseLayerInterface.value(),
+			gObjectVsBroadPhaseLayerFilter.value(),
+			gObjectVsObjectLayerFilter.value());
+
+		gBodyInterface = &gPhysicsSystem->GetBodyInterface();
+	}
 	void destroy()
 	{
-		// Remove and destroy the floor
-		gBodyInterface->RemoveBody(gFloorBody);
-		gBodyInterface->DestroyBody(gFloorBody);
+		gPhysicsSystem.reset();
+		gBodyInterface = nullptr;
 
 		// Unregisters all types with the factory and cleans up the default material
 		UnregisterTypes();

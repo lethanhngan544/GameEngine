@@ -48,54 +48,9 @@ namespace sndbx
 
 		const char* getType() const override { return "Player"; }
 
-		nlohmann::json toJson() const override
-		{
-			return {
-				{ "light", mLight.toJson() },
-				{ "model", mModel->toJson() },
-				{ "body", mBody.toJson()},
-				{ "visible", mVisible },
-				{ "height", mHeight },
-				{ "radius", mRadius },
-				{ "mass", mMass },
-				{ "groundAccel", mGroundAccel },
-				{ "airAccel", mAirAccel },
-				{ "jumpStrength", mJumpStrength },
-				{ "groundMaxSpeed", mGroundMaxSpeed },
-				{ "airMaxSpeed", mAirMaxSpeed },
-				{ "groundDamping", mGroundDamping },
-				{ "airDamping", mAirDamping },
-				{ "yaw", mYaw },
-				{ "pitchClamp", mPitchClamp },
-				{ "pitch", mPitch },
-				{ "cameraDistance", mCameraDistance },
-				{ "playerSpeed", mPlayerSpeed },
-				{ "mouseSensitivity", mMouseSensitivity},
-			};
-		}
+		nlohmann::json toJson() const override;
 
-		void fromJson(const nlohmann::json& json)
-		{
-			if (json.contains("light")) mLight.fromJson(json["light"]);
-			if (json.contains("model")) mModel = eg::Components::StaticModel::loadFromJson(json["model"]);
-			if (json.contains("visible")) mVisible = json["visible"];
-			if (json.contains("height")) mHeight = json["height"];
-			if (json.contains("radius")) mRadius = json["radius"];
-			if (json.contains("mass")) mMass = json["mass"];
-			if (json.contains("groundAccel")) mGroundAccel = json["groundAccel"];
-			if (json.contains("airAccel")) mAirAccel = json["airAccel"];
-			if (json.contains("jumpStrength")) mJumpStrength = json["jumpStrength"];
-			if (json.contains("groundMaxSpeed")) mGroundMaxSpeed = json["groundMaxSpeed"];
-			if (json.contains("airMaxSpeed")) mAirMaxSpeed = json["airMaxSpeed"];
-			if (json.contains("groundDamping")) mGroundDamping = json["groundDamping"];
-			if (json.contains("airDamping")) mAirDamping = json["airDamping"];
-			if (json.contains("yaw")) mYaw = json["yaw"];
-			if (json.contains("pitchClamp")) mPitchClamp = json["pitchClamp"];
-			if (json.contains("pitch")) mPitch = json["pitch"];
-			if (json.contains("cameraDistance")) mCameraDistance = json["cameraDistance"];
-			if (json.contains("playerSpeed")) mPlayerSpeed = json["playerSpeed"];
-			if (json.contains("mouseSensitivity")) mMouseSensitivity = json["mouseSensitivity"];
-		}
+		void fromJson(const nlohmann::json& json);
 	};
 
 	

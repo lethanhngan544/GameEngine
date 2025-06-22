@@ -48,9 +48,13 @@ namespace eg::World
 	class GameObjectManager
 	{
 	private:
+		std::string mWorldName;
 		std::vector<std::unique_ptr<IGameObject>> mGameObjects;
 	public:
+		GameObjectManager() = default;
+		~GameObjectManager();
 
+		void cleanup();
 		void addGameObject(std::unique_ptr<IGameObject> gameobject);
 		void removeGameObject(const IGameObject* gameObject);
 
@@ -58,8 +62,15 @@ namespace eg::World
 		void fixedUpdate(float delta);
 		void render(vk::CommandBuffer cmd, Renderer::RenderStage stage);
 
-		void save(const std::string& filename, const std::string& worldName) const;
+		void save(const std::string& filename) const;
 		void load(const std::string& filename, JsonToIGameObjectDispatcher dispatcher);
+
+		inline const std::string& getWorldName() const {
+			return mWorldName;
+		}
+		inline void setWorldName(const std::string& worldName) {
+			mWorldName = worldName;
+		}
 	};
 
 }
