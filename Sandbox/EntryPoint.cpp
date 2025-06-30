@@ -65,6 +65,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Input::Mouse::create(Window::getHandle());
 		Renderer::create(1600, 900, 8192);
 		Data::StaticModelRenderer::create();
+		Data::AnimatedModelRenderer::create();
 		Data::LightRenderer::create();
 		Data::DebugRenderer::create();
 		Data::ParticleRenderer::create();
@@ -152,14 +153,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 
 				Renderer::getShadowRenderPass().begin(cmd);
-				Data::StaticModelRenderer::beginShadow(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SHADOW);
 
 				cmd.endRenderPass();
 
 				Renderer::getDefaultRenderPass().begin(cmd);
 				//Subpass 0, gBuffer generation
-				Data::StaticModelRenderer::begin(cmd);
 				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS0_GBUFFER);
 
 				//Subpass 1, lighting
@@ -197,6 +196,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	Data::ParticleRenderer::destroy();
 	Data::LightRenderer::destroy();
 	Data::StaticModelRenderer::destroy();
+	Data::AnimatedModelRenderer::destroy();
 	Renderer::destory();
 	Window::destroy();
 	Physics::destroy();

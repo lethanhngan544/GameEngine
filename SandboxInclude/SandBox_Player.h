@@ -13,7 +13,8 @@ namespace sndbx
 	protected:
 
 		eg::Components::PointLight mLight;
-		std::shared_ptr<eg::Components::StaticModel> mModel = nullptr;
+		std::shared_ptr<eg::Components::AnimatedModel> mModel = nullptr;
+		std::unique_ptr<eg::Components::Animator> mAnimator;
 		eg::Components::RigidBody mBody;
 
 		bool mVisible;

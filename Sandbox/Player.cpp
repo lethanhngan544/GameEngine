@@ -46,6 +46,11 @@ namespace sndbx
 			velocity = body.GetLinearVelocity();
 		}
 
+		//Process animation based on velocity
+		{
+			mAnimator->setAnimation(velocity.LengthSq() > 2.0f ? "Fucking" : "");
+		}
+
 		// Grounded check (simple downward ray)
 		bool grounded = false;
 		{
@@ -109,11 +114,12 @@ namespace sndbx
 		bodyInterface->SetRotation(mBody.mBodyID, JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)), JPH::EActivation::Activate);
 
 		mLight.mUniformBuffer.position = glm::vec4(positionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);
+		mAnimator->update(delta);
 	}
 
 	void Player::fixedUpdate(float delta)
 	{
-	
+		
 	}
 
 	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
@@ -121,19 +127,22 @@ namespace sndbx
 		glm::mat4x4 glmMatrix = mBody.getBodyMatrix();
 		glmMatrix = glm::translate(glmMatrix, glm::vec3(0.0f, -mHeight * 0.5f -0.1f, 0.0f));
 
+		if (!mModel)
+			return;
+
 		switch (stage)
 		{
 
 		case eg::Renderer::RenderStage::SHADOW:
 		{
-			eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, glmMatrix);
+			eg::Data::AnimatedModelRenderer::renderShadow(cmd, *mModel, *mAnimator, glmMatrix);
 			break;
 		}
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 		{
 			if (mVisible)
 			{
-				eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
+				eg::Data::AnimatedModelRenderer::render(cmd, *mModel, *mAnimator, glmMatrix);
 			}
 			break;
 		}
@@ -175,7 +184,11 @@ namespace sndbx
 	void Player::fromJson(const nlohmann::json& json)
 	{
 		if (json.contains("light")) mLight.fromJson(json["light"]);
-		if (json.contains("model")) mModel = eg::Components::StaticModel::loadFromJson(json["model"]);
+		if (json.contains("model"))
+		{
+			mModel = eg::Components::ModelCache::loadAnimatedModelFromJson(json["model"]);
+			mAnimator = std::make_unique<eg::Components::Animator>(*mModel);
+		}
 		if (json.contains("visible")) mVisible = json["visible"];
 		if (json.contains("height")) mHeight = json["height"];
 		if (json.contains("radius")) mRadius = json["radius"];

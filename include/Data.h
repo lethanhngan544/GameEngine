@@ -53,6 +53,32 @@ namespace eg::Data
 
 	}
 
+	namespace AnimatedModelRenderer
+	{
+		struct VertexPushConstant
+		{
+			glm::mat4x4 model;
+		};
+
+		void create();
+		void destroy();
+
+
+		void render(vk::CommandBuffer cmd,
+			const Components::AnimatedModel& model, const Components::Animator& animator,
+			glm::mat4x4 worldTransform);
+
+
+		void renderShadow(vk::CommandBuffer cmd,
+			const Components::AnimatedModel& model, const Components::Animator& animator,
+			glm::mat4x4 worldTransform);
+
+
+		vk::DescriptorSetLayout getMaterialSetLayout();
+		vk::DescriptorSetLayout getBoneSetLayout();
+
+	}
+
 	namespace LightRenderer
 	{
 		void create();

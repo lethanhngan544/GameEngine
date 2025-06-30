@@ -54,9 +54,9 @@
                     ]
                 },
                 "mass": 80.0,
-                "model": {
-                    "model_path": "models/human1.glb"
-                },
+              "model": {
+                "model_path": "models/human1.glb"
+              },
                 "mouseSensitivity": 0.20000000298023224,
                 "pitch": -14.699990272521973,
                 "pitchClamp": 89.5,

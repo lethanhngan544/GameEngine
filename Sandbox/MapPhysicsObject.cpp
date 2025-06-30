@@ -22,7 +22,7 @@ namespace sndbx
 		rotation.z = json["rigidBody"]["rotation"].at(2).get<float>();
 		rotation.w = json["rigidBody"]["rotation"].at(3).get<float>();
 
-		mModel = eg::Components::StaticModel::load(modelPath);
+		mModel = eg::Components::ModelCache::loadStaticModel(modelPath);
 
 		//Create rigid body
 		{

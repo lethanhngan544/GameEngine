@@ -8,27 +8,6 @@
 
 namespace eg::Components
 {
-	std::unordered_map<std::string, std::shared_ptr<StaticModel>> StaticModel::sCache;
-
-	void StaticModel::clearCache()
-	{
-		sCache.clear();
-	}
-
-
-	std::shared_ptr<StaticModel> StaticModel::load(const std::string& filePath)
-	{
-		auto it = sCache.find(filePath);
-		if (it != sCache.end())
-		{
-			return it->second;
-		}
-		auto model = std::make_shared<StaticModel>(filePath);
-		sCache[filePath] = model;
-		return model;
-	}
-
-
 	StaticModel::StaticModel(const std::string& filePath) :
 		mFilePath(filePath)
 	{

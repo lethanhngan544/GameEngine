@@ -72,7 +72,7 @@ namespace eg::World
 		//Clean up 
 		Renderer::waitIdle();
 		Components::ParticleEmitter::clearAtlasTextures();
-		Components::StaticModel::clearCache();
+		Components::ModelCache::clearCache();
 		mGameObjects.clear();
 		Physics::reset();
 	}

@@ -190,9 +190,11 @@ mUniformBuffer.constant = json["constant"];
 		vk::DescriptorSet getDescriptorSet() const { return mSet; }
 	};
 
+	
+
 	class StaticModel
 	{
-	private:
+	protected:
 		struct RawMesh
 		{
 			Renderer::GPUBuffer positionBuffer;
@@ -224,11 +226,12 @@ mUniformBuffer.constant = json["constant"];
 		std::vector<Material> mMaterials;
 
 		std::string mFilePath;
+	protected:
+		StaticModel() = default;
 	public:
-		StaticModel() = delete;
 		StaticModel(const std::string& filePath);
 		StaticModel(const std::string& filePath, const tinygltf::Model& model);
-		~StaticModel();
+		virtual ~StaticModel();
 
 		const std::vector<RawMesh>& getRawMeshes() const { return mRawMeshes; }
 		const std::vector<Material>& getMaterials() const { return mMaterials; }
@@ -238,27 +241,154 @@ mUniformBuffer.constant = json["constant"];
 			return { {"model_path", mFilePath} };
 		}
 
+
+		inline void setFilePath(const std::string& filePath) { mFilePath = filePath; }
 		
 	private:
-		void loadTinygltfModel(const tinygltf::Model& model);
-
-	//Static datas
-	private:
-		static std::unordered_map<std::string, std::shared_ptr<StaticModel>> sCache;
-	public:
-		static std::shared_ptr<StaticModel> load(const std::string& filePath);
-		static std::shared_ptr<StaticModel> loadFromJson(const nlohmann::json& json)
-		{
-			if (json.contains("model_path")) {
-				auto modelPath = json["model_path"].get<std::string>();
-				auto model = load(modelPath);
-				model->mFilePath = modelPath; // Ensure the file path is set correctly
-				return model;
-			}
-			return nullptr;
-		}
-		static void clearCache();
+		virtual void loadTinygltfModel(const tinygltf::Model& model);
 	};
+
+	class AnimatedModel : public StaticModel
+	{
+	private:
+		struct AnimatedRawMesh
+		{
+			Renderer::GPUBuffer positionBuffer;
+			Renderer::GPUBuffer normalBuffer;
+			Renderer::GPUBuffer uvBuffer;
+			Renderer::GPUBuffer boneIdsBuffer;
+			Renderer::GPUBuffer boneWeightsBuffer;
+			Renderer::GPUBuffer indexBuffer;
+			uint32_t materialIndex = 0;
+			uint32_t vertexCount = 0;
+		};
+
+		struct Node
+		{
+			std::string name;
+			glm::vec3 position;
+			glm::quat rotation;
+			glm::vec3 scale;
+			int meshIndex;
+			std::vector<int32_t> children;
+		};
+
+		struct Skin
+		{
+			std::string name;
+			int32_t rootNode;
+			std::vector<int32_t> joints;
+			std::vector<glm::mat4x4> inverseBindMatrices;
+		};
+
+		struct AnimationChannel
+		{
+			int32_t targetJoint;
+			enum class Path
+			{
+				Translation,
+				Rotation,
+				Scale
+			} path;
+			enum class Interpolation
+			{
+				Linear,
+				Step,
+				CubicSpline
+			} interpolation;
+
+			union Data
+			{
+				glm::vec3 translation;
+				glm::quat rotation;
+				glm::vec3 scale;
+			};
+			std::vector<float> keyTimes;
+			std::vector<Data> data;
+		};
+
+		struct Animation
+		{
+			std::string name;
+			std::vector<AnimationChannel> channels;
+			float duration;
+		};
+
+		template<typename T>
+		friend void extractRotationData(AnimationChannel::Data& data,
+			const tinygltf::Buffer& buffer,
+			const tinygltf::BufferView& bufferView,
+			size_t i);
+
+		friend class Animator;
+		
+		int mRootNodeIndex = -1;
+		std::vector<AnimatedRawMesh> mAnimatedRawMeshes;
+		std::vector<Node> mNodes;
+		std::vector<Skin> mSkins;
+		std::vector<std::shared_ptr<Animation>> mAnimations;
+		
+	public:
+
+		static constexpr size_t MAX_BONE_COUNT = 100;
+
+		AnimatedModel() = delete;
+		AnimatedModel(const std::string& filePath);
+		virtual ~AnimatedModel();
+
+		void loadTinygltfModel(const tinygltf::Model& model) override;
+
+		inline const std::vector<AnimatedRawMesh>& getAnimatedRawMehses() const { return mAnimatedRawMeshes; }
+		inline const std::vector<Skin>& getSkins() const { return mSkins; }
+		inline const int getRootNodeIndex() const { return mRootNodeIndex; }
+	};
+
+	class Animator
+	{
+	public:
+		struct AnimationNode
+		{
+			std::string name;
+			glm::vec3 position;
+			glm::quat rotation;
+			glm::vec3 scale;
+			int meshIndex;
+			std::vector<int32_t> children;
+			glm::mat4x4 modelLocalTransform;
+		};
+	private:
+		const AnimatedModel& mModel;
+		std::array<glm::mat4x4, AnimatedModel::MAX_BONE_COUNT> mBoneMatrices;
+		std::vector<AnimationNode> mAnimationNodes;
+		vk::DescriptorSet mDescriptorSet;
+		Renderer::CPUBuffer mUniformBuffer;
+		std::unordered_map<std::string, std::shared_ptr<AnimatedModel::Animation>> mAnimationMap;
+		std::shared_ptr<AnimatedModel::Animation> mCurrentAnimation;
+		float mCurrentTime = 0.0f;
+
+	public:
+		Animator(const AnimatedModel& model);
+		~Animator();
+
+		void update(float deltaTime);
+
+
+		void setAnimation(const std::string& animationName);
+		inline vk::DescriptorSet getDescriptorSet() const { return mDescriptorSet; }
+		inline const std::vector<AnimationNode>& getAnimationNodes() const { return mAnimationNodes; }
+	private:
+		void processCurrentAnimation(float delta);
+	};
+
+	namespace ModelCache
+	{
+		std::shared_ptr<StaticModel> loadStaticModel(const std::string& filePath);
+		std::shared_ptr<StaticModel> loadStaticModelFromJson(const nlohmann::json& json);
+		std::shared_ptr<AnimatedModel> loadAnimatedModel(const std::string& filePath);
+		std::shared_ptr<AnimatedModel> loadAnimatedModelFromJson(const nlohmann::json& json);
+		void clearCache();
+	}
+
 
 	struct ParticleInstance {
 		glm::vec4 positionSize; // xyz = position, w = size

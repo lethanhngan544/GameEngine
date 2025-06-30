@@ -35,9 +35,11 @@ namespace eg::Data::StaticModelRenderer
 		dv.destroyPipelineLayout(mShadowPipelineLayout);
 	}
 
-	void begin(vk::CommandBuffer cmd)
-	{
 
+	void render(vk::CommandBuffer cmd,
+		const Components::StaticModel& model,
+		glm::mat4x4 worldTransform)
+	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mPipelineLayout,
@@ -51,14 +53,6 @@ namespace eg::Data::StaticModelRenderer
 			0.0f, 1.0f } });
 		cmd.setScissor(0, Renderer::getDrawExtent());
 
-
-
-	}
-
-	void render(vk::CommandBuffer cmd,
-		const Components::StaticModel& model,
-		glm::mat4x4 worldTransform)
-	{
 		//Build model matrix
 		VertexPushConstant ps{};
 		ps.model = worldTransform;
@@ -75,8 +69,12 @@ namespace eg::Data::StaticModelRenderer
 		}
 	}
 
-	void beginShadow(vk::CommandBuffer cmd)
+
+	void renderShadow(vk::CommandBuffer cmd,
+		const Components::StaticModel& model,
+		glm::mat4x4 worldTransform)
 	{
+
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mShadowPipeline);
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mShadowPipelineLayout,
@@ -89,14 +87,8 @@ namespace eg::Data::StaticModelRenderer
 			static_cast<float>(Renderer::getShadowMapResolution()),
 			0.0f, 1.0f } });
 		cmd.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0),
-			 vk::Extent2D(Renderer::getShadowMapResolution(), Renderer::getShadowMapResolution())));
+			vk::Extent2D(Renderer::getShadowMapResolution(), Renderer::getShadowMapResolution())));
 
-	}
-
-	void renderShadow(vk::CommandBuffer cmd,
-		const Components::StaticModel& model,
-		glm::mat4x4 worldTransform)
-	{
 		//Build model matrix
 		VertexPushConstant ps{};
 		ps.model = worldTransform;

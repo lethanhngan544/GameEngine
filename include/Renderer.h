@@ -21,7 +21,8 @@ namespace eg::Renderer
 {
 	
 	//Global functions
-	std::vector<uint32_t> compileShaderFromFile(const std::string& filePath, uint32_t kind);
+	std::vector<uint32_t> compileShaderFromFile(const std::string& filePath, uint32_t kind, 
+		std::vector<std::pair<std::string, std::string>> defines = {});
 	void immediateSubmit(std::function<void(vk::CommandBuffer cmd)>&& function);
 
 

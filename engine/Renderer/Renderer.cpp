@@ -106,7 +106,8 @@ namespace eg::Renderer
 	}
 
 
-	std::vector<uint32_t> compileShaderFromFile(const std::string& filePath, uint32_t kind)
+	std::vector<uint32_t> compileShaderFromFile(const std::string& filePath, uint32_t kind,
+		std::vector<std::pair<std::string, std::string>> defines)
 	{
 		Logger::gTrace("Compiling shader: " + filePath);
 		std::ifstream file(filePath);
@@ -117,6 +118,11 @@ namespace eg::Renderer
 		std::stringstream ss;
 		ss << file.rdbuf();
 		std::string data = ss.str();
+
+		for (const auto& define : defines)
+		{
+			gShaderCompilerOptions.AddMacroDefinition(define.first, define.second);
+		}
 
 		gShaderCompilerOptions.SetOptimizationLevel(shaderc_optimization_level_performance);
 		shaderc::SpvCompilationResult module = gShaderCompiler.CompileGlslToSpv(data,
