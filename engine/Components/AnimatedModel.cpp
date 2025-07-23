@@ -5,60 +5,6 @@
 
 namespace eg::Components
 {
-	template<typename T>
-	float convertFn(T value)
-	{
-		static_assert(false);
-	}
-
-	template<>
-	float convertFn(float value)
-	{
-		return value;
-	}
-
-
-	template<>
-	float convertFn<int8_t>(int8_t value)
-	{
-		return std::max(value / 127.0f, -1.0f);
-	}
-
-	template<>
-	float convertFn<uint8_t>(uint8_t value)
-	{
-		return value / 255.0f;
-	}
-
-	template<>
-	float convertFn<int16_t>(int16_t value)
-	{
-		return std::max(value / 32767.0f, -1.0f);
-	}
-
-	template<>
-	float convertFn<uint16_t>(uint16_t value)
-	{
-		return value / 65535.0f;
-	}
-
-	template<typename T>
-	void extractRotationData(AnimatedModel::AnimationChannel::Data& data,
-		const tinygltf::Buffer& buffer,
-		const tinygltf::BufferView& bufferView,
-		size_t i)
-	{
-		T quat[4];
-		std::memcpy(&quat,
-			buffer.data.data() + bufferView.byteOffset + i * sizeof(quat[0]) * 4,
-			sizeof(quat[0]) * 4);
-
-		data.rotation = glm::quat(convertFn(quat[3]),
-			convertFn(quat[0]), convertFn(quat[1]), convertFn(quat[2]));
-	}
-
-
-
 	AnimatedModel::AnimatedModel(const std::string& filePath) :
 		StaticModel()
 	{
@@ -82,7 +28,10 @@ namespace eg::Components
 
 		try
 		{
-			this->loadTinygltfModel(model);
+			this->extractNodes(model);
+			this->extractMaterials(model);
+			this->extractedAnimatedRawMeshes(model);
+			this->extractSkins(model);
 		}
 		catch (...)
 		{
@@ -94,13 +43,10 @@ namespace eg::Components
 
 	AnimatedModel::~AnimatedModel()
 	{
-		for (const auto& material : mMaterials)
-		{
-			Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), material.mSet);
-		}
+
 	}
 
-	void AnimatedModel::loadTinygltfModel(const tinygltf::Model& model)
+	void AnimatedModel::extractNodes(const tinygltf::Model& model)
 	{
 		//Get root node index
 		mRootNodeIndex = model.scenes.at(model.defaultScene).nodes.at(0);
@@ -150,6 +96,10 @@ namespace eg::Components
 				});
 		}
 
+	}
+
+	void AnimatedModel::extractSkins(const tinygltf::Model& model)
+	{
 		//Extract skin
 		mSkins.reserve(model.skins.size());
 		for (const auto& gltfSkin : model.skins)
@@ -157,7 +107,7 @@ namespace eg::Components
 			Skin skin;
 			skin.name = gltfSkin.name;
 			skin.rootNode = gltfSkin.skeleton;
-			
+
 			if (gltfSkin.joints.size() > MAX_BONE_COUNT)
 			{
 				throw std::runtime_error("Skin has more than " + std::to_string(MAX_BONE_COUNT) + " joints, which is not supported.");
@@ -181,148 +131,10 @@ namespace eg::Components
 			}
 			mSkins.push_back(std::move(skin));
 		}
+	}
 
-		//Extract animations
-		mAnimations.reserve(model.animations.size());
-		for (const auto& gltfAnimations : model.animations)
-		{
-			std::shared_ptr<Animation> animation = std::make_shared<Animation>();
-			animation->name = gltfAnimations.name;
-			
-
-			animation->channels.reserve(gltfAnimations.channels.size());
-			for (const auto& gltfChannel : gltfAnimations.channels)
-			{
-				const auto& gltfSampler = gltfAnimations.samplers.at(gltfChannel.sampler);
-				AnimationChannel channel;
-				channel.targetJoint = gltfChannel.target_node;
-
-				if (gltfChannel.target_path == "translation")
-				{
-					channel.path = AnimationChannel::Path::Translation;
-				}
-				else if (gltfChannel.target_path == "rotation")
-				{
-					channel.path = AnimationChannel::Path::Rotation;
-				}
-				else if (gltfChannel.target_path == "scale")
-				{
-					channel.path = AnimationChannel::Path::Scale;
-				}
-				else
-				{
-					throw std::runtime_error("Unknown animation channel path: " + gltfChannel.target_path);
-				}
-
-				if (gltfSampler.interpolation == "LINEAR")
-				{
-					channel.interpolation = AnimationChannel::Interpolation::Linear;
-				}
-				else if (gltfSampler.interpolation == "STEP")
-				{
-					channel.interpolation = AnimationChannel::Interpolation::Step;
-				}
-				else if (gltfSampler.interpolation == "CUBICSPLINE")
-				{
-					channel.interpolation = AnimationChannel::Interpolation::CubicSpline;
-				}
-				else
-				{
-					throw std::runtime_error("Unknown animation channel interpolation: " + gltfSampler.interpolation);
-				}
-				//Extract channels data
-				const auto& inputAccessor = model.accessors.at(gltfSampler.input);
-				const auto& inputBufferView = model.bufferViews.at(inputAccessor.bufferView);
-				const auto& inputBuffer = model.buffers.at(inputBufferView.buffer);
-
-				const auto& outputAccessor = model.accessors.at(gltfSampler.output);
-				const auto& outputBufferView = model.bufferViews.at(outputAccessor.bufferView);
-				const auto& outputBuffer = model.buffers.at(outputBufferView.buffer);
-
-				channel.keyTimes.resize(inputAccessor.count);
-				std::memcpy(channel.keyTimes.data(),
-					inputBuffer.data.data() + inputBufferView.byteOffset,
-					sizeof(float) * inputAccessor.count);
-
-				animation->duration = inputAccessor.maxValues.at(0);
-
-				//Convert it all to floats
-				channel.data.reserve(inputAccessor.count);
-				for (size_t i = 0; i < outputAccessor.count; i++)
-				{
-					//Vec3 of floats
-					switch (channel.path)
-					{
-					case AnimationChannel::Path::Translation: // Vec3 of floats
-					{
-						AnimationChannel::Data data;
-						std::memcpy(&data.translation,
-							outputBuffer.data.data() + outputBufferView.byteOffset + i * sizeof(glm::vec3),
-							sizeof(glm::vec3));
-						channel.data.push_back(std::move(data));
-						break;
-					}
-
-					case AnimationChannel::Path::Rotation: // vec4 of float/byte/ubyte/short/ushort
-					{
-						AnimationChannel::Data data;
-						switch (outputAccessor.componentType)
-						{
-						case TINYGLTF_COMPONENT_TYPE_FLOAT:
-						{
-							extractRotationData<float>(data,
-								outputBuffer, outputBufferView, i);
-							break;
-						}
-						case TINYGLTF_COMPONENT_TYPE_BYTE:
-						{
-							extractRotationData<int8_t>(data,
-								outputBuffer, outputBufferView, i);
-							break;
-						}
-
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-						{
-							extractRotationData<uint8_t>(data,
-								outputBuffer, outputBufferView, i);
-							break;
-						}
-
-						case TINYGLTF_COMPONENT_TYPE_SHORT:
-						{
-							extractRotationData<int16_t>(data,
-								outputBuffer, outputBufferView, i);
-							break;
-						}
-
-						case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-						{
-							extractRotationData<uint16_t>(data,
-								outputBuffer, outputBufferView, i);
-							break;
-						}
-						}
-						channel.data.push_back(std::move(data));
-						break;
-					}
-
-					case AnimationChannel::Path::Scale:
-					{
-						AnimationChannel::Data data;
-						std::memcpy(&data.scale,
-							outputBuffer.data.data() + outputBufferView.byteOffset + i * sizeof(glm::vec3),
-							sizeof(glm::vec3));
-						channel.data.push_back(std::move(data));
-						break;
-					}
-					}
-				}
-				animation->channels.push_back(std::move(channel));
-			}
-			mAnimations.push_back(std::move(animation));
-		}
-		//Extract vertex datas
-		//mRawMeshes.reserve(model.meshes.size());
+	void AnimatedModel::extractedAnimatedRawMeshes(const tinygltf::Model& model)
+	{
 		std::vector<uint32_t> indices;
 		std::vector<glm::vec3> positions, normals;
 		std::vector<glm::vec2> uvs;
@@ -504,160 +316,6 @@ namespace eg::Components
 				};
 
 				mAnimatedRawMeshes.push_back(std::move(rawMesh));
-			}
-
-
-
-
-			//Extract materials
-			for (const auto& material : model.materials)
-			{
-				Material newMaterial{};
-
-				//Load albedo image
-				if (material.pbrMetallicRoughness.baseColorTexture.index > -1) {
-					if (material.pbrMetallicRoughness.baseColorTexture.index >= this->mImages.size())
-					{
-						//Load new texture
-						auto& texture = model.textures.at(material.pbrMetallicRoughness.baseColorTexture.index);
-						auto& image = model.images.at(texture.source);
-						if (image.mimeType.find("image/png") == std::string::npos &&
-							image.mimeType.find("image/jpeg") == std::string::npos)
-						{
-							throw std::runtime_error("Unsupported image format: should be png or jpeg");
-						}
-
-						auto newImage = std::make_shared<Renderer::CombinedImageSampler2D>(
-							image.width, image.height,
-							vk::Format::eBc3UnormBlock,
-							vk::ImageUsageFlagBits::eSampled,
-							vk::ImageAspectFlagBits::eColor,
-							(void*)image.image.data(), image.image.size());
-
-						this->mImages.push_back(newImage);
-						newMaterial.mAlbedo = newImage;
-					}
-					else //Texture already in the cache
-					{
-						newMaterial.mAlbedo = mImages.at(material.pbrMetallicRoughness.baseColorTexture.index);
-					}
-
-				}
-
-				//Load normal image
-				if (material.normalTexture.index > -1) {
-					if (material.normalTexture.index >= this->mImages.size())
-					{
-						//Load new texture
-						auto& texture = model.textures.at(material.pbrMetallicRoughness.baseColorTexture.index);
-						auto& image = model.images.at(texture.source);
-						if (image.mimeType.find("image/png") == std::string::npos &&
-							image.mimeType.find("image/jpeg") == std::string::npos)
-						{
-							throw std::runtime_error("Unsupported image format: should be png or jpeg");
-						}
-
-						auto newImage = std::make_shared<Renderer::CombinedImageSampler2D>(
-							image.width, image.height,
-							vk::Format::eBc3UnormBlock,
-							vk::ImageUsageFlagBits::eSampled,
-							vk::ImageAspectFlagBits::eColor,
-							(void*)image.image.data(), image.image.size());
-
-						this->mImages.push_back(newImage);
-						newMaterial.mNormal = newImage;
-					}
-					else //Texture already in the cache
-					{
-						newMaterial.mNormal = mImages.at(material.normalTexture.index);
-					}
-
-				}
-
-				//Load Mr image
-				if (material.pbrMetallicRoughness.metallicRoughnessTexture.index > -1) {
-					if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= this->mImages.size())
-					{
-						//Load new texture
-						auto& texture = model.textures.at(material.pbrMetallicRoughness.baseColorTexture.index);
-						auto& image = model.images.at(texture.source);
-						if (image.mimeType.find("image/png") == std::string::npos &&
-							image.mimeType.find("image/jpeg") == std::string::npos)
-						{
-							throw std::runtime_error("Unsupported image format: should be png or jpeg");
-						}
-
-						auto newImage = std::make_shared<Renderer::CombinedImageSampler2D>(
-							image.width, image.height,
-							vk::Format::eBc3UnormBlock,
-							vk::ImageUsageFlagBits::eSampled,
-							vk::ImageAspectFlagBits::eColor,
-							(void*)image.image.data(), image.image.size());
-
-						this->mImages.push_back(newImage);
-						newMaterial.mMr = newImage;
-					}
-					else //Texture already in the cache
-					{
-						newMaterial.mMr = mImages.at(material.pbrMetallicRoughness.metallicRoughnessTexture.index);
-					}
-
-				}
-
-
-				vk::DescriptorImageInfo baseColorInfo{};
-				baseColorInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-					.setImageView(newMaterial.mAlbedo ? newMaterial.mAlbedo->getImage().getImageView() : Renderer::getDefaultCheckerboardImage().getImage().getImageView())
-					.setSampler(newMaterial.mAlbedo ? newMaterial.mAlbedo->getSampler() : Renderer::getDefaultCheckerboardImage().getSampler());
-
-				vk::DescriptorImageInfo normalInfo{};
-				normalInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-					.setImageView(newMaterial.mNormal ? newMaterial.mNormal->getImage().getImageView() : Renderer::getDefaultCheckerboardImage().getImage().getImageView())
-					.setSampler(newMaterial.mNormal ? newMaterial.mNormal->getSampler() : Renderer::getDefaultCheckerboardImage().getSampler());
-
-				vk::DescriptorImageInfo metallicRoughnessInfo{};
-				metallicRoughnessInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-					.setImageView(newMaterial.mMr ? newMaterial.mMr->getImage().getImageView() : Renderer::getDefaultCheckerboardImage().getImage().getImageView())
-					.setSampler(newMaterial.mMr ? newMaterial.mMr->getSampler() : Renderer::getDefaultCheckerboardImage().getSampler());
-
-				//Load buffer
-				Material::UniformBuffer uniformBuffer;
-				uniformBuffer.has_albedo = newMaterial.mAlbedo ? 1 : 0;
-				uniformBuffer.has_normal = newMaterial.mNormal ? 1 : 0;
-				uniformBuffer.has_mr = newMaterial.mMr ? 1 : 0;
-				uniformBuffer.albedoColor[0] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[0]);
-				uniformBuffer.albedoColor[1] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[1]);
-				uniformBuffer.albedoColor[2] = static_cast<float>(material.pbrMetallicRoughness.baseColorFactor[2]);
-
-	
-
-				newMaterial.mUniformBuffer
-					= std::make_shared<Renderer::CPUBuffer>(&uniformBuffer, sizeof(Material::UniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer);
-				vk::DescriptorBufferInfo bufferInfo{};
-				bufferInfo
-					.setOffset(0)
-					.setRange(sizeof(Material::UniformBuffer))
-					.setBuffer(newMaterial.mUniformBuffer->getBuffer());
-
-				//Allocate descriptor set
-				vk::DescriptorSetLayout setLayouts[] =
-				{
-					Data::StaticModelRenderer::getMaterialSetLayout()
-				};
-				vk::DescriptorSetAllocateInfo ai{};
-				ai.setDescriptorPool(Renderer::getDescriptorPool())
-					.setDescriptorSetCount(1)
-					.setSetLayouts(setLayouts);
-				newMaterial.mSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
-
-				Renderer::getDevice().updateDescriptorSets({
-					vk::WriteDescriptorSet(newMaterial.mSet, 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bufferInfo, nullptr, nullptr),
-					vk::WriteDescriptorSet(newMaterial.mSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &baseColorInfo, nullptr, nullptr, nullptr),
-					vk::WriteDescriptorSet(newMaterial.mSet, 2, 0, 1, vk::DescriptorType::eCombinedImageSampler, &normalInfo, nullptr, nullptr, nullptr),
-					vk::WriteDescriptorSet(newMaterial.mSet, 3, 0, 1, vk::DescriptorType::eCombinedImageSampler, &metallicRoughnessInfo, nullptr, nullptr, nullptr)
-					}, {});
-
-				this->mMaterials.push_back(newMaterial);
 			}
 		}
 	}

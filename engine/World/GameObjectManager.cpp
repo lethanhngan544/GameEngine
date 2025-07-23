@@ -107,13 +107,19 @@ namespace eg::World
 			try
 			{
 				gameObject = dispatcher(objJson, type);
+				gameObject->fromJson(objJson);
 			}
-			catch (const JsonToIGameObjectException& e)
+			catch (const nlohmann::detail::exception& e)
+			{
+				std::string errorMsg = "JSON parsing error for game object type '" + type + "': " + e.what();
+				eg::Logger::gError(errorMsg);
+				continue; // Skip this object if an error occurs
+			}
+			catch (const std::exception& e)
 			{
 				eg::Logger::gError(e.what());
-				continue; // Skip this object if the type is unknown
+				continue; // Skip this object if an error occurs
 			}
-			gameObject->fromJson(objJson);
 			addGameObject(std::move(gameObject));
 		}
 	}

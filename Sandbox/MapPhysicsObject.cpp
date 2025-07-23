@@ -10,6 +10,18 @@
 
 namespace sndbx
 {
+
+	MapPhysicsObject::~MapPhysicsObject()
+	{
+		const JPH::BodyLockInterface& lockInterface = eg::Physics::getPhysicsSystem().GetBodyLockInterface();
+		JPH::BodyLockRead lockRead(lockInterface, mBody.mBodyID);
+		bool valid = lockRead.Succeeded();
+		lockRead.ReleaseLock();
+		if (!valid) return; // Body already removed or invalid
+		eg::Physics::getBodyInterface()->RemoveBody(mBody.mBodyID);
+		eg::Physics::getBodyInterface()->DestroyBody(mBody.mBodyID);
+		
+	}
 	void MapPhysicsObject::fromJson(const nlohmann::json& json)
 	{
 		std::string modelPath = json["model"]["model_path"].get<std::string>();

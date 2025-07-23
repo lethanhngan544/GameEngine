@@ -4,30 +4,31 @@
 
 namespace eg::Components
 {
-	Animator::Animator(const AnimatedModel& model) :
+	Animator::Animator(const std::vector<std::shared_ptr<Animation>>& animations,
+		const AnimatedModel& model) :
 		mModel(model),
 		mUniformBuffer(nullptr, sizeof(mBoneMatrices), vk::BufferUsageFlagBits::eUniformBuffer),
 		mCurrentAnimation(nullptr)
 	{
 		//Init animation map
 		
-		for (const auto& animation : model.mAnimations)
+		for (const auto& animation : animations)
 		{
-			mAnimationMap[animation->name] = animation;
+			mAnimationMap[animation->getName()] = animation;
 		}
 
 		//Copy model nodes to animation nodes
-		mAnimationNodes.reserve(mModel.mNodes.size());
-		for (const auto& node : mModel.mNodes)
+		mAnimationNodes.reserve(model.mNodes.size());
+		for (const auto& node : model.mNodes)
 		{
-			AnimationNode animNode;
-			animNode.name = node.name;
-			animNode.position = node.position;
-			animNode.rotation = node.rotation;
-			animNode.scale = node.scale;
-			animNode.children = node.children;
-			animNode.meshIndex = node.meshIndex;
-			animNode.modelLocalTransform = glm::mat4x4(1.0f);
+			auto animNode = std::make_shared< AnimationNode>();
+			animNode->name = node.name;
+			animNode->position = node.position;
+			animNode->rotation = node.rotation;
+			animNode->scale = node.scale;
+			animNode->children = node.children;
+			animNode->meshIndex = node.meshIndex;
+			animNode->modelLocalTransform = glm::mat4x4(1.0f);
 			mAnimationNodes.push_back(animNode);
 		}
 
@@ -74,15 +75,15 @@ namespace eg::Components
 		if (!mCurrentAnimation)
 			return;
 		mCurrentTime += delta;
-		if (mCurrentTime > mCurrentAnimation->duration)
+		if (mCurrentTime > mCurrentAnimation->getDuration())
 		{
 			mCurrentTime = 0.0f; // Loop the animation
 		}
 
 		//Process each channel
-		for (const auto& channel : mCurrentAnimation->channels)
+		for (const auto& channel : mCurrentAnimation->getChannels())
 		{
-			AnimationNode& currentNode = mAnimationNodes.at(channel.targetJoint);
+			auto currentNode = mAnimationNodes.at(channel.targetJoint);
 			//Find the keyframe for the current time
 			size_t keyframeIndex = 0;
 			for (size_t i = 0; i < channel.keyTimes.size(); ++i)
@@ -102,14 +103,14 @@ namespace eg::Components
 			float t = (mCurrentTime - channel.keyTimes[keyframeIndex]) / (channel.keyTimes[keyframeIndex + 1] - channel.keyTimes[keyframeIndex]);
 			switch (channel.path)
 			{
-			case AnimatedModel::AnimationChannel::Path::Translation:
-				currentNode.position = glm::mix(keyData.translation, nextKeyData.translation, t);
+			case Animation::Channel::Path::Translation:
+				currentNode->position = glm::mix(keyData.translation, nextKeyData.translation, t);
 				break;
-			case AnimatedModel::AnimationChannel::Path::Rotation:
-				currentNode.rotation = glm::slerp(keyData.rotation, nextKeyData.rotation, t);
+			case Animation::Channel::Path::Rotation:
+				currentNode->rotation = glm::slerp(keyData.rotation, nextKeyData.rotation, t);
 				break;
-			case AnimatedModel::AnimationChannel::Path::Scale:
-				currentNode.scale = glm::mix(keyData.scale, nextKeyData.scale, t);
+			case Animation::Channel::Path::Scale:
+				currentNode->scale = glm::mix(keyData.scale, nextKeyData.scale, t);
 				break;
 			default:
 				throw std::runtime_error("Unknown animation channel path");
@@ -120,23 +121,23 @@ namespace eg::Components
 
 	void Animator::update(float deltaTime)
 	{
-		processCurrentAnimation(deltaTime);
+		processCurrentAnimation(deltaTime * mTimeScale);
 		//Build current node worlds transform using lambdas
-		std::function<void(std::vector<AnimationNode>& nodes, AnimationNode& currentNode, glm::mat4x4 accumulatedTransform)> buildNodeModelLocalTransform
-			= [&](std::vector<AnimationNode>& nodes, AnimationNode& currentNode, glm::mat4x4 accumulatedTransform)
+		std::function<void(AnimationNodeVec& nodes, const std::shared_ptr<AnimationNode>& currentNode, glm::mat4x4 accumulatedTransform)> buildNodeModelLocalTransform
+			= [&](AnimationNodeVec& nodes, const std::shared_ptr<AnimationNode>& currentNode, glm::mat4x4 accumulatedTransform)
 			{
 
 				glm::mat4x4 localTransform = glm::mat4x4(1.0f);
-				localTransform = glm::translate(localTransform, currentNode.position);
-				localTransform *= glm::mat4_cast(currentNode.rotation);
-				localTransform = glm::scale(localTransform, currentNode.scale);
+				localTransform = glm::translate(localTransform, currentNode->position);
+				localTransform *= glm::mat4_cast(currentNode->rotation);
+				localTransform = glm::scale(localTransform, currentNode->scale);
 
 
 				accumulatedTransform *= localTransform;
-				currentNode.modelLocalTransform = accumulatedTransform;
+				currentNode->modelLocalTransform = accumulatedTransform;
 
 
-				for (const auto& child : currentNode.children)
+				for (const auto& child : currentNode->children)
 				{
 					buildNodeModelLocalTransform(nodes, nodes.at(child), accumulatedTransform);
 				}
@@ -151,7 +152,7 @@ namespace eg::Components
 				const auto& joint = skin.joints.at(j);
 				glm::mat4x4 inverseBindMatrix = skin.inverseBindMatrices.at(j);
 
-				mBoneMatrices[j] = mAnimationNodes.at(joint).modelLocalTransform * inverseBindMatrix;
+				mBoneMatrices[j] = mAnimationNodes.at(joint)->modelLocalTransform * inverseBindMatrix;
 			}
 		}
 
@@ -164,4 +165,18 @@ namespace eg::Components
 		//Free descriptor set
 		Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), mDescriptorSet);
 	}
+
+	std::shared_ptr<Animator::AnimationNode> Animator::getAnimationNodeByName(const std::string& name)
+	{
+		for (const auto& node : mAnimationNodes)
+		{
+			if (node->name == name)
+			{
+				return node;
+			}
+		}
+
+		return nullptr;
+	}
+
 }

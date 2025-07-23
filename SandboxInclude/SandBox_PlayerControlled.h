@@ -8,6 +8,7 @@ namespace sndbx
 	{
 	private:
 		eg::Components::Camera mCamera;
+		std::shared_ptr<eg::Components::Animator::AnimationNode> mHeadNode;
 	public:
 		PlayerControlled() : Player(false) {}
 		~PlayerControlled() = default;
@@ -32,6 +33,7 @@ namespace sndbx
 		{
 			mCamera.fromJson(json["camera"]);
 			Player::fromJson(json["player"]);
+			mHeadNode = mAnimator->getAnimationNodeByName("mixamorig:Head");
 		}
 
 

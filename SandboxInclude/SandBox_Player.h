@@ -39,6 +39,8 @@ namespace sndbx
 		float mCameraDistance = 5.0f;
 		float mPlayerSpeed = 1.0f;
 		float mMouseSensitivity = 0.2f;
+
+		glm::mat4x4 mModelOffsetMatrix;
 	public:
 		Player(bool visible = true);
 		~Player();

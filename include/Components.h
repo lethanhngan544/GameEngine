@@ -228,6 +228,9 @@ mUniformBuffer.constant = json["constant"];
 		std::string mFilePath;
 	protected:
 		StaticModel() = default;
+
+		void extractRawMeshes(const tinygltf::Model& model);
+		void extractMaterials(const tinygltf::Model& model);
 	public:
 		StaticModel(const std::string& filePath);
 		StaticModel(const std::string& filePath, const tinygltf::Model& model);
@@ -243,14 +246,56 @@ mUniformBuffer.constant = json["constant"];
 
 
 		inline void setFilePath(const std::string& filePath) { mFilePath = filePath; }
-		
+	};
+
+
+	class Animation
+	{
 	private:
-		virtual void loadTinygltfModel(const tinygltf::Model& model);
+		friend class Animator;
+		struct Channel
+		{
+			int32_t targetJoint;
+			enum class Path
+			{
+				Translation,
+				Rotation,
+				Scale
+			} path;
+			enum class Interpolation
+			{
+				Linear,
+				Step,
+				CubicSpline
+			} interpolation;
+
+			union Data
+			{
+				glm::vec3 translation;
+				glm::quat rotation;
+				glm::vec3 scale;
+			};
+			std::vector<float> keyTimes;
+			std::vector<Data> data;
+		};
+
+	private:
+		std::string mName;
+		std::vector<Channel> mChannels;
+		float mDuration;
+	public:
+		Animation(const std::string& animPath);
+		~Animation() = default;
+
+		inline const std::string& getName() const { return mName; }
+		inline const std::vector<Channel>& getChannels() const { return mChannels; }
+		inline float getDuration() const { return mDuration; }
 	};
 
 	class AnimatedModel : public StaticModel
 	{
 	private:
+		friend class Animator;
 		struct AnimatedRawMesh
 		{
 			Renderer::GPUBuffer positionBuffer;
@@ -280,53 +325,11 @@ mUniformBuffer.constant = json["constant"];
 			std::vector<int32_t> joints;
 			std::vector<glm::mat4x4> inverseBindMatrices;
 		};
-
-		struct AnimationChannel
-		{
-			int32_t targetJoint;
-			enum class Path
-			{
-				Translation,
-				Rotation,
-				Scale
-			} path;
-			enum class Interpolation
-			{
-				Linear,
-				Step,
-				CubicSpline
-			} interpolation;
-
-			union Data
-			{
-				glm::vec3 translation;
-				glm::quat rotation;
-				glm::vec3 scale;
-			};
-			std::vector<float> keyTimes;
-			std::vector<Data> data;
-		};
-
-		struct Animation
-		{
-			std::string name;
-			std::vector<AnimationChannel> channels;
-			float duration;
-		};
-
-		template<typename T>
-		friend void extractRotationData(AnimationChannel::Data& data,
-			const tinygltf::Buffer& buffer,
-			const tinygltf::BufferView& bufferView,
-			size_t i);
-
-		friend class Animator;
 		
 		int mRootNodeIndex = -1;
 		std::vector<AnimatedRawMesh> mAnimatedRawMeshes;
 		std::vector<Node> mNodes;
 		std::vector<Skin> mSkins;
-		std::vector<std::shared_ptr<Animation>> mAnimations;
 		
 	public:
 
@@ -336,11 +339,14 @@ mUniformBuffer.constant = json["constant"];
 		AnimatedModel(const std::string& filePath);
 		virtual ~AnimatedModel();
 
-		void loadTinygltfModel(const tinygltf::Model& model) override;
 
 		inline const std::vector<AnimatedRawMesh>& getAnimatedRawMehses() const { return mAnimatedRawMeshes; }
 		inline const std::vector<Skin>& getSkins() const { return mSkins; }
 		inline const int getRootNodeIndex() const { return mRootNodeIndex; }
+	private:
+		void extractedAnimatedRawMeshes(const tinygltf::Model& model);
+		void extractNodes(const tinygltf::Model& model);
+		void extractSkins(const tinygltf::Model& model);
 	};
 
 	class Animator
@@ -357,17 +363,22 @@ mUniformBuffer.constant = json["constant"];
 			glm::mat4x4 modelLocalTransform;
 		};
 	private:
+		using AnimationNodeVec = std::vector<std::shared_ptr<AnimationNode>>;
+		using AnimationMap = std::unordered_map<std::string, std::shared_ptr<Animation>>;
+		using BoneMatrices = std::array<glm::mat4x4, AnimatedModel::MAX_BONE_COUNT>;
+
 		const AnimatedModel& mModel;
-		std::array<glm::mat4x4, AnimatedModel::MAX_BONE_COUNT> mBoneMatrices;
-		std::vector<AnimationNode> mAnimationNodes;
+		std::vector<std::shared_ptr<Animation>> mAnimations;
+		std::shared_ptr<Animation> mCurrentAnimation;
+		BoneMatrices mBoneMatrices;
+		AnimationNodeVec mAnimationNodes;
 		vk::DescriptorSet mDescriptorSet;
 		Renderer::CPUBuffer mUniformBuffer;
-		std::unordered_map<std::string, std::shared_ptr<AnimatedModel::Animation>> mAnimationMap;
-		std::shared_ptr<AnimatedModel::Animation> mCurrentAnimation;
+		AnimationMap mAnimationMap;
 		float mCurrentTime = 0.0f;
-
+		float mTimeScale = 1.0f;
 	public:
-		Animator(const AnimatedModel& model);
+		Animator(const std::vector<std::shared_ptr<Animation>>& animations, const AnimatedModel& model);
 		~Animator();
 
 		void update(float deltaTime);
@@ -375,7 +386,10 @@ mUniformBuffer.constant = json["constant"];
 
 		void setAnimation(const std::string& animationName);
 		inline vk::DescriptorSet getDescriptorSet() const { return mDescriptorSet; }
-		inline const std::vector<AnimationNode>& getAnimationNodes() const { return mAnimationNodes; }
+		inline const AnimationNodeVec& getAnimationNodes() const { return mAnimationNodes; }
+
+		std::shared_ptr<AnimationNode> getAnimationNodeByName(const std::string& name);
+		void setTimeScale(float scale) { mTimeScale = scale; }
 	private:
 		void processCurrentAnimation(float delta);
 	};
@@ -386,6 +400,8 @@ mUniformBuffer.constant = json["constant"];
 		std::shared_ptr<StaticModel> loadStaticModelFromJson(const nlohmann::json& json);
 		std::shared_ptr<AnimatedModel> loadAnimatedModel(const std::string& filePath);
 		std::shared_ptr<AnimatedModel> loadAnimatedModelFromJson(const nlohmann::json& json);
+
+		std::shared_ptr<Animation> loadAnimation(const std::string& animPath);
 		void clearCache();
 	}
 

@@ -13,15 +13,20 @@
 
 namespace sndbx
 {
-	
+
 	Player::Player(bool visible) :
 		mVisible(visible)
 	{
-		
+
 	}
 
 	Player::~Player()
 	{
+		const JPH::BodyLockInterface& lockInterface = eg::Physics::getPhysicsSystem().GetBodyLockInterface();
+		JPH::BodyLockRead lockRead(lockInterface, mBody.mBodyID);
+		bool valid = lockRead.Succeeded();
+		lockRead.ReleaseLock();
+		if (!valid) return; // Body already removed or invalid
 		eg::Physics::getBodyInterface()->RemoveBody(mBody.mBodyID);
 		eg::Physics::getBodyInterface()->DestroyBody(mBody.mBodyID);
 	}
@@ -45,18 +50,12 @@ namespace sndbx
 			positionGlm = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
 			velocity = body.GetLinearVelocity();
 		}
-
-		//Process animation based on velocity
-		{
-			mAnimator->setAnimation(velocity.LengthSq() > 2.0f ? "Fucking" : "");
-		}
-
 		// Grounded check (simple downward ray)
 		bool grounded = false;
 		{
 			JPH::RRayCast ray;
 			ray.mOrigin = position;
-			ray.mDirection = JPH::Vec3(0, -mHeight, 0)  ; // Short ray down
+			ray.mDirection = JPH::Vec3(0, -mHeight, 0); // Short ray down
 
 			JPH::RayCastResult result;
 			grounded = eg::Physics::getPhysicsSystem().GetNarrowPhaseQuery().CastRay(ray, result,
@@ -64,6 +63,53 @@ namespace sndbx
 				JPH::ObjectLayerFilter{},
 				JPH::IgnoreSingleBodyFilter(mBody.mBodyID));
 		}
+
+		//Check if velocity is zero
+		glm::vec3 forwardVector = glm::vec3(0.0f, 0.0f, -1.0f);
+		glm::vec3 rightVector = glm::vec3(1.0f, 0.0f, 0.0f);
+		//Rotate forward vector by yaw
+		glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(mYaw), glm::vec3(0.0f, 1.0f, 0.0f));
+		forwardVector = glm::vec3(rotationMatrix * glm::vec4(forwardVector, 1.0f));
+		rightVector = glm::vec3(rotationMatrix * glm::vec4(rightVector, 1.0f));
+
+		// Dot between forward vector and velocity
+		float forwardDot = glm::dot(forwardVector, glm::vec3(velocity.GetX(), velocity.GetY(), velocity.GetZ()));
+		float rightDot = glm::dot(rightVector, glm::vec3(velocity.GetX(), velocity.GetY(), velocity.GetZ()));
+
+
+		mAnimator->setTimeScale(velocity.LengthSq() / (5.0f * 5.0f));
+		mAnimator->setAnimation("models/ybot_idle.glb");
+
+		if (glm::abs(forwardDot) >= glm::abs(rightDot))
+		{
+			if (forwardDot > 0.01f)
+			{
+				mAnimator->setAnimation("models/ybot_jog_forward.glb");
+			}
+			else if (forwardDot < -0.01f)
+			{
+				mAnimator->setAnimation("models/ybot_jog_backward.glb");
+			}
+		}
+		else
+		{
+			if (rightDot > 0.01f)
+			{
+				mAnimator->setAnimation("models/ybot_jog_right.glb");
+			}
+			else if (rightDot < -0.01f)
+			{
+				mAnimator->setAnimation("models/ybot_jog_left.glb");
+			}
+		}
+
+		if (!grounded)
+		{
+			mAnimator->setAnimation("models/ybot_falling.glb");
+		}
+		
+
+		
 
 		// Separate horizontal and vertical velocity
 		JPH::Vec3 flatVelocity = velocity;
@@ -119,16 +165,16 @@ namespace sndbx
 
 	void Player::fixedUpdate(float delta)
 	{
-		
+
 	}
 
 	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
 	{
-		glm::mat4x4 glmMatrix = mBody.getBodyMatrix();
-		glmMatrix = glm::translate(glmMatrix, glm::vec3(0.0f, -mHeight * 0.5f -0.1f, 0.0f));
-
 		if (!mModel)
 			return;
+
+		glm::mat4x4 glmMatrix = mBody.getBodyMatrix();
+		glmMatrix *= mModelOffsetMatrix;
 
 		switch (stage)
 		{
@@ -146,10 +192,6 @@ namespace sndbx
 			}
 			break;
 		}
-		case eg::Renderer::RenderStage::SUBPASS1_POINTLIGHT:
-			//mLight.update();
-			//eg::Data::LightRenderer::renderPointLight(cmd, mLight);
-			break;
 		default:
 			break;
 		}
@@ -161,7 +203,6 @@ namespace sndbx
 			{ "light", mLight.toJson() },
 			{ "model", mModel->toJson() },
 			{ "body", mBody.toJson()},
-			{ "visible", mVisible },
 			{ "height", mHeight },
 			{ "radius", mRadius },
 			{ "mass", mMass },
@@ -183,29 +224,35 @@ namespace sndbx
 
 	void Player::fromJson(const nlohmann::json& json)
 	{
-		if (json.contains("light")) mLight.fromJson(json["light"]);
-		if (json.contains("model"))
-		{
-			mModel = eg::Components::ModelCache::loadAnimatedModelFromJson(json["model"]);
-			mAnimator = std::make_unique<eg::Components::Animator>(*mModel);
-		}
-		if (json.contains("visible")) mVisible = json["visible"];
-		if (json.contains("height")) mHeight = json["height"];
-		if (json.contains("radius")) mRadius = json["radius"];
-		if (json.contains("mass")) mMass = json["mass"];
-		if (json.contains("groundAccel")) mGroundAccel = json["groundAccel"];
-		if (json.contains("airAccel")) mAirAccel = json["airAccel"];
-		if (json.contains("jumpStrength")) mJumpStrength = json["jumpStrength"];
-		if (json.contains("groundMaxSpeed")) mGroundMaxSpeed = json["groundMaxSpeed"];
-		if (json.contains("airMaxSpeed")) mAirMaxSpeed = json["airMaxSpeed"];
-		if (json.contains("groundDamping")) mGroundDamping = json["groundDamping"];
-		if (json.contains("airDamping")) mAirDamping = json["airDamping"];
-		if (json.contains("yaw")) mYaw = json["yaw"];
-		if (json.contains("pitchClamp")) mPitchClamp = json["pitchClamp"];
-		if (json.contains("pitch")) mPitch = json["pitch"];
-		if (json.contains("cameraDistance")) mCameraDistance = json["cameraDistance"];
-		if (json.contains("playerSpeed")) mPlayerSpeed = json["playerSpeed"];
-		if (json.contains("mouseSensitivity")) mMouseSensitivity = json["mouseSensitivity"];
+		mLight.fromJson(json["light"]);
+		mModel = eg::Components::ModelCache::loadAnimatedModelFromJson(json["model"]);
+
+		mHeight = json["height"];
+		mRadius = json["radius"];
+		mMass = json["mass"];
+		mGroundAccel = json["groundAccel"];
+		mAirAccel = json["airAccel"];
+		mJumpStrength = json["jumpStrength"];
+		mGroundMaxSpeed = json["groundMaxSpeed"];
+		mAirMaxSpeed = json["airMaxSpeed"];
+		mGroundDamping = json["groundDamping"];
+		mAirDamping = json["airDamping"];
+		mYaw = json["yaw"];
+		mPitchClamp = json["pitchClamp"];
+		mPitch = json["pitch"];
+		mCameraDistance = json["cameraDistance"];
+		mPlayerSpeed = json["playerSpeed"];
+		mMouseSensitivity = json["mouseSensitivity"];
+
+
+		std::vector<std::shared_ptr<eg::Components::Animation>> animations;
+		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_idle.glb"));
+		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_forward.glb"));
+		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_backward.glb"));
+		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_left.glb"));
+		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_right.glb"));
+		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_falling.glb"));
+		mAnimator = std::make_unique<eg::Components::Animator>(animations, *mModel);
 
 		glm::vec3 position = { json["body"]["position"].at(0).get<float>(),
 			json["body"]["position"].at(1).get<float>(),
@@ -239,5 +286,8 @@ namespace sndbx
 			mBody.mBodyID = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::Activate);
 		}
 
+
+		mModelOffsetMatrix = glm::rotate(glm::mat4x4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		mModelOffsetMatrix = glm::translate(mModelOffsetMatrix, glm::vec3(0.0f, -mHeight * 0.5f - 0.1f, 0.0f));
 	}
 }

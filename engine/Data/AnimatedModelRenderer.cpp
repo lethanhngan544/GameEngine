@@ -55,30 +55,32 @@ namespace eg::Data::AnimatedModelRenderer
 		cmd.setScissor(0, Renderer::getDrawExtent());
 
 		using Node = Components::Animator::AnimationNode;
+		using NodeVec = std::vector<std::shared_ptr<Node>>;
+
 
 		//Build current node worlds transform using lambdas
-		std::function<void(const Components::AnimatedModel& model, const std::vector<Node>& nodes,
-			const Node& currentNode,
+		std::function<void(const Components::AnimatedModel& model, const NodeVec& nodes,
+			const std::shared_ptr<Node>& currentNode,
 			glm::mat4x4 accumulatedTransform)> renderScreneGraph
 			= [&](const Components::AnimatedModel& model,
-				const std::vector<Node>& nodes,
-				const Node& currentNode,
+				const NodeVec& nodes,
+				const std::shared_ptr<Node>& currentNode,
 				glm::mat4x4 accumulatedTransform)
 			{
 				glm::mat4x4 localTransform = glm::mat4x4(1.0f);
-				localTransform = glm::translate(localTransform, currentNode.position);
-				localTransform *= glm::mat4_cast(currentNode.rotation);
-				localTransform = glm::scale(localTransform, currentNode.scale);
+				localTransform = glm::translate(localTransform, currentNode->position);
+				localTransform *= glm::mat4_cast(currentNode->rotation);
+				localTransform = glm::scale(localTransform, currentNode->scale);
 				accumulatedTransform *= localTransform;
 
-				if (currentNode.meshIndex >= 0)
+				if (currentNode->meshIndex >= 0)
 				{
 					//Build model matrix	
 					VertexPushConstant ps{};
 					ps.model = accumulatedTransform;
 					cmd.pushConstants(mPipelineLayout,
 						vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry, 0, sizeof(ps), &ps);
-					const auto& rawMesh = model.getAnimatedRawMehses().at(currentNode.meshIndex);
+					const auto& rawMesh = model.getAnimatedRawMehses().at(currentNode->meshIndex);
 					cmd.bindVertexBuffers(0, {
 						rawMesh.positionBuffer.getBuffer(),
 						rawMesh.normalBuffer.getBuffer(),
@@ -94,7 +96,7 @@ namespace eg::Data::AnimatedModelRenderer
 				}
 
 
-				for (const auto& child : currentNode.children)
+				for (const auto& child : currentNode->children)
 				{
 					renderScreneGraph(model, nodes, nodes.at(child), accumulatedTransform);
 				}
@@ -127,30 +129,31 @@ namespace eg::Data::AnimatedModelRenderer
 			vk::Extent2D(Renderer::getShadowMapResolution(), Renderer::getShadowMapResolution())));
 
 		using Node = Components::Animator::AnimationNode;
+		using NodeVec = std::vector<std::shared_ptr<Node>>;
 
 		//Build current node worlds transform using lambdas
-		std::function<void(const Components::AnimatedModel& model, const std::vector<Node>& nodes,
-			const Node& currentNode,
+		std::function<void(const Components::AnimatedModel& model, const NodeVec& nodes,
+			const std::shared_ptr<Node>& currentNode,
 			glm::mat4x4 accumulatedTransform)> renderScreneGraph
 			= [&](const Components::AnimatedModel& model,
-				const std::vector<Node>& nodes,
-				const Node& currentNode,
+				const NodeVec& nodes,
+				const std::shared_ptr<Node>& currentNode,
 				glm::mat4x4 accumulatedTransform)
 			{
 				glm::mat4x4 localTransform = glm::mat4x4(1.0f);
-				localTransform = glm::translate(localTransform, currentNode.position);
-				localTransform *= glm::mat4_cast(currentNode.rotation);
-				localTransform = glm::scale(localTransform, currentNode.scale);
+				localTransform = glm::translate(localTransform, currentNode->position);
+				localTransform *= glm::mat4_cast(currentNode->rotation);
+				localTransform = glm::scale(localTransform, currentNode->scale);
 				accumulatedTransform *= localTransform;
 
-				if (currentNode.meshIndex >= 0)
+				if (currentNode->meshIndex >= 0)
 				{
 					//Build model matrix	
 					VertexPushConstant ps{};
 					ps.model = accumulatedTransform;
 					cmd.pushConstants(mShadowPipelineLayout,
 						vk::ShaderStageFlagBits::eVertex, 0, sizeof(ps), &ps);
-					const auto& rawMesh = model.getAnimatedRawMehses().at(currentNode.meshIndex);
+					const auto& rawMesh = model.getAnimatedRawMehses().at(currentNode->meshIndex);
 					cmd.bindVertexBuffers(0, {
 						rawMesh.positionBuffer.getBuffer(),
 						rawMesh.boneIdsBuffer.getBuffer(),
@@ -164,7 +167,7 @@ namespace eg::Data::AnimatedModelRenderer
 				}
 
 
-				for (const auto& child : currentNode.children)
+				for (const auto& child : currentNode->children)
 				{
 					renderScreneGraph(model, nodes, nodes.at(child), accumulatedTransform);
 				}

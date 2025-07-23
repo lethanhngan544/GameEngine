@@ -36,7 +36,7 @@ void main() {
     if(ubo.has_albedo == 1)
     {
         vec4 sampledAlbedo =  texture(uAlbedo, fsUv);
-        albedo = sampledAlbedo.rgb;
+        albedo *= sampledAlbedo.rgb;
         if(sampledAlbedo.a < 0.1)
         {
             discard;
@@ -48,7 +48,7 @@ void main() {
         mr = texture(uMr, fsUv).rgb;
     }
 
-    outAlbeo = ubo.albedoColor * albedo;
+    outAlbeo = albedo;
     outNormal = normal;
     outMr = mr;
 }

@@ -12,6 +12,7 @@ namespace sndbx
 		std::shared_ptr<eg::Components::StaticModel> mModel = nullptr;
 	public:
 		MapPhysicsObject() = default;
+		~MapPhysicsObject();
 
 		void update(float delta) override;
 		void fixedUpdate(float delta) override;

@@ -61,6 +61,10 @@ namespace sndbx
 			mDirection = glm::normalize(mDirection);
 		}
 		glm::mat4x4 bodyMatrix = mBody.getBodyMatrix();
+		auto headLocalTransform = mHeadNode->modelLocalTransform;
+		auto headGlobalTransform = mModelOffsetMatrix * bodyMatrix * headLocalTransform;
+		auto headGlobalPosition = glm::vec3{ headGlobalTransform[3][0], headGlobalTransform[3][1], headGlobalTransform[3][2] };
+
 		glm::vec3 positionGlm = { bodyMatrix[3][0], bodyMatrix[3][1], bodyMatrix[3][2] };
 
 		mCamera.mPosition = positionGlm + glm::vec3{ 0.0f, 0.8f, 0.0f };
@@ -68,6 +72,8 @@ namespace sndbx
 		mCamera.mYaw = -mYaw;
 
 		Player::update(delta);
+
+		
 	}
 
 	void PlayerControlled::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)

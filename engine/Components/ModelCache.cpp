@@ -4,6 +4,20 @@ namespace eg::Components::ModelCache
 {
 	static std::unordered_map<std::string, std::shared_ptr<StaticModel>> sCache;
 	static std::unordered_map<std::string, std::shared_ptr<AnimatedModel>> sAnimatedCache;
+	static std::unordered_map<std::string, std::shared_ptr<Animation>> sAnimationCache;
+
+
+	std::shared_ptr<Animation> loadAnimation(const std::string& filePath)
+	{
+		auto it = sAnimationCache.find(filePath);
+		if (it != sAnimationCache.end())
+		{
+			return it->second;
+		}
+		auto animation = std::make_shared<Animation>(filePath);
+		sAnimationCache[filePath] = animation;
+		return animation;
+	}
 
 	std::shared_ptr<StaticModel> loadStaticModel(const std::string& filePath)
 	{

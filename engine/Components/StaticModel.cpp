@@ -31,7 +31,8 @@ namespace eg::Components
 
 		try
 		{
-			this->loadTinygltfModel(model);
+			this->extractRawMeshes(model);
+			this->extractMaterials(model);
 		}
 		catch (...)
 		{
@@ -46,7 +47,8 @@ namespace eg::Components
 	{
 		try
 		{
-			this->loadTinygltfModel(model);
+			this->extractRawMeshes(model);
+			this->extractMaterials(model);
 		}
 		catch (...)
 		{
@@ -54,10 +56,8 @@ namespace eg::Components
 		}
 	}
 
-	void StaticModel::loadTinygltfModel(const tinygltf::Model& model)
+	void StaticModel::extractRawMeshes(const tinygltf::Model& model)
 	{
-		//Extract vertex datas
-		//mRawMeshes.reserve(model.meshes.size());
 		std::vector<uint32_t> indices;
 		std::vector<glm::vec3> positions, normals;
 		std::vector<glm::vec2> uvs;
@@ -176,7 +176,10 @@ namespace eg::Components
 
 
 		}
+	}
 
+	void StaticModel::extractMaterials(const tinygltf::Model& model)
+	{
 		//Extract materials
 		for (const auto& material : model.materials)
 		{
@@ -326,6 +329,7 @@ namespace eg::Components
 			this->mMaterials.push_back(newMaterial);
 		}
 	}
+
 
 	StaticModel::~StaticModel()
 	{
