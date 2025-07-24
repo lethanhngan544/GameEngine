@@ -3,6 +3,7 @@
 #include <Logger.h>
 #include <Input.h>
 #include <Data.h>
+#include <Window.h>
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -35,6 +36,8 @@ namespace sndbx
 		if (eg::Input::Keyboard::isKeyDownOnce(GLFW_KEY_F11))
 		{
 			mEnabled = !mEnabled;
+
+			glfwSetInputMode(eg::Window::getHandle(), GLFW_CURSOR, mEnabled ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
 			if (mEnabled)
 			{
 				eg::Logger::gInfo("Debugger enabled");

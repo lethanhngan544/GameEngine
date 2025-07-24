@@ -109,6 +109,31 @@ namespace eg::Components
 		}
 	};
 
+	class CameraFrustumCuller
+	{
+	private:
+		struct FrustumPlane {
+			glm::vec3 normal;
+			float d;
+		};
+
+	public:
+		CameraFrustumCuller(const Camera& camera) : mCamera(camera) {}
+		// Check if a point is inside the camera frustum
+		bool isPointInFrustum(const glm::vec3& point) const;
+		// Check if a bounding box is inside the camera frustum
+		bool isBoundingBoxInFrustum(const glm::vec3& min, const glm::vec3& max, const glm::vec3* offset = nullptr) const;
+		// Check if a sphere is inside the camera frustum
+		bool isSphereInFrustum( const glm::vec3& center, float radius) const;
+		// Update the frustum planes based on the camera's view and projection matrices
+		void updateFrustumPlanes(vk::Extent2D extent);
+	private:
+		FrustumPlane extractPlane(float a, float b, float c, float d);
+	private:
+		const Camera& mCamera;
+		std::array<FrustumPlane, 6> mFrustumPlanes;
+	};
+
 	class DirectionalLight
 	{
 	public:

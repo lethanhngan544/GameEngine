@@ -116,6 +116,23 @@ namespace eg::Data
 
 		vk::DescriptorSetLayout getTextureAtlasDescLayout();
 	}
+
+	//Theres only a single skydome, so we can use a singleton pattern for it.
+	namespace SkydomeRenderer
+	{
+		struct SkydomeSettings
+		{
+			glm::vec3 upperColor = glm::vec3(0.5f, 0.7f, 1.0f); // Default color
+			glm::vec3 lowerColor = glm::vec3(0.1f, 0.1f, 0.2f); // Default color
+		};
+
+		void create();
+		void destroy();
+		void render(vk::CommandBuffer cmd, const SkydomeSettings& skydome);
+		vk::DescriptorSetLayout getDescLayout();
+		vk::PipelineLayout getPipelineLayout();
+		vk::Pipeline getPipeline();
+	}
 	
 	
 

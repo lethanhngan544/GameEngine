@@ -28,6 +28,7 @@ namespace eg::Renderer
 
 	void create(uint32_t width, uint32_t height, uint32_t shadowMapRes);
 	void setCamera(const Components::Camera* camera);
+	const Components::Camera& getMainCamera();
 	void setDirectionalLight(const Components::DirectionalLight* directionalLight);
 	void waitIdle();
 	void destory();

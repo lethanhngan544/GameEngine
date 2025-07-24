@@ -52,7 +52,7 @@ namespace eg::Components
 			camera.mFov,
 			aspectRatio,
 			camera.mNear,
-			50.0f
+			10.0f
 		);
 		cameraProjection[1][1] *= -1;
 		glm::mat4 inv = glm::inverse(cameraProjection * camera.buildView());

@@ -34,6 +34,8 @@ namespace sndbx
 		rotation.z = json["rigidBody"]["rotation"].at(2).get<float>();
 		rotation.w = json["rigidBody"]["rotation"].at(3).get<float>();
 
+		mCuller = std::make_unique<eg::Components::CameraFrustumCuller>(eg::Renderer::getMainCamera());
+
 		mModel = eg::Components::ModelCache::loadStaticModel(modelPath);
 
 		//Create rigid body
@@ -75,6 +77,7 @@ namespace sndbx
 	void MapPhysicsObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
 	{
 		glm::mat4x4 mat = mBody.getBodyMatrix();
+		mCuller->updateFrustumPlanes(eg::Renderer::getDrawExtent().extent);
 
 		switch (stage)
 		{
@@ -85,7 +88,11 @@ namespace sndbx
 		}
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 		{
-			eg::Data::StaticModelRenderer::render(cmd, *mModel, mat);
+			if (mCuller->isSphereInFrustum(mat[3], 2.0f))
+			{
+				eg::Data::StaticModelRenderer::render(cmd, *mModel, mat);
+			}
+			
 			break;
 		}
 

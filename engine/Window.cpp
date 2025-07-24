@@ -30,7 +30,7 @@ namespace eg::Window
 		{
 			throw std::runtime_error("Vulkan is not avalidable !"); 
 		}
-		//glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		
 
 	}

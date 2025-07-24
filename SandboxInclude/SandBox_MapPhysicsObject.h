@@ -9,6 +9,7 @@ namespace sndbx
 	{
 	private:
 		eg::Components::RigidBody mBody;
+		std::unique_ptr<eg::Components::CameraFrustumCuller> mCuller;
 		std::shared_ptr<eg::Components::StaticModel> mModel = nullptr;
 	public:
 		MapPhysicsObject() = default;

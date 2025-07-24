@@ -57,7 +57,7 @@ namespace eg::Renderer
 	static vma::Allocator gAllocator;
 
 	static vk::Queue gMainQueue;
-	static vk::PresentModeKHR gPresentMode = vk::PresentModeKHR::eImmediate;
+	static vk::PresentModeKHR gPresentMode = vk::PresentModeKHR::eFifo;
 	static vk::SurfaceFormatKHR gSurfaceFormat = vk::SurfaceFormatKHR{ vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear };
 	static vk::SwapchainKHR gSwapchain;
 	static std::vector<vk::Image> gSwapchainImages;
@@ -469,7 +469,17 @@ namespace eg::Renderer
 
 	void setCamera(const Components::Camera* camera)
 	{
+		if (camera == nullptr)
+		{
+			gCamera = &gDummyCamera;
+			return;
+		}
 		gCamera = camera;
+	}
+
+	const Components::Camera& getMainCamera()
+	{
+		return *gCamera;
 	}
 
 	void setDirectionalLight(const Components::DirectionalLight* directionalLight)
