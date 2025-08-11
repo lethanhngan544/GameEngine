@@ -1,12 +1,6 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform GlobalUniformBuffer
-{
-    mat4x4 projection;
-	mat4x4 view;
-    mat4x4 directionalViewProj;
-    vec3 cameraPos;
-} gUBO;
+#include "shaders/gubo.glsl"
 
 layout(push_constant) uniform PushConstant
 {
@@ -31,5 +25,5 @@ void main() {
       inBoneWeights.z * gBoneUniform.matrices[inBoneIds.z] +
       inBoneWeights.w * gBoneUniform.matrices[inBoneIds.w];
 
-    gl_Position = gUBO.directionalViewProj * ps.model * skinMat * vec4(inPos, 1.0);
+    gl_Position = ps.model * skinMat * vec4(inPos, 1.0);
 }

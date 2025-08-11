@@ -241,7 +241,7 @@ namespace eg::Data::ParticleRenderer
 		return gDescLayout;
 	}
 
-	void updateBuffers(vk::CommandBuffer cmd)
+	void updateBuffers()
 	{
 		for (auto& [set, atlas] : gParticleMap)
 		{
@@ -285,10 +285,10 @@ namespace eg::Data::ParticleRenderer
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getDrawExtent().extent.width),
-			static_cast<float>(Renderer::getDrawExtent().extent.height),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
 			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getDrawExtent());
+		cmd.setScissor(0, Renderer::getScaledDrawExtent());
 		
 
 		for (auto& [set, atlas] : gParticleMap)

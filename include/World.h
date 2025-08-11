@@ -54,6 +54,7 @@ namespace eg::World
 		GameObjectManager() = default;
 		~GameObjectManager();
 
+
 		void cleanup();
 		void addGameObject(std::unique_ptr<IGameObject> gameobject);
 		void removeGameObject(const IGameObject* gameObject);

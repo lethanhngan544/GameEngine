@@ -64,19 +64,19 @@ protected:
 class StdOutLogger  final : public eg::Logger
 {
 public:
-	void trace(const std::string& message) final
+	void trace(const std::string message) final
 	{
 		std::cout << Logger::formatMessage(message, "Engine", "Trace") << "\n";
 	}
-	void info(const std::string& message) final
+	void info(const std::string message) final
 	{
 		std::cout << Logger::formatMessage(message, "Engine", "Info") << "\n";
 	}
-	void warn(const std::string& message) final
+	void warn(const std::string message) final
 	{
 		std::cout << Logger::formatMessage(message, "Engine", "Warn") << "\n";
 	}
-	void error(const std::string& message) final
+	void error(const std::string message) final
 	{
 		std::cout << Logger::formatMessage(message, "Engine", "Error") << "\n";
 	}

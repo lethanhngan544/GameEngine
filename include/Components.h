@@ -82,6 +82,15 @@ namespace eg::Components
 		glm::mat4x4 buildProjection(vk::Extent2D extent) const;
 		glm::mat4x4 buildView() const;
 
+		glm::vec3 getForward() const
+		{
+			return glm::vec3{
+				glm::cos(glm::radians(mYaw)) * glm::cos(glm::radians(mPitch)),
+				glm::sin(glm::radians(mPitch)),
+				glm::sin(glm::radians(mYaw)) * glm::cos(glm::radians(mPitch))
+			};
+		}
+
 		nlohmann::json toJson() const
 		{
 			nlohmann::json json;
@@ -153,7 +162,7 @@ namespace eg::Components
 
 		void update();
 
-		glm::mat4x4 getDirectionalLightViewProj(const Camera& camera) const;
+		std::array<glm::mat4x4, Renderer::ShadowRenderPass::getCsmCount()> getDirectionalLightViewProj(const Camera& camera) const;
 
 		inline vk::DescriptorSet getSet() const { return mSet; }
 	};
@@ -278,6 +287,7 @@ mUniformBuffer.constant = json["constant"];
 	{
 	private:
 		friend class Animator;
+		friend class Animator2DBlend;
 		struct Channel
 		{
 			int32_t targetJoint;
@@ -385,9 +395,10 @@ mUniformBuffer.constant = json["constant"];
 			glm::vec3 scale;
 			int meshIndex;
 			std::vector<int32_t> children;
-			glm::mat4x4 modelLocalTransform;
+			glm::mat4x4 animLocalTransform;
+			glm::mat4x4 localTransform;
 		};
-	private:
+	protected:
 		using AnimationNodeVec = std::vector<std::shared_ptr<AnimationNode>>;
 		using AnimationMap = std::unordered_map<std::string, std::shared_ptr<Animation>>;
 		using BoneMatrices = std::array<glm::mat4x4, AnimatedModel::MAX_BONE_COUNT>;
@@ -404,7 +415,7 @@ mUniformBuffer.constant = json["constant"];
 		float mTimeScale = 1.0f;
 	public:
 		Animator(const std::vector<std::shared_ptr<Animation>>& animations, const AnimatedModel& model);
-		~Animator();
+		virtual ~Animator();
 
 		void update(float deltaTime);
 
@@ -415,8 +426,30 @@ mUniformBuffer.constant = json["constant"];
 
 		std::shared_ptr<AnimationNode> getAnimationNodeByName(const std::string& name);
 		void setTimeScale(float scale) { mTimeScale = scale; }
+	protected:
+		virtual void processCurrentAnimation(float delta);
+	};
+
+
+	class Animator2DBlend : public Animator
+	{
 	private:
-		void processCurrentAnimation(float delta);
+		glm::vec2 mState = { 0.0f, 0.0f }; // x = horizontal, y = vertical
+		std::shared_ptr<Animation> mForward, mBackward, mLeft, mRight, mIdle;
+	public:
+		Animator2DBlend(std::shared_ptr<Animation> forward, 
+			std::shared_ptr<Animation> backward,
+			std::shared_ptr<Animation> left,
+			std::shared_ptr<Animation> right,
+			std::shared_ptr<Animation> idle,
+			const AnimatedModel& model)
+			: Animator({ forward, backward, left, right, idle }, model),
+			mForward(forward), mBackward(backward), mLeft(left), mRight(right), mIdle(idle) {}
+		
+
+		inline void setState(const glm::vec2& state) { mState = state; }
+	protected:
+		virtual void processCurrentAnimation(float delta) override;
 	};
 
 	namespace ModelCache

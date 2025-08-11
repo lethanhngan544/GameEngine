@@ -20,12 +20,14 @@ namespace eg::Data
 	bool LoadImageData(tinygltf::Image* image, const int image_idx, std::string* err,
 		std::string* warn, int req_width, int req_height,
 		const unsigned char* bytes, int size, void* user_data);
-	
-
+	static constexpr uint8_t SKY_STENCIL_VALUE = 0x00;
+	static constexpr uint8_t MESH_STENCIL_VALUE = 0x01;
 	//Systems
 
 	namespace StaticModelRenderer
 	{
+		
+
 		struct VertexPushConstant
 		{
 			glm::mat4x4 model;
@@ -55,6 +57,7 @@ namespace eg::Data
 
 	namespace AnimatedModelRenderer
 	{
+
 		struct VertexPushConstant
 		{
 			glm::mat4x4 model;
@@ -96,7 +99,21 @@ namespace eg::Data
 		vk::DescriptorSetLayout getDirectionalPerDescLayout();
 	}
 
+	namespace SkyRenderer
+	{
+		struct SkySettings
+		{
+			glm::vec3 upperColor = glm::vec3(0.5f, 0.7f, 1.0f); // Default color
+			glm::vec3 lowerColor = glm::vec3(0.1f, 0.1f, 0.2f); // Default color
+		};
 
+		void create();
+		void destroy();
+		void render(vk::CommandBuffer cmd, const SkySettings& skydome);
+		vk::DescriptorSetLayout getDescLayout();
+		vk::PipelineLayout getPipelineLayout();
+		vk::Pipeline getPipeline();
+	}
 	
 
 	namespace ParticleRenderer
@@ -111,28 +128,13 @@ namespace eg::Data
 		void create();
 		void destroy();
 		void recordParticle(const Components::ParticleInstance instance, vk::DescriptorSet textureAtlasSet, glm::uvec2 atlasSize);
-		void updateBuffers(vk::CommandBuffer cmd);
+		void updateBuffers();
 		void render(vk::CommandBuffer cmd);
 
 		vk::DescriptorSetLayout getTextureAtlasDescLayout();
 	}
 
-	//Theres only a single skydome, so we can use a singleton pattern for it.
-	namespace SkydomeRenderer
-	{
-		struct SkydomeSettings
-		{
-			glm::vec3 upperColor = glm::vec3(0.5f, 0.7f, 1.0f); // Default color
-			glm::vec3 lowerColor = glm::vec3(0.1f, 0.1f, 0.2f); // Default color
-		};
-
-		void create();
-		void destroy();
-		void render(vk::CommandBuffer cmd, const SkydomeSettings& skydome);
-		vk::DescriptorSetLayout getDescLayout();
-		vk::PipelineLayout getPipelineLayout();
-		vk::Pipeline getPipeline();
-	}
+	
 	
 	
 
@@ -149,7 +151,7 @@ namespace eg::Data
 
 		void recordLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color);
 
-		void updateVertexBuffers(vk::CommandBuffer cmd);
+		void updateVertexBuffers();
 		void render(vk::CommandBuffer cmd);
 	}
 

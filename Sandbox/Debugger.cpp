@@ -31,6 +31,22 @@ namespace sndbx
 
 	};
 
+
+	void Debugger::drawRendererSettingsDialog(eg::Components::DirectionalLight& directionalLight)
+	{
+		if (!mEnabled) return;
+		ImGui::Begin("Renderer Settings");
+		if (ImGui::DragFloat3("Directional Light direction", &directionalLight.mUniformBuffer.direction.x, 0.01f))
+		{
+			directionalLight.mUniformBuffer.direction = glm::normalize(directionalLight.mUniformBuffer.direction);
+		}
+
+
+		ImGui::SliderFloat("Render scale", &eg::Renderer::getRenderScale(), 0.1f, 1.0f);
+
+		ImGui::End();
+	}
+
 	void Debugger::checkKeyboardInput()
 	{
 		if (eg::Input::Keyboard::isKeyDownOnce(GLFW_KEY_F11))
@@ -49,16 +65,6 @@ namespace sndbx
 		}
 	}
 
-	void Debugger::drawLightDebuggerDialog(eg::Components::DirectionalLight& directionalLight)
-	{
-		if (!mEnabled) return;
-		ImGui::Begin("Light");
-		if (ImGui::DragFloat3("Direction", &directionalLight.mUniformBuffer.direction.x, 0.01f))
-		{
-			directionalLight.mUniformBuffer.direction = glm::normalize(directionalLight.mUniformBuffer.direction);
-		}
-		ImGui::End();
-	}
 	void Debugger::drawWorldDebuggerDialog(eg::World::GameObjectManager& gameObjManager,
 		eg::World::JsonToIGameObjectDispatcher dispatcherFn)
 	{

@@ -1,12 +1,6 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform GlobalUniformBuffer
-{
-    mat4x4 projection;
-	mat4x4 view;
-    mat4x4 directionalViewProj;
-    vec3 cameraPos;
-} gUBO;
+#include "shaders/gubo.glsl"
 
 layout(push_constant) uniform PushConstant
 {
@@ -18,6 +12,5 @@ layout(location = 0) in vec3 inPos;
 
 
 void main() {
-    vec4 v = ps.model * vec4(inPos, 1.0);
-    gl_Position = gUBO.directionalViewProj * v;
+    gl_Position = ps.model * vec4(inPos, 1.0);
 }

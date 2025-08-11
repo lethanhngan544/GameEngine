@@ -2,13 +2,7 @@
 
 const float PI = 3.14159265359;
 
-layout(set = 0, binding = 0) uniform GlobalUniformBuffer
-{
-    mat4x4 projection;
-	mat4x4 view;
-	mat4x4 directionalViewProj;
-    vec3 cameraPos;
-} gUBO;
+#include "shaders/gubo.glsl"
 
 layout (input_attachment_index = 0, set = 1, binding = 0) uniform subpassInput subpass0Normal;
 layout (input_attachment_index = 1, set = 1, binding = 1) uniform subpassInput subpass0Albedo;

@@ -66,9 +66,9 @@ namespace eg::Renderer
 				vk::Format::eD24UnormS8Uint,
 				vk::SampleCountFlagBits::e1,
 				vk::AttachmentLoadOp::eClear,
-				vk::AttachmentStoreOp::eDontCare,
-				vk::AttachmentLoadOp::eDontCare,
-				vk::AttachmentStoreOp::eDontCare,
+				vk::AttachmentStoreOp::eStore,
+				vk::AttachmentLoadOp::eClear,
+				vk::AttachmentStoreOp::eStore,
 				vk::ImageLayout::eUndefined,
 				vk::ImageLayout::eDepthStencilAttachmentOptimal
 			),
@@ -144,6 +144,7 @@ namespace eg::Renderer
 				vk::AccessFlagBits::eInputAttachmentRead,
 				vk::DependencyFlagBits::eByRegion),
 		};
+
 		vk::RenderPassCreateInfo renderPassCI{};
 		renderPassCI
 			.setAttachments(attachments)
@@ -188,11 +189,11 @@ namespace eg::Renderer
 		vk::RenderPassBeginInfo renderPassBI{};
 		renderPassBI.setRenderPass(mRenderPass)
 			.setFramebuffer(mFramebuffer)
-			.setRenderArea(Renderer::getDrawExtent())
+			.setRenderArea(Renderer::getScaledDrawExtent())
 			.setClearValues(clearValues);
 
 
-		cmd.beginRenderPass(renderPassBI, vk::SubpassContents::eInline);
+		cmd.beginRenderPass(renderPassBI, vk::SubpassContents::eSecondaryCommandBuffers);
 	}
 
 

@@ -32,19 +32,19 @@
 class VisualStudioLogger  final : public eg::Logger
 {
 public:
-	void trace(const std::string& message) final
+	void trace(const std::string message) final
 	{
 		OutputDebugStringA(Logger::formatMessage(message, "Engine", "Trace").c_str());
 	}
-	void info(const std::string& message) final
+	void info(const std::string message) final
 	{
 		OutputDebugStringA(Logger::formatMessage(message, "Engine", "Info").c_str());
 	}
-	void warn(const std::string& message) final
+	void warn(const std::string message) final
 	{
 		OutputDebugStringA(Logger::formatMessage(message, "Engine", "Warn").c_str());
 	}
-	void error(const std::string& message) final
+	void error(const std::string message) final
 	{
 		OutputDebugStringA(Logger::formatMessage(message, "Engine", "Error").c_str());
 	}
@@ -55,32 +55,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 {
 	using namespace eg;
 
-	
-	
+
+
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
 	{
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
-		Renderer::create(1600, 900, 8192);
+		Renderer::create(1600, 900, 4096);
 		Data::StaticModelRenderer::create();
 		Data::AnimatedModelRenderer::create();
 		Data::LightRenderer::create();
+		Data::SkyRenderer::create();
 		Data::DebugRenderer::create();
 		Data::ParticleRenderer::create();
 		Physics::create();
 
 		{
+			
 			sndbx::Debugger debugger;
 			World::GameObjectManager gameObjManager;
 			Components::DirectionalLight directionalLight;
 			directionalLight.mUniformBuffer.intensity = 1.0f;
 			directionalLight.mUniformBuffer.direction = { 1.01f, -1.0f, 0.0f };
 
-			Renderer::setDirectionalLight(&directionalLight);
-			
-		
 			World::JsonToIGameObjectDispatcher jsonDispatcher =
 				[](const nlohmann::json& jsonObj, const std::string& type) -> std::unique_ptr<World::IGameObject>
 				{
@@ -108,14 +107,38 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 					throw World::JsonToIGameObjectException(type, "Unknown game object type");
 					return nullptr;
 				};
-		
+
+			Renderer::setDirectionalLight(&directionalLight);
+			Renderer::setDebugRenderFunction(
+				[&](vk::CommandBuffer cmd)
+				{
+					debugger.drawPhysicsDebuggerDialog();
+					debugger.drawRendererSettingsDialog(directionalLight);
+					debugger.drawWorldDebuggerDialog(gameObjManager, jsonDispatcher);
+				});
+			Renderer::setShadowRenderFunction(
+				[&](vk::CommandBuffer cmd)
+				{
+					gameObjManager.render(cmd, Renderer::RenderStage::SHADOW);
+				});
+			Renderer::setGBufferRenderFunction(
+				[&](vk::CommandBuffer cmd)
+				{
+					gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS0_GBUFFER);
+				});
+			Renderer::setLightRenderFunction(
+				[&](vk::CommandBuffer cmd)
+				{
+					gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
+				});
+
+			
+
 			using Clock = std::chrono::high_resolution_clock;
 			using TimePoint = std::chrono::time_point<Clock>;
 
-			constexpr double TICK_RATE = 60;
+			constexpr double TICK_RATE = 64;
 			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
-			constexpr int MAX_FPS = 60;
-			constexpr double FRAME_DURATION_CAP = 1.0 / MAX_FPS;
 			TimePoint lastTime = Clock::now();
 			double accumulator = 0.0;
 
@@ -127,7 +150,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				if (deltaTime > 0.25) deltaTime = 0.25;
 				accumulator += deltaTime;
 				while (accumulator >= TICK_INTERVAL) {
-					
+
 					Physics::update(TICK_INTERVAL);
 					gameObjManager.fixedUpdate(TICK_INTERVAL);
 					accumulator -= TICK_INTERVAL;
@@ -140,46 +163,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 
 				//Render
-				//Retrieve with and height of the glfw window
-				auto cmd = Renderer::begin();
-				debugger.drawPhysicsDebuggerDialog();
-				debugger.drawLightDebuggerDialog(directionalLight);
-				debugger.drawWorldDebuggerDialog(gameObjManager, jsonDispatcher);
 				
-
-				
-				Data::DebugRenderer::updateVertexBuffers(cmd);
-				Data::ParticleRenderer::updateBuffers(cmd);
-
-
-				Renderer::getShadowRenderPass().begin(cmd);
-				gameObjManager.render(cmd, Renderer::RenderStage::SHADOW);
-
-				cmd.endRenderPass();
-
-				Renderer::getDefaultRenderPass().begin(cmd);
-				//Subpass 0, gBuffer generation
-				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS0_GBUFFER);
-
-				//Subpass 1, lighting
-				cmd.nextSubpass(vk::SubpassContents::eInline);
-				Data::LightRenderer::renderAmbient(cmd);
 
 				directionalLight.update();
-				Data::LightRenderer::renderDirectionalLight(cmd, directionalLight);
-				Data::LightRenderer::beginPointLight(cmd);
-				gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
-				Data::ParticleRenderer::render(cmd);
-				Data::DebugRenderer::render(cmd);
+				
 
-
-				Renderer::end();
+				Renderer::render();
 				Window::poll();
 			}
-
 			Renderer::waitIdle();
+
+			
 		}
-		
+
 	}
 	catch (std::exception e)
 	{
@@ -191,9 +187,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		MessageBox(nullptr, "TODO", "Unknown exception", MB_ICONEXCLAMATION);
 	}
 
-	
 	Data::DebugRenderer::destroy();
 	Data::ParticleRenderer::destroy();
+	Data::SkyRenderer::destroy();
 	Data::LightRenderer::destroy();
 	Data::StaticModelRenderer::destroy();
 	Data::AnimatedModelRenderer::destroy();

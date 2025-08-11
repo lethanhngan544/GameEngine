@@ -6,7 +6,7 @@ namespace eg::Renderer
 	{
 		//Define layout
 		vk::DescriptorSetLayoutBinding bindings[] = {
-			{0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, {}}
+			{0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry | vk::ShaderStageFlagBits::eFragment, {}}
 		};
 
 

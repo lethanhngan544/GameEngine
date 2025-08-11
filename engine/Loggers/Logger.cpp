@@ -33,21 +33,21 @@ namespace eg
 		return formattedMessage.str();
 	}
 
-	void Logger::gTrace(const std::string& message)
+	void Logger::gTrace(const std::string message)
 	{
 		sLogger->trace(message);
 	}
-	void Logger::gInfo(const std::string& message)
+	void Logger::gInfo(const std::string message)
 	{
 		sLogger->info(message);
 	}
 
-	void Logger::gWarn(const std::string& message)
+	void Logger::gWarn(const std::string message)
 	{
 		sLogger->warn(message);
 	}
 
-	void Logger::gError(const std::string& message)
+	void Logger::gError(const std::string message)
 	{
 		sLogger->error(message);
 	}

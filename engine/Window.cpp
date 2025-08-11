@@ -18,7 +18,7 @@ namespace eg::Window
 			throw std::runtime_error("Failed to init glfw !");
 		
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 		gWindow = glfwCreateWindow(width, height, title, NULL, NULL);
 		if (!gWindow)
 		{

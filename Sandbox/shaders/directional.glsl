@@ -1,17 +1,12 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform GlobalUniformBuffer {
-    mat4 projection;
-    mat4 view;
-    mat4x4 directionalViewProj;
-    vec3 cameraPos;
-} gUBO;
+#include "shaders/gubo.glsl"
 
 layout(input_attachment_index = 0, set = 1, binding = 0) uniform subpassInput subpass0Normal;
 layout(input_attachment_index = 1, set = 1, binding = 1) uniform subpassInput subpass0Albedo;
 layout(input_attachment_index = 2, set = 1, binding = 2) uniform subpassInput subpass0Mr;
 layout(input_attachment_index = 3, set = 1, binding = 3) uniform subpassInput subpass0Depth;
-layout(set = 1, binding = 4) uniform sampler2D uDepthMap;
+layout(set = 1, binding = 4) uniform sampler2DArray uDepthMap;
 
 layout(set = 2, binding = 0) uniform UniformBuffer {
     vec3 direction;
@@ -52,17 +47,46 @@ void main() {
     vec3 specular = spec * lightColor;
 
     // Shadow map
+    const float cascadePlaneDistances[] = {
+        5.0f, 20.0f, 300.0f
+    }; 
 
-    vec4 fragPosLightSpace = gUBO.directionalViewProj * vec4(fragPos, 1.0);
+    float viewSpaceDepth = abs(viewSpace.z);
+    //Select layer based on depth
+    int layer = -1;
+    for (int i = 0; i < MAX_CSM_COUNT; ++i)
+    {
+        if (viewSpaceDepth < (cascadePlaneDistances[i] - 2.0))
+        {
+            layer = i;
+            break;
+        }
+    }
+    if (layer == -1)
+    {
+        layer = MAX_CSM_COUNT;
+    }
+
+
+    vec4 fragPosLightSpace = gUBO.directionalViewProj[layer] * vec4(fragPos, 1.0);
     vec3 shadowCoord = fragPosLightSpace.xyz / fragPosLightSpace.w;
     shadowCoord.xy = shadowCoord.xy * 0.5 + 0.5; 
-    float closestDepth = texture(uDepthMap, shadowCoord.xy).r;   
     float currentDepth = shadowCoord.z;  
 
     float bias = max(0.05 * (1.0 - dot(N, L)), 0.005);  
-    float shadow = currentDepth < closestDepth ? 1.0 : 0.0; 
-   
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / vec2(textureSize(uDepthMap, 0));
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(uDepthMap, vec3(shadowCoord.xy + vec2(x, y) * texelSize, layer)).r; 
+            shadow += currentDepth > pcfDepth ? 1.0 : 0.0;        
+        }    
+    }
+    shadow /= 9.0;
 
-    vec3 lighting = ambient + shadow * (diffuse + specular);
+
+    vec3 lighting = ambient + (1.0f - shadow) * (diffuse + specular);
     outColor = vec4(lighting, 1.0);
 }

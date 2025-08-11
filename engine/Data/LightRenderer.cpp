@@ -67,10 +67,10 @@ namespace eg::Data::LightRenderer
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getDrawExtent().extent.width),
-			static_cast<float>(Renderer::getDrawExtent().extent.height),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
 			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getDrawExtent());
+		cmd.setScissor(0, Renderer::getScaledDrawExtent());
 		cmd.draw(3, 1, 0, 0);
 	}
 
@@ -84,10 +84,10 @@ namespace eg::Data::LightRenderer
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getDrawExtent().extent.width),
-			static_cast<float>(Renderer::getDrawExtent().extent.height),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
 			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getDrawExtent());
+		cmd.setScissor(0, Renderer::getScaledDrawExtent());
 		cmd.draw(3, 1, 0, 0);
 	}
 
@@ -104,10 +104,10 @@ namespace eg::Data::LightRenderer
 		);
 
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getDrawExtent().extent.width),
-			static_cast<float>(Renderer::getDrawExtent().extent.height),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
 			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getDrawExtent());
+		cmd.setScissor(0, Renderer::getScaledDrawExtent());
 	}
 
 	void renderPointLight(vk::CommandBuffer cmd,
@@ -284,14 +284,25 @@ namespace eg::Data::LightRenderer
 			.setLogicOp(vk::LogicOp::eCopy)
 			.setAttachments(colorBlendAttachmentState)
 			.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+
+		vk::StencilOpState stencilOpState = {};
+		stencilOpState.setFailOp(vk::StencilOp::eKeep)
+			.setPassOp(vk::StencilOp::eKeep)
+			.setDepthFailOp(vk::StencilOp::eKeep)
+			.setCompareOp(vk::CompareOp::eEqual)
+			.setCompareMask(0xFF)
+			.setWriteMask(0x00)
+			.setReference(MESH_STENCIL_VALUE);
+
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
 		depthStencilStateCI.setDepthTestEnable(false)
 			.setDepthWriteEnable(false)
 			.setDepthCompareOp(vk::CompareOp::eLess)
 			.setDepthBoundsTestEnable(false)
-			.setStencilTestEnable(false)
-			.setFront({})
-			.setBack({})
+			.setStencilTestEnable(true)
+			.setFront(stencilOpState)
+			.setBack(stencilOpState)
 			.setMinDepthBounds(0.0f)
 			.setMaxDepthBounds(1.0f);
 
@@ -498,14 +509,24 @@ namespace eg::Data::LightRenderer
 			.setLogicOp(vk::LogicOp::eCopy)
 			.setAttachments(colorBlendAttachmentState)
 			.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+		vk::StencilOpState stencilOpState = {};
+		stencilOpState.setFailOp(vk::StencilOp::eKeep)
+			.setPassOp(vk::StencilOp::eKeep)
+			.setDepthFailOp(vk::StencilOp::eKeep)
+			.setCompareOp(vk::CompareOp::eEqual)
+			.setCompareMask(0xFF)
+			.setWriteMask(0x00)
+			.setReference(MESH_STENCIL_VALUE);
+
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
 		depthStencilStateCI.setDepthTestEnable(false)
 			.setDepthWriteEnable(false)
 			.setDepthCompareOp(vk::CompareOp::eLess)
 			.setDepthBoundsTestEnable(false)
-			.setStencilTestEnable(false)
-			.setFront({})
-			.setBack({})
+			.setStencilTestEnable(true)
+			.setFront(stencilOpState)
+			.setBack(stencilOpState)
 			.setMinDepthBounds(0.0f)
 			.setMaxDepthBounds(1.0f);
 
@@ -556,7 +577,7 @@ namespace eg::Data::LightRenderer
 			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Albedo
 			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Mr
 			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
-			vk::DescriptorSetLayoutBinding(4, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
+			vk::DescriptorSetLayoutBinding(4, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Shadow map
 		};
 
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
@@ -587,7 +608,7 @@ namespace eg::Data::LightRenderer
 			vk::DescriptorImageInfo(nullptr, renderPass.getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, renderPass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(shadowPass.getDepthSampler(), shadowPass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(shadowPass.getDepthSampler(), shadowPass.getDepthView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
 	
@@ -724,14 +745,23 @@ namespace eg::Data::LightRenderer
 			.setLogicOp(vk::LogicOp::eCopy)
 			.setAttachments(colorBlendAttachmentState)
 			.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
+		vk::StencilOpState stencilOpState = {};
+		stencilOpState.setFailOp(vk::StencilOp::eKeep)
+			.setPassOp(vk::StencilOp::eKeep)
+			.setDepthFailOp(vk::StencilOp::eKeep)
+			.setCompareOp(vk::CompareOp::eEqual)
+			.setCompareMask(0xFF)
+			.setWriteMask(0x00)
+			.setReference(MESH_STENCIL_VALUE);
+
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
 		depthStencilStateCI.setDepthTestEnable(false)
 			.setDepthWriteEnable(false)
 			.setDepthCompareOp(vk::CompareOp::eLess)
 			.setDepthBoundsTestEnable(false)
-			.setStencilTestEnable(false)
-			.setFront({})
-			.setBack({})
+			.setStencilTestEnable(true)
+			.setFront(stencilOpState)
+			.setBack(stencilOpState)
 			.setMinDepthBounds(0.0f)
 			.setMaxDepthBounds(1.0f);
 

@@ -19,7 +19,8 @@ namespace eg::Components
 
 namespace eg::Renderer
 {
-	
+	using RenderFn = std::function<void(vk::CommandBuffer cmd)>;
+
 	//Global functions
 	std::vector<uint32_t> compileShaderFromFile(const std::string& filePath, uint32_t kind, 
 		std::vector<std::pair<std::string, std::string>> defines = {});
@@ -30,6 +31,7 @@ namespace eg::Renderer
 	void setCamera(const Components::Camera* camera);
 	const Components::Camera& getMainCamera();
 	void setDirectionalLight(const Components::DirectionalLight* directionalLight);
+	void render();
 	void waitIdle();
 	void destory();
 
@@ -43,6 +45,7 @@ namespace eg::Renderer
 	vk::DescriptorPool getDescriptorPool();
 
 	vk::Rect2D getDrawExtent();
+	vk::Rect2D getScaledDrawExtent();
 	vk::DescriptorSet getCurrentFrameGUBODescSet();
 	vk::DescriptorSetLayout getGlobalDescriptorSet();
 
@@ -51,9 +54,14 @@ namespace eg::Renderer
 	const uint32_t getShadowMapResolution();
 	const class CombinedImageSampler2D& getDefaultWhiteImage();
 	const class CombinedImageSampler2D& getDefaultCheckerboardImage();
+	const uint32_t getGraphicsQueueFamilyIndex();
+	float& getRenderScale();
 
+	void setShadowRenderFunction(RenderFn&& renderFn);
+	void setGBufferRenderFunction(RenderFn&& renderFn);
+	void setLightRenderFunction(RenderFn&& renderFn);
+	void setDebugRenderFunction(RenderFn&& renderFn);
 
-	
 
 	//Datas
 	class GPUBuffer
@@ -209,6 +217,86 @@ namespace eg::Renderer
 		vk::Sampler getSampler() const { return mSampler;  }
 	};
 
+	
+
+
+	//Renderpasses
+	class DefaultRenderPass
+	{
+	private:
+		vk::RenderPass mRenderPass;
+		vk::Framebuffer mFramebuffer;
+		Image2D mNormal, mAlbedo, mMr, mDrawImage, mDepth;
+	public:
+		DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format);
+		~DefaultRenderPass();
+
+		void begin(const vk::CommandBuffer& cmd) const;
+		
+
+		vk::RenderPass getRenderPass() const { return mRenderPass; }
+		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
+		Image2D& getDrawImage() { return mDrawImage; }
+		Image2D& getNormal() { return mNormal; }
+		Image2D& getAlbedo() { return mAlbedo; }
+		Image2D& getMr() { return mMr; }
+		Image2D& getDepth() { return mDepth; }
+
+		const Image2D& getDrawImage() const  { return mDrawImage; }
+		const Image2D& getNormal() const { return mNormal; }
+		const Image2D& getAlbedo() const { return mAlbedo; }
+		const Image2D& getMr() const { return mMr; }
+		const Image2D& getDepth() const { return mDepth; }
+	};
+
+	//Only for directional light
+	class ShadowRenderPass
+	{
+	private:
+		static constexpr size_t mCsmCount = 3;
+		vk::Format mDepthFormat = vk::Format::eD32Sfloat;
+		vk::ImageUsageFlags mUsageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
+
+		vk::RenderPass mRenderPass;
+		vk::Framebuffer mFramebuffer;
+		vk::Image mDepthImage;
+		vk::ImageView mDepthImageView;
+		vma::Allocation mDepthAllocation;
+		vk::Sampler mDepthSampler;
+	public:
+		ShadowRenderPass(uint32_t size);
+		~ShadowRenderPass();
+
+		void begin(const vk::CommandBuffer& cmd) const;
+
+
+		vk::RenderPass getRenderPass() const { return mRenderPass; }
+		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
+		vk::Image getDepth() const { return mDepthImage; }
+		vk::ImageView getDepthView() const { return mDepthImageView; }
+		vk::Sampler getDepthSampler() const { return mDepthSampler; }
+
+		static constexpr size_t getCsmCount() { return mCsmCount; }
+		
+	};
+
+	class PostprocessingRenderPass
+	{
+	private:
+		vk::RenderPass mRenderPass;
+		vk::Framebuffer mFramebuffer;
+		Image2D mDrawImage;
+	public:
+		PostprocessingRenderPass(uint32_t width, uint32_t height, vk::Format format);
+		~PostprocessingRenderPass();
+		void begin(const vk::CommandBuffer& cmd) const;
+
+		vk::RenderPass getRenderPass() const { return mRenderPass; }
+		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
+		Image2D& getDrawImage() { return mDrawImage; }
+		const Image2D& getDrawImage() const { return mDrawImage; }
+	};
+
 	class GlobalUniformBuffer
 	{
 	public:
@@ -216,7 +304,7 @@ namespace eg::Renderer
 		{
 			glm::mat4x4 mProjection = { 1.0f };
 			glm::mat4x4 mView = { 1.0f };
-			glm::mat4x4 mDirectionaLightViewProj = { 1.0f };
+			glm::mat4x4 mDirectionaLightViewProj[ShadowRenderPass::getCsmCount()];
 			glm::vec3 mCameraPosition = { 0, 0, 0 };
 		};
 
@@ -255,7 +343,7 @@ namespace eg::Renderer
 				getDevice().freeDescriptorSets(getDescriptorPool(), mSet);
 			}
 
-			CPUBuffer& getCPUBuffer() { return mBuffer;  }
+			CPUBuffer& getCPUBuffer() { return mBuffer; }
 			vk::DescriptorSet getSet() const { return mSet; }
 		};
 
@@ -270,59 +358,7 @@ namespace eg::Renderer
 		void update(const Data& data, size_t frameIndex);
 
 		const DescriptorSet& getDescriptorSet(size_t currentFrame);
-		vk::DescriptorSetLayout getLayout() const { return mLayout;  }
-	};
-
-
-	//Renderpasses
-	class DefaultRenderPass
-	{
-	private:
-		vk::RenderPass mRenderPass;
-		vk::Framebuffer mFramebuffer;
-		Image2D mNormal, mAlbedo, mMr, mDrawImage, mDepth;
-	public:
-		DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format);
-		~DefaultRenderPass();
-
-		void begin(const vk::CommandBuffer& cmd) const;
-		
-
-		vk::RenderPass getRenderPass() const { return mRenderPass; }
-		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
-		Image2D& getDrawImage() { return mDrawImage; }
-		Image2D& getNormal() { return mNormal; }
-		Image2D& getAlbedo() { return mAlbedo; }
-		Image2D& getMr() { return mMr; }
-		Image2D& getDepth() { return mDepth; }
-
-		const Image2D& getDrawImage() const  { return mDrawImage; }
-		const Image2D& getNormal() const { return mNormal; }
-		const Image2D& getAlbedo() const { return mAlbedo; }
-		const Image2D& getMr() const { return mMr; }
-		const Image2D& getDepth() const { return mDepth; }
-	};
-
-	//Only for directional light
-	class ShadowRenderPass
-	{
-	private:
-		vk::RenderPass mRenderPass;
-		vk::Framebuffer mFramebuffer;
-		Image2D mDepth;
-		vk::Sampler mDepthSampler;
-	public:
-		ShadowRenderPass(uint32_t size);
-		~ShadowRenderPass();
-
-		void begin(const vk::CommandBuffer& cmd) const;
-
-
-		vk::RenderPass getRenderPass() const { return mRenderPass; }
-		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
-		Image2D& getDepth() { return mDepth; }
-		const Image2D& getDepth() const { return mDepth; }
-		vk::Sampler getDepthSampler() const { return mDepthSampler; }
+		vk::DescriptorSetLayout getLayout() const { return mLayout; }
 	};
 
 }

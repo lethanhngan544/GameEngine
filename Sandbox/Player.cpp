@@ -64,52 +64,11 @@ namespace sndbx
 				JPH::IgnoreSingleBodyFilter(mBody.mBodyID));
 		}
 
-		//Check if velocity is zero
-		glm::vec3 forwardVector = glm::vec3(0.0f, 0.0f, -1.0f);
-		glm::vec3 rightVector = glm::vec3(1.0f, 0.0f, 0.0f);
-		//Rotate forward vector by yaw
-		glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(mYaw), glm::vec3(0.0f, 1.0f, 0.0f));
-		forwardVector = glm::vec3(rotationMatrix * glm::vec4(forwardVector, 1.0f));
-		rightVector = glm::vec3(rotationMatrix * glm::vec4(rightVector, 1.0f));
-
-		// Dot between forward vector and velocity
-		float forwardDot = glm::dot(forwardVector, glm::vec3(velocity.GetX(), velocity.GetY(), velocity.GetZ()));
-		float rightDot = glm::dot(rightVector, glm::vec3(velocity.GetX(), velocity.GetY(), velocity.GetZ()));
 
 
-		mAnimator->setTimeScale(velocity.LengthSq() / (5.0f * 5.0f));
-		mAnimator->setAnimation("models/ybot_idle.glb");
-
-		if (glm::abs(forwardDot) >= glm::abs(rightDot))
-		{
-			if (forwardDot > 0.01f)
-			{
-				mAnimator->setAnimation("models/ybot_jog_forward.glb");
-			}
-			else if (forwardDot < -0.01f)
-			{
-				mAnimator->setAnimation("models/ybot_jog_backward.glb");
-			}
-		}
-		else
-		{
-			if (rightDot > 0.01f)
-			{
-				mAnimator->setAnimation("models/ybot_jog_right.glb");
-			}
-			else if (rightDot < -0.01f)
-			{
-				mAnimator->setAnimation("models/ybot_jog_left.glb");
-			}
-		}
-
-		if (!grounded)
-		{
-			mAnimator->setAnimation("models/ybot_falling.glb");
-		}
 		
 
-		
+
 
 		// Separate horizontal and vertical velocity
 		JPH::Vec3 flatVelocity = velocity;
@@ -245,14 +204,19 @@ namespace sndbx
 		mMouseSensitivity = json["mouseSensitivity"];
 
 
-		std::vector<std::shared_ptr<eg::Components::Animation>> animations;
+		/*std::vector<std::shared_ptr<eg::Components::Animation>> animations;
 		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_idle.glb"));
 		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_forward.glb"));
 		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_backward.glb"));
 		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_left.glb"));
 		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_right.glb"));
-		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_falling.glb"));
-		mAnimator = std::make_unique<eg::Components::Animator>(animations, *mModel);
+		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_falling.glb"));*/
+		mAnimator = std::make_unique<eg::Components::Animator2DBlend>(eg::Components::ModelCache::loadAnimation("models/ybot_jog_forward.glb"),
+			eg::Components::ModelCache::loadAnimation("models/ybot_jog_backward.glb"),
+			eg::Components::ModelCache::loadAnimation("models/ybot_jog_left.glb"),
+			eg::Components::ModelCache::loadAnimation("models/ybot_jog_right.glb"),
+			eg::Components::ModelCache::loadAnimation("models/ybot_idle.glb"),
+			*mModel);
 
 		glm::vec3 position = { json["body"]["position"].at(0).get<float>(),
 			json["body"]["position"].at(1).get<float>(),
@@ -288,6 +252,6 @@ namespace sndbx
 
 
 		mModelOffsetMatrix = glm::rotate(glm::mat4x4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		mModelOffsetMatrix = glm::translate(mModelOffsetMatrix, glm::vec3(0.0f, -mHeight * 0.5f - 0.1f, 0.0f));
+		mModelOffsetMatrix = glm::translate(mModelOffsetMatrix, glm::vec3(0.0f, -mHeight * 0.5f - 0.3f, 0.0f));
 	}
 }

@@ -49,10 +49,10 @@ namespace eg::Data::AnimatedModelRenderer
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getDrawExtent().extent.width),
-			static_cast<float>(Renderer::getDrawExtent().extent.height),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
 			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getDrawExtent());
+		cmd.setScissor(0, Renderer::getScaledDrawExtent());
 
 		using Node = Components::Animator::AnimationNode;
 		using NodeVec = std::vector<std::shared_ptr<Node>>;
@@ -389,14 +389,24 @@ namespace eg::Data::AnimatedModelRenderer
 			.setLogicOp(vk::LogicOp::eCopy)
 			.setAttachments(attachments)
 			.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+		vk::StencilOpState stencilOpState = {};
+		stencilOpState.setFailOp(vk::StencilOp::eReplace)
+			.setPassOp(vk::StencilOp::eReplace)
+			.setDepthFailOp(vk::StencilOp::eReplace)
+			.setCompareOp(vk::CompareOp::eAlways)
+			.setCompareMask(0xFF)
+			.setWriteMask(0xFF)
+			.setReference(MESH_STENCIL_VALUE);
+
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
 		depthStencilStateCI.setDepthTestEnable(true)
 			.setDepthWriteEnable(true)
 			.setDepthCompareOp(vk::CompareOp::eLess)
 			.setDepthBoundsTestEnable(false)
-			.setStencilTestEnable(false)
-			.setFront({})
-			.setBack({})
+			.setStencilTestEnable(true)
+			.setFront(stencilOpState)
+			.setBack(stencilOpState)
 			.setMinDepthBounds(0.0f)
 			.setMaxDepthBounds(1.0f);
 
@@ -443,21 +453,26 @@ namespace eg::Data::AnimatedModelRenderer
 		Logger::gTrace("Creating depth only animated model renderer !");
 
 		//Load shaders
-		auto vertexBinary = Renderer::compileShaderFromFile("shaders/animated_model_shadow_vs.glsl",
-			shaderc_glsl_vertex_shader,
-			{ std::make_pair("MAX_BONES", std::to_string(Components::AnimatedModel::MAX_BONE_COUNT)) });
+		std::vector<std::pair<std::string, std::string>> defines;
+		defines.emplace_back("MAX_BONES", std::to_string(Components::AnimatedModel::MAX_BONE_COUNT));
+
+		auto vertexBinary = Renderer::compileShaderFromFile("shaders/animated_model_shadow_vs.glsl", shaderc_glsl_vertex_shader, defines);
+		auto geometryBinary = Renderer::compileShaderFromFile("shaders/animated_model_shadow_gs.glsl", shaderc_glsl_geometry_shader);
 		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/animated_model_shadow_fs.glsl", shaderc_glsl_fragment_shader);
 
 		//Create shader modules
-		vk::ShaderModuleCreateInfo vertexShaderModuleCI{}, fragmentShaderModuleCI{};
+		vk::ShaderModuleCreateInfo vertexShaderModuleCI{}, geometryShaderModuleCI{}, fragmentShaderModuleCI{};
 		vertexShaderModuleCI.setCodeSize(vertexBinary.size() * sizeof(uint32_t));
 		vertexShaderModuleCI.setPCode(vertexBinary.data());
 
+		geometryShaderModuleCI.setCodeSize(geometryBinary.size() * sizeof(uint32_t));
+		geometryShaderModuleCI.setPCode(geometryBinary.data());
 
 		fragmentShaderModuleCI.setCodeSize(fragmentBinary.size() * sizeof(uint32_t));
 		fragmentShaderModuleCI.setPCode(fragmentBinary.data());
 
 		auto vertexShaderModule = Renderer::getDevice().createShaderModule(vertexShaderModuleCI);
+		auto geometryShaderModule = Renderer::getDevice().createShaderModule(geometryShaderModuleCI);
 		auto fragmentShaderModule = Renderer::getDevice().createShaderModule(fragmentShaderModuleCI);
 
 
@@ -486,6 +501,14 @@ namespace eg::Data::AnimatedModelRenderer
 				vk::PipelineShaderStageCreateFlags{},
 				vk::ShaderStageFlagBits::eVertex,
 				vertexShaderModule,
+				"main"
+			},
+
+			vk::PipelineShaderStageCreateInfo
+			{
+				vk::PipelineShaderStageCreateFlags{},
+				vk::ShaderStageFlagBits::eGeometry,
+				geometryShaderModule,
 				"main"
 			},
 
@@ -550,47 +573,6 @@ namespace eg::Data::AnimatedModelRenderer
 			.setAlphaToCoverageEnable(false)
 			.setAlphaToOneEnable(false);
 
-		//vk::PipelineColorBlendAttachmentState attachments[] = {
-		//	//Normal
-		//	vk::PipelineColorBlendAttachmentState(false,
-		//		vk::BlendFactor::eOne,
-		//		vk::BlendFactor::eZero,
-		//		vk::BlendOp::eAdd,
-		//		vk::BlendFactor::eOne,
-		//		vk::BlendFactor::eOne,
-		//		vk::BlendOp::eAdd,
-		//		vk::ColorComponentFlagBits::eR |
-		//		vk::ColorComponentFlagBits::eG |
-		//		vk::ColorComponentFlagBits::eB |
-		//		vk::ColorComponentFlagBits::eA),
-
-		//		//Albedo
-		//		vk::PipelineColorBlendAttachmentState(false,
-		//			vk::BlendFactor::eOne,
-		//			vk::BlendFactor::eZero,
-		//			vk::BlendOp::eAdd,
-		//			vk::BlendFactor::eOne,
-		//			vk::BlendFactor::eOne,
-		//			vk::BlendOp::eAdd,
-		//			vk::ColorComponentFlagBits::eR |
-		//			vk::ColorComponentFlagBits::eG |
-		//			vk::ColorComponentFlagBits::eB |
-		//			vk::ColorComponentFlagBits::eA),
-
-		//		//Mr
-		//		vk::PipelineColorBlendAttachmentState(false,
-		//			vk::BlendFactor::eOne,
-		//			vk::BlendFactor::eZero,
-		//			vk::BlendOp::eAdd,
-		//			vk::BlendFactor::eOne,
-		//			vk::BlendFactor::eOne,
-		//			vk::BlendOp::eAdd,
-		//			vk::ColorComponentFlagBits::eR |
-		//			vk::ColorComponentFlagBits::eG |
-		//			vk::ColorComponentFlagBits::eB |
-		//			vk::ColorComponentFlagBits::eA)
-		//};
-
 
 		vk::PipelineColorBlendStateCreateInfo colorBlendStateCI{};
 		colorBlendStateCI.setLogicOpEnable(false)
@@ -610,8 +592,6 @@ namespace eg::Data::AnimatedModelRenderer
 		std::vector<vk::DynamicState> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
 		vk::PipelineDynamicStateCreateInfo dynamicStateCI{};
 		dynamicStateCI.setDynamicStates(dynamicStates);
-
-
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(mShadowPipelineLayout)
@@ -642,6 +622,7 @@ namespace eg::Data::AnimatedModelRenderer
 
 		//Destroy shader modules
 		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
+		Renderer::getDevice().destroyShaderModule(geometryShaderModule);
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
 }

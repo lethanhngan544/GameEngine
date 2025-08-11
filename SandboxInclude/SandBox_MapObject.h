@@ -10,7 +10,6 @@ namespace sndbx
 	private:
 		std::shared_ptr<eg::Components::StaticModel> mModel = nullptr;
 		eg::Components::RigidBody mBody;
-
 	public:
 		MapObject() = default;
 

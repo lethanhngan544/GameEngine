@@ -17,25 +17,25 @@ namespace eg
 		mFile.close();
 	}
 
-	void FileLogger::trace(const std::string& message)
+	void FileLogger::trace(const std::string message)
 	{
 		mFile << formatMessage(message, "trace", "TRACE");
 		mFile.close();
 		mFile.open(mFileName, std::ofstream::app);
 	}
-	void FileLogger::info(const std::string& message)
+	void FileLogger::info(const std::string message)
 	{
 		mFile << formatMessage(message, "info", "INFO");
 		mFile.close();
 		mFile.open(mFileName, std::ofstream::app);
 	}
-	void FileLogger::warn(const std::string& message)
+	void FileLogger::warn(const std::string message)
 	{
 		mFile << formatMessage(message, "warn", "WARN");
 		mFile.close();
 		mFile.open(mFileName, std::ofstream::app);
 	}
-	void FileLogger::error(const std::string& message)
+	void FileLogger::error(const std::string message)
 	{
 		mFile << formatMessage(message, "error", "ERROR");
 		mFile.close();

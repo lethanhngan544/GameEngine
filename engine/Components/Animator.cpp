@@ -11,9 +11,10 @@ namespace eg::Components
 		mCurrentAnimation(nullptr)
 	{
 		//Init animation map
-		
+		mAnimations.reserve(animations.size());
 		for (const auto& animation : animations)
 		{
+			mAnimations.push_back(animation);
 			mAnimationMap[animation->getName()] = animation;
 		}
 
@@ -28,7 +29,8 @@ namespace eg::Components
 			animNode->scale = node.scale;
 			animNode->children = node.children;
 			animNode->meshIndex = node.meshIndex;
-			animNode->modelLocalTransform = glm::mat4x4(1.0f);
+			animNode->animLocalTransform = glm::mat4x4(1.0f);
+			animNode->localTransform = glm::mat4x4(1.0f);
 			mAnimationNodes.push_back(animNode);
 		}
 
@@ -123,8 +125,15 @@ namespace eg::Components
 	{
 		processCurrentAnimation(deltaTime * mTimeScale);
 		//Build current node worlds transform using lambdas
-		std::function<void(AnimationNodeVec& nodes, const std::shared_ptr<AnimationNode>& currentNode, glm::mat4x4 accumulatedTransform)> buildNodeModelLocalTransform
-			= [&](AnimationNodeVec& nodes, const std::shared_ptr<AnimationNode>& currentNode, glm::mat4x4 accumulatedTransform)
+		std::function<void(AnimationNodeVec& nodes,
+			const std::shared_ptr<AnimationNode>& currentNode,
+			glm::mat4x4 accumulatedTransform,
+			bool isAnim)> 
+			buildNodeModelLocalTransform
+			= [&](AnimationNodeVec& nodes,
+				const std::shared_ptr<AnimationNode>& currentNode,
+				glm::mat4x4 accumulatedTransform,
+				bool isAnim)
 			{
 
 				glm::mat4x4 localTransform = glm::mat4x4(1.0f);
@@ -134,27 +143,31 @@ namespace eg::Components
 
 
 				accumulatedTransform *= localTransform;
-				currentNode->modelLocalTransform = accumulatedTransform;
-
+				if(isAnim)
+					currentNode->animLocalTransform = accumulatedTransform;
+				else
+					currentNode->localTransform = accumulatedTransform;
 
 				for (const auto& child : currentNode->children)
 				{
-					buildNodeModelLocalTransform(nodes, nodes.at(child), accumulatedTransform);
+					buildNodeModelLocalTransform(nodes, nodes.at(child), accumulatedTransform, isAnim);
 				}
 			};
 
 		for (const auto& skin : mModel.mSkins)
 		{
-			buildNodeModelLocalTransform(mAnimationNodes, mAnimationNodes.at(skin.joints.at(0)), glm::mat4x4(1.0f));
+			buildNodeModelLocalTransform(mAnimationNodes, mAnimationNodes.at(skin.joints.at(0)), glm::mat4x4(1.0f), true);
 
 			for (size_t j = 0; j < skin.joints.size(); ++j)
 			{
 				const auto& joint = skin.joints.at(j);
 				glm::mat4x4 inverseBindMatrix = skin.inverseBindMatrices.at(j);
 
-				mBoneMatrices[j] = mAnimationNodes.at(joint)->modelLocalTransform * inverseBindMatrix;
+				mBoneMatrices[j] = mAnimationNodes.at(joint)->animLocalTransform * inverseBindMatrix;
 			}
 		}
+
+		buildNodeModelLocalTransform(mAnimationNodes, mAnimationNodes.at(mModel.getRootNodeIndex()), glm::mat4x4(1.0f), false);
 
 		//Update bone matrices
 		mUniformBuffer.write(mBoneMatrices.data(), sizeof(mBoneMatrices));

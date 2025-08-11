@@ -18,35 +18,6 @@ namespace eg::Data::DebugRenderer
 	{
 		Logger::gTrace("Creating debug renderer !");
 
-		//Define shader layout
-		//vk::DescriptorSetLayoutBinding descLayoutBindings[] =
-		//{
-		//	vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
-		//};
-		//vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
-		//descLayoutCI.setBindings(descLayoutBindings);
-
-		//gLineSetLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
-
-		//Allocate descriptor set right here
-
-	/*	vk::DescriptorSetAllocateInfo ai{};
-		ai.setDescriptorPool(Renderer::getDescriptorPool())
-			.setDescriptorSetCount(1)
-			.setSetLayouts(gLineSetLayout);
-		gLineSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
-
-		vk::DescriptorImageInfo imageInfos[] = {
-			vk::DescriptorImageInfo(nullptr, Renderer::getDefaultRenderPass().getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-		};
-
-		Renderer::getDevice().updateDescriptorSets({
-			vk::WriteDescriptorSet(gLineSet, 0, 0,
-				1,
-				vk::DescriptorType::eInputAttachment,
-				&imageInfos[0])
-			}, {});*/
-
 		//Load shaders
 		auto vertexBinary = Renderer::compileShaderFromFile("shaders/debug_line_vs.glsl", shaderc_glsl_vertex_shader);
 		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/debug_line_fs.glsl", shaderc_glsl_fragment_shader);
@@ -238,7 +209,7 @@ namespace eg::Data::DebugRenderer
 		gLineVertices.push_back({ end, color });
 	}
 
-	void updateVertexBuffers(vk::CommandBuffer cmd)
+	void updateVertexBuffers()
 	{
 		if (gLineVertices.size() > 0)
 		{
@@ -264,6 +235,11 @@ namespace eg::Data::DebugRenderer
 			cmd.bindVertexBuffers(0, { gLineVertexBuffer->getBuffer() }, { 0 });
 
 			cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, gLinePipeline);
+			cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
+				static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+				static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
+				0.0f, 1.0f } });
+			cmd.setScissor(0, Renderer::getScaledDrawExtent());
 			
 			cmd.draw(gLineVertices.size(), 1, 0, 0);
 		}

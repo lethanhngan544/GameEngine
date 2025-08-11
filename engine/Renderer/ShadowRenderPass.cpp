@@ -3,10 +3,53 @@
 
 namespace eg::Renderer
 {
-	ShadowRenderPass::ShadowRenderPass(uint32_t size) :
-		mDepth(size, size, vk::Format::eD32Sfloat, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
-			vk::ImageAspectFlagBits::eDepth)
+	ShadowRenderPass::ShadowRenderPass(uint32_t size)
 	{
+		vk::ImageCreateInfo imageCI{};
+		imageCI.setImageType(vk::ImageType::e2D)
+			.setExtent({ size, size, 1 })
+			.setMipLevels(1)
+			.setArrayLayers(static_cast<uint32_t>(mCsmCount))
+			.setFormat(mDepthFormat)
+			.setTiling(vk::ImageTiling::eOptimal)
+			.setInitialLayout(vk::ImageLayout::eUndefined)
+			.setUsage(mUsageFlags)
+			.setSharingMode(vk::SharingMode::eExclusive)
+			.setSamples(vk::SampleCountFlagBits::e1)
+			.setFlags(vk::ImageCreateFlags{});
+		vma::AllocationCreateInfo allocCI{};
+		allocCI.setUsage(vma::MemoryUsage::eGpuOnly);
+		auto [image, allocation] = getAllocator().createImage(imageCI, allocCI);
+		mDepthImage = image;
+		mDepthAllocation = allocation;
+
+		vk::ImageViewCreateInfo imageViewCI{};
+		imageViewCI.setImage(mDepthImage)
+			.setViewType(vk::ImageViewType::e2DArray)
+			.setFormat(mDepthFormat)
+			.setComponents(vk::ComponentMapping{})
+			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eDepth, 0, 1, 0, static_cast<uint32_t>(mCsmCount) });
+		mDepthImageView = getDevice().createImageView(imageViewCI);
+
+		//Sampler
+		vk::SamplerCreateInfo ci{};
+		ci.setMagFilter(vk::Filter::eLinear)
+			.setMinFilter(vk::Filter::eLinear)
+			.setMipmapMode(vk::SamplerMipmapMode::eLinear)
+			.setAddressModeU(vk::SamplerAddressMode::eRepeat)
+			.setAddressModeV(vk::SamplerAddressMode::eRepeat)
+			.setAddressModeW(vk::SamplerAddressMode::eRepeat)
+			.setMipLodBias(0)
+			.setMinLod(-1)
+			.setMaxLod(1)
+			.setAnisotropyEnable(false)
+			.setMaxAnisotropy(0.0f)
+			.setCompareEnable(false)
+			.setCompareOp(vk::CompareOp::eAlways);
+
+		mDepthSampler = getDevice().createSampler(ci);
+
+
 		//Create sampler for depth
 		vk::SamplerCreateInfo samplerCI{};
 		samplerCI.setMagFilter(vk::Filter::eNearest)
@@ -92,14 +135,14 @@ namespace eg::Renderer
 
 		vk::ImageView frameBufferAttachments[] =
 		{
-			mDepth.getImageView(),
+			mDepthImageView
 		};
 		vk::FramebufferCreateInfo framebufferCI{};
 		framebufferCI.setRenderPass(mRenderPass)
 			.setAttachments(frameBufferAttachments)
 			.setWidth(size)
 			.setHeight(size)
-			.setLayers(1);
+			.setLayers(mCsmCount);
 
 
 		mFramebuffer = getDevice().createFramebuffer(framebufferCI);
@@ -122,12 +165,16 @@ namespace eg::Renderer
 			.setClearValues(clearValues);
 
 
-		cmd.beginRenderPass(renderPassBI, vk::SubpassContents::eInline);
+		cmd.beginRenderPass(renderPassBI, vk::SubpassContents::eSecondaryCommandBuffers);
 	}
 
 
 	ShadowRenderPass::~ShadowRenderPass()
 	{
+		getDevice().destroySampler(mDepthSampler);
+		getDevice().destroyImageView(mDepthImageView);
+		getAllocator().destroyImage(mDepthImage, mDepthAllocation);
+
 		getDevice().destroyFramebuffer(mFramebuffer);
 		getDevice().destroyRenderPass(mRenderPass);
 	}

@@ -16,6 +16,10 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
 namespace eg::Renderer
 {
 
@@ -40,7 +44,7 @@ namespace eg::Renderer
 		vk::CommandBuffer commandBuffer;
 		uint32_t swapchainIndex = 0;
 	};
-
+	static float gRenderScale = 1.0f;
 	static Components::Camera gDummyCamera;
 	static const Components::Camera* gCamera = &gDummyCamera;
 	static const Components::DirectionalLight* gDirectionalLight = nullptr;
@@ -57,7 +61,7 @@ namespace eg::Renderer
 	static vma::Allocator gAllocator;
 
 	static vk::Queue gMainQueue;
-	static vk::PresentModeKHR gPresentMode = vk::PresentModeKHR::eFifo;
+	static vk::PresentModeKHR gPresentMode = vk::PresentModeKHR::eImmediate;
 	static vk::SurfaceFormatKHR gSurfaceFormat = vk::SurfaceFormatKHR{ vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear };
 	static vk::SwapchainKHR gSwapchain;
 	static std::vector<vk::Image> gSwapchainImages;
@@ -71,11 +75,11 @@ namespace eg::Renderer
 
 	static vk::DescriptorPool gDescriptorPool;
 	static std::optional<GlobalUniformBuffer> gGlobalUniformBuffer;
-	
+
 	//Default resources
 	static std::optional<CombinedImageSampler2D> gDefaultWhiteImage;
 	static std::optional<CombinedImageSampler2D> gDefaultCheckerboardImage;
-	
+
 
 	//ImGUI's stuff
 	static vk::RenderPass gImGuiRenderPass;
@@ -86,6 +90,37 @@ namespace eg::Renderer
 
 	static uint32_t gShadowMapResolution;
 	static std::optional<ShadowRenderPass> gShadowRenderPass;
+
+	static std::optional<PostprocessingRenderPass> gPostprocessingRenderPass;
+
+	//Render functions
+	static RenderFn dummyRenderFn = [](vk::CommandBuffer cmd) {
+		//This is a dummy render function that does nothing
+		};
+
+	static RenderFn gShadowRenderFn = dummyRenderFn;
+	static RenderFn gBufferRenderFn = dummyRenderFn;
+	static RenderFn gLightRenderFn = dummyRenderFn;
+	static RenderFn gDebugRenderFn = dummyRenderFn;
+
+	//Multi threading
+	static std::mutex gMainThreadMutex;
+	static std::condition_variable gMainCV;
+
+	static std::mutex gShadowMutex;
+	static std::condition_variable gShadowCV;
+	static bool gShadowThreadReady = false;
+	static bool gShadowThreadRunning = true;
+	static vk::CommandBuffer gShadowCmdBuffer;
+
+	static std::mutex gBufferMutex;
+	static std::condition_variable gBufferCV;
+	static bool gBufferThreadReady = false;
+	static bool gBufferThreadRunning = true;
+	static vk::CommandBuffer gBufferCmdBuffer;
+
+	static std::unique_ptr<std::thread> gShadowThread;
+	static std::unique_ptr<std::thread> gBufferThread;
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL gDebugCallbackFn(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -110,6 +145,68 @@ namespace eg::Renderer
 		std::vector<std::pair<std::string, std::string>> defines)
 	{
 		Logger::gTrace("Compiling shader: " + filePath);
+
+		class ShaderIncluder : public shaderc::CompileOptions::IncluderInterface
+		{
+			shaderc_include_result* GetInclude(const char* requestedSource, shaderc_include_type type, const char* requestingSource, size_t includeDepth) override
+			{
+				std::string msg = std::string(requestingSource);
+				msg += std::to_string(type);
+				msg += static_cast<char>(includeDepth);
+
+				const std::string name = std::string(requestedSource);
+				const std::string contents = ReadFile(name);
+
+				auto container = new std::array<std::string, 2>;
+				(*container)[0] = name;
+				(*container)[1] = contents;
+
+				auto data = new shaderc_include_result;
+
+				data->user_data = container;
+
+				data->source_name = (*container)[0].data();
+				data->source_name_length = (*container)[0].size();
+
+				data->content = (*container)[1].data();
+				data->content_length = (*container)[1].size();
+
+				return data;
+			}
+			void ReleaseInclude(shaderc_include_result* data) override
+			{
+				delete static_cast<std::array<std::string, 2>*>(data->user_data);
+				delete data;
+			}
+			static std::string ReadFile(const std::string& path)
+			{
+				std::string sourceCode;
+				std::ifstream in(path, std::ios::in | std::ios::binary);
+				if (in)
+				{
+					in.seekg(0, std::ios::end);
+					size_t size = in.tellg();
+					if (size > 0)
+					{
+						sourceCode.resize(size);
+						in.seekg(0, std::ios::beg);
+						in.read(&sourceCode[0], size);
+					}
+					else
+					{
+						Logger::gWarn("compileShaderFromFile, file is empty" + path);
+					}
+				}
+				else
+				{
+					Logger::gWarn("compileShaderFromFile, can't open shader file file" + path);
+				}
+				return sourceCode;
+			}
+		};
+
+
+
 		std::ifstream file(filePath);
 		if (!file.is_open())
 		{
@@ -119,13 +216,26 @@ namespace eg::Renderer
 		ss << file.rdbuf();
 		std::string data = ss.str();
 
+		defines.emplace_back("MAX_CSM_COUNT", std::to_string(Renderer::ShadowRenderPass::getCsmCount()));
+
 		for (const auto& define : defines)
 		{
 			gShaderCompilerOptions.AddMacroDefinition(define.first, define.second);
 		}
-
 		gShaderCompilerOptions.SetOptimizationLevel(shaderc_optimization_level_performance);
-		shaderc::SpvCompilationResult module = gShaderCompiler.CompileGlslToSpv(data,
+		gShaderCompilerOptions.SetIncluder(std::make_unique<ShaderIncluder>());
+
+		shaderc::PreprocessedSourceCompilationResult precompileResult 
+			= gShaderCompiler.PreprocessGlsl(data, (shaderc_shader_kind)kind, filePath.c_str(), gShaderCompilerOptions);
+		if (precompileResult.GetCompilationStatus() != shaderc_compilation_status_success)
+		{
+			Logger::gError(precompileResult.GetErrorMessage());
+			throw std::runtime_error("Failed to preprocess shader !");
+		}
+
+		std::string processedData(precompileResult.begin());
+
+		shaderc::SpvCompilationResult module = gShaderCompiler.CompileGlslToSpv(processedData,
 			(shaderc_shader_kind)kind,
 			filePath.c_str(), gShaderCompilerOptions);
 
@@ -158,15 +268,122 @@ namespace eg::Renderer
 		gDevice.freeCommandBuffers(gCommandPool, cmdBuffer);
 	}
 
+	static void gShadowThreadFn()
+	{
+		eg::Logger::gInfo("Shadow thread started !");
+
+		//Allocate command pool and command buffer for gShadow rendering
+		vk::CommandPoolCreateInfo cmdPoolCI{};
+		cmdPoolCI.setQueueFamilyIndex(eg::Renderer::getGraphicsQueueFamilyIndex())
+			.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+		auto cmdPool = gDevice.createCommandPool(cmdPoolCI);
+		vk::CommandBufferAllocateInfo cmdAI{};
+		cmdAI.setCommandPool(cmdPool)
+			.setLevel(vk::CommandBufferLevel::eSecondary)
+			.setCommandBufferCount(1);
+		gShadowCmdBuffer = gDevice.allocateCommandBuffers(cmdAI)[0];
+
+
+		while (gShadowThreadRunning)
+		{
+			std::unique_lock lk(gShadowMutex);
+			gShadowCV.wait(lk, [] {
+				return gShadowThreadReady;
+				});
+
+			//Reset commandbuffer
+
+			//Record commands
+			vk::CommandBufferInheritanceInfo cmdInheritanceInfo{};
+			cmdInheritanceInfo.setRenderPass(gShadowRenderPass->getRenderPass())
+				.setSubpass(0)
+				.setFramebuffer(gShadowRenderPass->getFramebuffer());
+
+
+			vk::CommandBufferBeginInfo cmdBeginInfo{};
+			cmdBeginInfo.setFlags(vk::CommandBufferUsageFlagBits::eRenderPassContinue | vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setPInheritanceInfo(&cmdInheritanceInfo);
+			gShadowCmdBuffer.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+			gShadowCmdBuffer.begin(cmdBeginInfo);
+			gShadowRenderFn(gShadowCmdBuffer);
+			gShadowCmdBuffer.end();
+
+			//Notify main thread that gShadow commands are ready
+			{
+				std::lock_guard lk(gMainThreadMutex);
+				gShadowThreadReady = false;
+				gMainCV.notify_one();
+			}
+		}
+
+		//Delete command buffer and command pool
+		gDevice.destroyCommandPool(cmdPool);
+
+		eg::Logger::gInfo("Shadow thread destroyed !");
+	}
+
+	static void gBufferThreadFn()
+	{
+		eg::Logger::gInfo("GBuffer thread started !");
+
+		//Allocate command pool and command buffer for gShadow rendering
+		vk::CommandPoolCreateInfo cmdPoolCI{};
+		cmdPoolCI.setQueueFamilyIndex(eg::Renderer::getGraphicsQueueFamilyIndex())
+			.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+		auto cmdPool = gDevice.createCommandPool(cmdPoolCI);
+		vk::CommandBufferAllocateInfo cmdAI{};
+		cmdAI.setCommandPool(cmdPool)
+			.setLevel(vk::CommandBufferLevel::eSecondary)
+			.setCommandBufferCount(1);
+		gBufferCmdBuffer = gDevice.allocateCommandBuffers(cmdAI)[0];
+
+
+		while (gBufferThreadRunning)
+		{
+			std::unique_lock lk(gBufferMutex);
+			gBufferCV.wait(lk, [] {
+				return gBufferThreadReady;
+				});
+
+			//Reset commandbuffer
+
+			//Record commands
+			vk::CommandBufferInheritanceInfo cmdInheritanceInfo{};
+			cmdInheritanceInfo.setRenderPass(eg::Renderer::getDefaultRenderPass().getRenderPass())
+				.setSubpass(0)
+				.setFramebuffer(eg::Renderer::getDefaultRenderPass().getFramebuffer());
+
+			vk::CommandBufferBeginInfo cmdBeginInfo{};
+			cmdBeginInfo.setFlags(vk::CommandBufferUsageFlagBits::eRenderPassContinue | vk::CommandBufferUsageFlagBits::eSimultaneousUse)
+				.setPInheritanceInfo(&cmdInheritanceInfo);
+			gBufferCmdBuffer.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+			gBufferCmdBuffer.begin(cmdBeginInfo);
+			gBufferRenderFn(gBufferCmdBuffer);
+			gBufferCmdBuffer.end();
+
+			//Notify main thread that gShadow commands are ready
+			{
+				std::lock_guard lk(gMainThreadMutex);
+				gBufferThreadReady = false;
+				gMainCV.notify_one();
+			}
+		}
+
+		//Delete command buffer and command pool
+		gDevice.destroyCommandPool(cmdPool);
+
+		eg::Logger::gInfo("GBuffer thread destroyed !");
+	}
+
 	void waitIdle()
 	{
 		gDevice.waitIdle();
 	}
 
-	void create(uint32_t width, uint32_t height, uint32_t shadowMapRes)
+	void create(uint32_t width, uint32_t height, uint32_t gShadowMapRes)
 	{
 		gDrawExtent = vk::Rect2D{ {0, 0}, {width, height} };
-		gShadowMapResolution = shadowMapRes;
+		gShadowMapResolution = gShadowMapRes;
 		VULKAN_HPP_DEFAULT_DISPATCHER.init();
 		//Create instance
 		vk::ApplicationInfo instanceAI{};
@@ -196,7 +413,7 @@ namespace eg::Renderer
 
 		instanceCI.setPEnabledExtensionNames(gEnabledExtensions);
 		instanceCI.setPEnabledLayerNames(gEnabledLayers);
-	
+
 
 		gInstance = vk::createInstance(instanceCI);
 		VULKAN_HPP_DEFAULT_DISPATCHER.init(gInstance);
@@ -284,8 +501,13 @@ namespace eg::Renderer
 			}
 		};
 
+		vk::PhysicalDeviceSynchronization2Features sync2Features{};
+		sync2Features.synchronization2 = true;
+
 		vk::PhysicalDeviceFeatures2 features2{};
 		features2.features.geometryShader = true;
+		features2.pNext = &sync2Features;
+
 
 		vk::DeviceCreateInfo deviceCI{};
 		deviceCI.setQueueCreateInfos(queueCIs)
@@ -434,7 +656,8 @@ namespace eg::Renderer
 
 
 		gDefaultRenderPass.emplace(width, height, gSurfaceFormat.format);
-		gShadowRenderPass.emplace(shadowMapRes);
+		gPostprocessingRenderPass.emplace(width, height, gSurfaceFormat.format);
+		gShadowRenderPass.emplace(gShadowMapRes);
 
 		//Init imgui
 		IMGUI_CHECKVERSION();
@@ -453,8 +676,8 @@ namespace eg::Renderer
 		init_info.Queue = gMainQueue;
 		init_info.PipelineCache = VK_NULL_HANDLE;
 		init_info.DescriptorPool = gDescriptorPool;
-		init_info.RenderPass = gDefaultRenderPass->getRenderPass();
-		init_info.Subpass = 1;
+		init_info.RenderPass = gPostprocessingRenderPass->getRenderPass();
+		init_info.Subpass = 0;
 		init_info.MinImageCount = surfaceCapabilities.minImageCount;
 		init_info.ImageCount = imageCount;
 		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -464,6 +687,11 @@ namespace eg::Renderer
 				Logger::gError("[vulkan] Error: VkResult = %d\n");
 			};
 		ImGui_ImplVulkan_Init(&init_info);
+
+
+		//Launch threads
+		gShadowThread = std::make_unique<std::thread>(gShadowThreadFn);
+		gBufferThread = std::make_unique<std::thread>(gBufferThreadFn);
 
 	}
 
@@ -487,9 +715,156 @@ namespace eg::Renderer
 		gDirectionalLight = directionalLight;
 	}
 
+
+	void render()
+	{
+		auto cmd = begin();
+		auto& frameData = gFrameData[gCurrentFrame];
+		gDebugRenderFn(cmd);
+		Data::DebugRenderer::updateVertexBuffers();
+		Data::ParticleRenderer::updateBuffers();
+
+		//Give tasks for gBuffer and shadow threads
+		{
+			std::lock_guard lk(gShadowMutex);
+			gShadowThreadReady = true;
+			gShadowCV.notify_one();
+		}
+
+		{
+			std::lock_guard lk(gBufferMutex);
+			gBufferThreadReady = true;
+			gBufferCV.notify_one();
+		}
+
+
+		//Wait for the shadow thread and gBuffer thread to be ready
+		{
+			std::unique_lock lk(gMainThreadMutex);
+			gMainCV.wait(lk, [] {
+				return !gBufferThreadReady && !gShadowThreadReady;
+				});
+		}
+
+		gShadowRenderPass->begin(cmd);
+		cmd.executeCommands(gShadowCmdBuffer);
+		cmd.endRenderPass();
+
+		gDefaultRenderPass->begin(cmd); // subpass 0
+		cmd.executeCommands(gBufferCmdBuffer);
+		cmd.nextSubpass(vk::SubpassContents::eInline); //Subpass 1
+		Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
+		Data::LightRenderer::renderAmbient(cmd);
+		Data::LightRenderer::renderDirectionalLight(cmd, *gDirectionalLight);
+		Data::LightRenderer::beginPointLight(cmd);
+		gLightRenderFn(cmd);
+		Data::ParticleRenderer::render(cmd);
+		Data::DebugRenderer::render(cmd);
+
+		cmd.endRenderPass();
+
+		//Copy default render pass image to post processing image
+		{
+			//At the end of the subpass, the default render pass image is in eTransferSrcOptimal layout so we just need to copy it
+			//First transition the post processing image to eTransferDstOptimal
+			vk::ImageMemoryBarrier barrier{};
+			barrier.setOldLayout(vk::ImageLayout::eUndefined)
+				.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(gPostprocessingRenderPass->getDrawImage().getImage())
+				.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 })
+				.setSrcAccessMask(vk::AccessFlagBits{})
+				.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
+			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, {}, {}, { barrier });
+
+			//Now copy the image
+			vk::ImageBlit blitRegion{};
+			blitRegion.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+				.setSrcOffsets({ vk::Offset3D(0, 0, 0) , vk::Offset3D(getScaledDrawExtent().extent.width, getScaledDrawExtent().extent.height, 1) })
+				.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+				.setDstOffsets({ vk::Offset3D(0, 0, 0) , vk::Offset3D(gDrawExtent.extent.width, gDrawExtent.extent.height, 1) });
+
+			cmd.blitImage(gDefaultRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
+				gPostprocessingRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferDstOptimal, { blitRegion }, vk::Filter::eLinear);
+
+
+		}
+
+		//Post processing
+		gPostprocessingRenderPass->begin(cmd);
+
+
+		ImGui::Render();
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+		cmd.endRenderPass();
+
+
+		//Copy the post processing image to the swapchain image
+		{
+			//Transition swapchain image to transfer destination optimal
+			vk::ImageMemoryBarrier barrier{};
+			barrier.setOldLayout(vk::ImageLayout::eUndefined)
+				.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+				.setImage(gSwapchainImages[frameData.swapchainIndex])
+				.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 })
+				.setSrcAccessMask(vk::AccessFlagBits{})
+				.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
+			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+				vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, {}, {}, { barrier });
+
+			vk::ImageCopy blitRegion{};
+			blitRegion.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+				.setSrcOffset({ 0, 0, 0 })
+				.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+				.setDstOffset({ 0, 0, 0 })
+				.setExtent({ gDrawExtent.extent.width, gDrawExtent.extent.height, 1 });
+
+			cmd.copyImage(gPostprocessingRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
+				gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { blitRegion });
+
+
+			//Transition swapchain image to present source optimal
+			barrier.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+				.setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+				.setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
+				.setDstAccessMask(vk::AccessFlagBits::eMemoryRead);
+			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+				vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags{}, {}, {}, { barrier });
+		}
+
+
+
+
+
+		Renderer::end();
+	}
+
 	void destory()
 	{
+		//Stop threads
+		gBufferThreadRunning = false;
+		{
+			std::lock_guard lk(gBufferMutex);
+			gBufferThreadReady = true;
+			gBufferCV.notify_one();
+		}
+		gBufferThread->join();
+
+		gShadowThreadRunning = false;
+		{
+			std::lock_guard lk(gShadowMutex);
+			gShadowThreadReady = true;
+			gShadowCV.notify_one();
+		}
+		gShadowThread->join();
+
+
 		gDefaultRenderPass.reset();
+		gPostprocessingRenderPass.reset();
 		gShadowRenderPass.reset();
 		gGlobalUniformBuffer.reset();
 
@@ -529,9 +904,11 @@ namespace eg::Renderer
 	vk::CommandBuffer begin()
 	{
 		auto& frameData = gFrameData[gCurrentFrame];
-		if (gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000) != vk::Result::eSuccess)
+		auto fenceWaitStatus = gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000);
+		if (fenceWaitStatus != vk::Result::eSuccess)
 		{
 			Logger::gWarn("Failed to wait for fence !");
+			Logger::gWarn(vk::to_string(fenceWaitStatus));
 		}
 		gDevice.resetFences(frameData.renderFence);
 		frameData.swapchainIndex = gDevice.acquireNextImageKHR(gSwapchain, 1000000000, frameData.presentSemaphore, nullptr).value;
@@ -547,7 +924,13 @@ namespace eg::Renderer
 		GlobalUBOData.mProjection = gCamera->buildProjection(gDrawExtent.extent);
 		GlobalUBOData.mView = gCamera->buildView();
 		GlobalUBOData.mCameraPosition = gCamera->mPosition;
-		GlobalUBOData.mDirectionaLightViewProj = gDirectionalLight->getDirectionalLightViewProj(*gCamera);
+
+		//Copy directional light data
+		auto directionalLightData = gDirectionalLight->getDirectionalLightViewProj(*gCamera);
+		for (size_t i = 0; i < directionalLightData.size(); i++)
+		{
+			GlobalUBOData.mDirectionaLightViewProj[i] = directionalLightData.at(i);
+		}
 		gGlobalUniformBuffer->update(GlobalUBOData, gCurrentFrame);
 
 		vk::CommandBuffer& cmd = frameData.commandBuffer;
@@ -565,44 +948,6 @@ namespace eg::Renderer
 	{
 		auto& frameData = gFrameData[gCurrentFrame];
 		vk::CommandBuffer& cmd = frameData.commandBuffer;
-
-
-		ImGui::Render();
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-		cmd.endRenderPass();
-
-		//Transition swapchain image to transfer destination optimal
-		vk::ImageMemoryBarrier barrier{};
-		barrier.setOldLayout(vk::ImageLayout::eUndefined)
-			.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
-			.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-			.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-			.setImage(gSwapchainImages[frameData.swapchainIndex])
-			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-		barrier.setSrcAccessMask(vk::AccessFlagBits{})
-			.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
-		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
-			vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, {}, {}, { barrier });
-
-		//Copy default renderpass's image to swapchain image
-		vk::ImageCopy copyRegion{};
-		copyRegion.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
-			.setSrcOffset({ 0, 0, 0 })
-			.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
-			.setDstOffset({ 0, 0, 0 })
-			.setExtent({ gDrawExtent.extent.width, gDrawExtent.extent.height, 1 });
-		cmd.copyImage(gDefaultRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
-			gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { copyRegion });
-
-		//Transition swapchain image to present source optimal
-		barrier.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
-			.setNewLayout(vk::ImageLayout::ePresentSrcKHR)
-			.setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
-			.setDstAccessMask(vk::AccessFlagBits::eMemoryRead);
-		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
-			vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags{}, {}, {}, { barrier });
-
-
 
 		cmd.end();
 
@@ -629,6 +974,19 @@ namespace eg::Renderer
 			Logger::gWarn("Failed to present image: " + vk::to_string(presentResult));
 		}
 		gCurrentFrame = (gCurrentFrame + 1) % gFrameCount;
+	}
+
+	vk::Rect2D getScaledDrawExtent()
+	{
+		vk::Rect2D scaledExtent = gDrawExtent;
+		scaledExtent.extent.width = static_cast<uint32_t>(gDrawExtent.extent.width * gRenderScale);
+		scaledExtent.extent.height = static_cast<uint32_t>(gDrawExtent.extent.height * gRenderScale);
+		return scaledExtent;
+	}
+
+	float& getRenderScale()
+	{
+		return gRenderScale;
 	}
 
 	vk::Instance getInstance()
@@ -661,7 +1019,7 @@ namespace eg::Renderer
 		return *gShadowRenderPass;
 	}
 
-	const uint32_t getShadowMapResolution() 
+	const uint32_t getShadowMapResolution()
 	{
 		return gShadowMapResolution;
 	}
@@ -687,5 +1045,28 @@ namespace eg::Renderer
 	const CombinedImageSampler2D& getDefaultCheckerboardImage()
 	{
 		return *gDefaultCheckerboardImage;
+	}
+	const uint32_t getGraphicsQueueFamilyIndex()
+	{
+		return gGraphicsQueueFamilyIndex;
+	}
+
+	void setShadowRenderFunction(RenderFn&& renderFn)
+	{
+		gShadowRenderFn = std::move(renderFn);
+	}
+	void setGBufferRenderFunction(RenderFn&& renderFn)
+	{
+		gBufferRenderFn = std::move(renderFn);
+	}
+
+	void setLightRenderFunction(RenderFn&& renderFn)
+	{
+		gLightRenderFn = std::move(renderFn);
+	}
+
+	void setDebugRenderFunction(RenderFn&& renderFn)
+	{
+		gDebugRenderFn = std::move(renderFn);
 	}
 }

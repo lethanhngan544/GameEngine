@@ -14,7 +14,7 @@ namespace sndbx
 
 		eg::Components::PointLight mLight;
 		std::shared_ptr<eg::Components::AnimatedModel> mModel = nullptr;
-		std::unique_ptr<eg::Components::Animator> mAnimator;
+		std::unique_ptr<eg::Components::Animator2DBlend> mAnimator;
 		eg::Components::RigidBody mBody;
 
 		bool mVisible;

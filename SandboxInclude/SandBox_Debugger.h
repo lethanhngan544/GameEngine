@@ -13,9 +13,9 @@ namespace sndbx
 
 		void checkKeyboardInput();
 
-		void drawLightDebuggerDialog(eg::Components::DirectionalLight& directionalLight);
 		void drawWorldDebuggerDialog(eg::World::GameObjectManager& gameObjManager, eg::World::JsonToIGameObjectDispatcher dispatcherFn);
 		void drawPhysicsDebuggerDialog();
+		void drawRendererSettingsDialog(eg::Components::DirectionalLight& directionalLight);
 	private:
 		bool mEnabled = false;
 
