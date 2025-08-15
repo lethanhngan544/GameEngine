@@ -59,7 +59,7 @@ namespace sndbx
 			mBody.mBodyID = eg::Physics::getBodyInterface()->CreateAndAddBody(bodySetting, JPH::EActivation::Activate);
 			mBody.mMass = 10.0f;
 			mBody.mFriction = 0.2f;
-			mBody.mRestitution = 0.9f;
+			mBody.mRestitution = 0.0f;
 
 		}
 	}

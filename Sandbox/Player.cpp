@@ -203,14 +203,6 @@ namespace sndbx
 		mPlayerSpeed = json["playerSpeed"];
 		mMouseSensitivity = json["mouseSensitivity"];
 
-
-		/*std::vector<std::shared_ptr<eg::Components::Animation>> animations;
-		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_idle.glb"));
-		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_forward.glb"));
-		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_backward.glb"));
-		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_left.glb"));
-		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_jog_right.glb"));
-		animations.push_back(eg::Components::ModelCache::loadAnimation("models/ybot_falling.glb"));*/
 		mAnimator = std::make_unique<eg::Components::Animator2DBlend>(eg::Components::ModelCache::loadAnimation("models/ybot_jog_forward.glb"),
 			eg::Components::ModelCache::loadAnimation("models/ybot_jog_backward.glb"),
 			eg::Components::ModelCache::loadAnimation("models/ybot_jog_left.glb"),

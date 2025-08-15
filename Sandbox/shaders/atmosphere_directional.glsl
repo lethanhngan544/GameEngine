@@ -1,17 +1,15 @@
 #version 450
 
 #include "shaders/gubo.glsl"
+#include "shaders/atmosphere_directional_ubo.glsl"
 
 layout(input_attachment_index = 0, set = 1, binding = 0) uniform subpassInput subpass0Normal;
 layout(input_attachment_index = 1, set = 1, binding = 1) uniform subpassInput subpass0Albedo;
 layout(input_attachment_index = 2, set = 1, binding = 2) uniform subpassInput subpass0Mr;
 layout(input_attachment_index = 3, set = 1, binding = 3) uniform subpassInput subpass0Depth;
 layout(set = 1, binding = 4) uniform sampler2DArray uDepthMap;
-
-layout(set = 2, binding = 0) uniform UniformBuffer {
-    vec3 direction;
-    float intensity;
-    vec4 color;
+layout(set = 1, binding = 5) uniform UniformBuffer {
+    AtmosphereDirectionalUBO ubo;
 } ubo;
 
 layout(location = 0) in vec2 fsUv;
@@ -31,11 +29,11 @@ void main() {
     vec3 albedo = subpassLoad(subpass0Albedo).rgb;
 
     vec3 V = normalize(gUBO.cameraPos - fragPos);
-    vec3 L = normalize(-ubo.direction);
+    vec3 L = normalize(-ubo.ubo.direction);
     vec3 R = reflect(-L, N);
 
     float shininess = 64.0;
-    vec3 lightColor = ubo.color.rgb * ubo.intensity;
+    vec3 lightColor = ubo.ubo.color.rgb * ubo.ubo.intensity;
 
     // Phong shading
     float diff = max(dot(N, L), 0.0);
@@ -46,29 +44,18 @@ void main() {
     vec3 diffuse = diff * albedo * lightColor;
     vec3 specular = spec * lightColor;
 
-    // Shadow map
-    const float cascadePlaneDistances[] = {
-        5.0f, 20.0f, 300.0f
-    }; 
-
     float viewSpaceDepth = abs(viewSpace.z);
     //Select layer based on depth
-    int layer = -1;
-    for (int i = 0; i < MAX_CSM_COUNT; ++i)
-    {
-        if (viewSpaceDepth < (cascadePlaneDistances[i] - 2.0))
-        {
+    int layer = MAX_CSM_COUNT - 1;
+    for (int i = 0; i < MAX_CSM_COUNT - 1; ++i) {
+        if (viewSpaceDepth < (ubo.ubo.csmPlanes[i] - 2.0f)) {
             layer = i;
             break;
         }
     }
-    if (layer == -1)
-    {
-        layer = MAX_CSM_COUNT;
-    }
 
 
-    vec4 fragPosLightSpace = gUBO.directionalViewProj[layer] * vec4(fragPos, 1.0);
+    vec4 fragPosLightSpace = ubo.ubo.csmMatrices[layer] * vec4(fragPos, 1.0);
     vec3 shadowCoord = fragPosLightSpace.xyz / fragPosLightSpace.w;
     shadowCoord.xy = shadowCoord.xy * 0.5 + 0.5; 
     float currentDepth = shadowCoord.z;  

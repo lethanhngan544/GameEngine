@@ -7,7 +7,7 @@ layout(push_constant) uniform PushConstant
     mat4 model;
 } ps;
 
-layout(set = 1, binding = 0) uniform BoneUniform
+layout(set = 2, binding = 0) uniform BoneUniform
 {
     mat4 matrices[MAX_BONES];
 } gBoneUniform;

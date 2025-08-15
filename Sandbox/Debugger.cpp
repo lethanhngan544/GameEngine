@@ -32,14 +32,14 @@ namespace sndbx
 	};
 
 
-	void Debugger::drawRendererSettingsDialog(eg::Components::DirectionalLight& directionalLight)
+	void Debugger::drawRendererSettingsDialog()
 	{
 		if (!mEnabled) return;
 		ImGui::Begin("Renderer Settings");
-		if (ImGui::DragFloat3("Directional Light direction", &directionalLight.mUniformBuffer.direction.x, 0.01f))
+		/*if (ImGui::DragFloat3("Directional Light direction", &directionalLight.mUniformBuffer.direction.x, 0.01f))
 		{
 			directionalLight.mUniformBuffer.direction = glm::normalize(directionalLight.mUniformBuffer.direction);
-		}
+		}*/
 
 
 		ImGui::SliderFloat("Render scale", &eg::Renderer::getRenderScale(), 0.1f, 1.0f);

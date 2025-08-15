@@ -304,7 +304,7 @@ namespace eg::Data::ParticleRenderer
 			);
 
 			cmd.bindVertexBuffers(0, { gVertexBuffer->getBuffer(), atlas.buffer->getBuffer() }, { 0, 0 });
-			cmd.draw(4, atlas.instances.size(), 0, 0);
+			cmd.draw(4, static_cast<uint32_t>(atlas.instances.size()), 0, 0);
 		}
 
 

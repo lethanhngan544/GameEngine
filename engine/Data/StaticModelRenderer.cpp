@@ -79,15 +79,15 @@ namespace eg::Data::StaticModelRenderer
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mShadowPipelineLayout,
 			0,
-			Renderer::getCurrentFrameGUBODescSet(),
+			{ Renderer::getCurrentFrameGUBODescSet(), Renderer::getAtmosphere().getDirectionalSet() },
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getShadowMapResolution()),
-			static_cast<float>(Renderer::getShadowMapResolution()),
+			static_cast<float>(Renderer::getAtmosphere().getShadowMapSize()),
+			static_cast<float>(Renderer::getAtmosphere().getShadowMapSize()),
 			0.0f, 1.0f } });
 		cmd.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0),
-			vk::Extent2D(Renderer::getShadowMapResolution(), Renderer::getShadowMapResolution())));
+			vk::Extent2D(Renderer::getAtmosphere().getShadowMapSize(), Renderer::getAtmosphere().getShadowMapSize())));
 
 		//Build model matrix
 		VertexPushConstant ps{};
@@ -295,7 +295,7 @@ namespace eg::Data::StaticModelRenderer
 			.setCompareOp(vk::CompareOp::eAlways)
 			.setCompareMask(0xFF)
 			.setWriteMask(0xFF)
-			.setReference(MESH_STENCIL_VALUE);
+			.setReference(Renderer::MESH_STENCIL_VALUE);
 
 
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
@@ -376,7 +376,8 @@ namespace eg::Data::StaticModelRenderer
 		//Create pipeline layout
 		vk::DescriptorSetLayout setLayouts[] =
 		{
-			Renderer::getGlobalDescriptorSet(), // Slot0
+			Renderer::getGlobalDescriptorSet(), // Slot0,
+			Renderer::getAtmosphere().getDirectionalDescLayout() // Slot 1
 		};
 		vk::PushConstantRange pushConstantRanges[] =
 		{
@@ -487,7 +488,7 @@ namespace eg::Data::StaticModelRenderer
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(mShadowPipelineLayout)
-			.setRenderPass(Renderer::getShadowRenderPass().getRenderPass())
+			.setRenderPass(Renderer::getAtmosphere().getRenderPass())
 			.setSubpass(0)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)

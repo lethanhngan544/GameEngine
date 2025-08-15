@@ -76,9 +76,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			
 			sndbx::Debugger debugger;
 			World::GameObjectManager gameObjManager;
-			Components::DirectionalLight directionalLight;
-			directionalLight.mUniformBuffer.intensity = 1.0f;
-			directionalLight.mUniformBuffer.direction = { 1.01f, -1.0f, 0.0f };
 
 			World::JsonToIGameObjectDispatcher jsonDispatcher =
 				[](const nlohmann::json& jsonObj, const std::string& type) -> std::unique_ptr<World::IGameObject>
@@ -107,13 +104,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 					throw World::JsonToIGameObjectException(type, "Unknown game object type");
 					return nullptr;
 				};
-
-			Renderer::setDirectionalLight(&directionalLight);
 			Renderer::setDebugRenderFunction(
 				[&](vk::CommandBuffer cmd)
 				{
 					debugger.drawPhysicsDebuggerDialog();
-					debugger.drawRendererSettingsDialog(directionalLight);
+					debugger.drawRendererSettingsDialog();
 					debugger.drawWorldDebuggerDialog(gameObjManager, jsonDispatcher);
 				});
 			Renderer::setShadowRenderFunction(
@@ -161,13 +156,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Input::Keyboard::update();
 				Input::Mouse::update();
 
-
 				//Render
-				
-
-				directionalLight.update();
-				
-
 				Renderer::render();
 				Window::poll();
 			}

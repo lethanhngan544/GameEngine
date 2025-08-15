@@ -47,7 +47,6 @@ namespace eg::Renderer
 	static float gRenderScale = 1.0f;
 	static Components::Camera gDummyCamera;
 	static const Components::Camera* gCamera = &gDummyCamera;
-	static const Components::DirectionalLight* gDirectionalLight = nullptr;
 
 	static shaderc::Compiler gShaderCompiler;
 	static shaderc::CompileOptions gShaderCompilerOptions;
@@ -85,12 +84,9 @@ namespace eg::Renderer
 	static vk::RenderPass gImGuiRenderPass;
 	static vk::Framebuffer gImGuiFramebuffer;
 
-
+	//Render passes
+	static std::optional<Atmosphere> gAtmosphere;
 	static std::optional<DefaultRenderPass> gDefaultRenderPass;
-
-	static uint32_t gShadowMapResolution;
-	static std::optional<ShadowRenderPass> gShadowRenderPass;
-
 	static std::optional<PostprocessingRenderPass> gPostprocessingRenderPass;
 
 	//Render functions
@@ -216,8 +212,6 @@ namespace eg::Renderer
 		ss << file.rdbuf();
 		std::string data = ss.str();
 
-		defines.emplace_back("MAX_CSM_COUNT", std::to_string(Renderer::ShadowRenderPass::getCsmCount()));
-
 		for (const auto& define : defines)
 		{
 			gShaderCompilerOptions.AddMacroDefinition(define.first, define.second);
@@ -295,9 +289,9 @@ namespace eg::Renderer
 
 			//Record commands
 			vk::CommandBufferInheritanceInfo cmdInheritanceInfo{};
-			cmdInheritanceInfo.setRenderPass(gShadowRenderPass->getRenderPass())
+			cmdInheritanceInfo.setRenderPass(gAtmosphere->getRenderPass())
 				.setSubpass(0)
-				.setFramebuffer(gShadowRenderPass->getFramebuffer());
+				.setFramebuffer(gAtmosphere->getFramebuffer());
 
 
 			vk::CommandBufferBeginInfo cmdBeginInfo{};
@@ -383,7 +377,6 @@ namespace eg::Renderer
 	void create(uint32_t width, uint32_t height, uint32_t gShadowMapRes)
 	{
 		gDrawExtent = vk::Rect2D{ {0, 0}, {width, height} };
-		gShadowMapResolution = gShadowMapRes;
 		VULKAN_HPP_DEFAULT_DISPATCHER.init();
 		//Create instance
 		vk::ApplicationInfo instanceAI{};
@@ -654,10 +647,9 @@ namespace eg::Renderer
 		gDefaultCheckerboardImage.emplace(64, 64, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, checkerPixels.data(), checkerPixels.size());
 
 
-
 		gDefaultRenderPass.emplace(width, height, gSurfaceFormat.format);
+		gAtmosphere.emplace(gDefaultRenderPass.value(), gGlobalUniformBuffer->getLayout(), gShadowMapRes);
 		gPostprocessingRenderPass.emplace(width, height, gSurfaceFormat.format);
-		gShadowRenderPass.emplace(gShadowMapRes);
 
 		//Init imgui
 		IMGUI_CHECKVERSION();
@@ -710,11 +702,6 @@ namespace eg::Renderer
 		return *gCamera;
 	}
 
-	void setDirectionalLight(const Components::DirectionalLight* directionalLight)
-	{
-		gDirectionalLight = directionalLight;
-	}
-
 
 	void render()
 	{
@@ -746,7 +733,10 @@ namespace eg::Renderer
 				});
 		}
 
-		gShadowRenderPass->begin(cmd);
+		gAtmosphere->generateCSMMatrices(gCamera->mFov, gCamera->buildView());
+		gAtmosphere->updateDirectionalLight();
+
+		gAtmosphere->beginDirectionalShadowPass(cmd);
 		cmd.executeCommands(gShadowCmdBuffer);
 		cmd.endRenderPass();
 
@@ -754,8 +744,8 @@ namespace eg::Renderer
 		cmd.executeCommands(gBufferCmdBuffer);
 		cmd.nextSubpass(vk::SubpassContents::eInline); //Subpass 1
 		Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
-		Data::LightRenderer::renderAmbient(cmd);
-		Data::LightRenderer::renderDirectionalLight(cmd, *gDirectionalLight);
+		Data::LightRenderer::renderAmbient(cmd);	
+		gAtmosphere->renderDirectionalLight(cmd);
 		Data::LightRenderer::beginPointLight(cmd);
 		gLightRenderFn(cmd);
 		Data::ParticleRenderer::render(cmd);
@@ -863,9 +853,9 @@ namespace eg::Renderer
 		gShadowThread->join();
 
 
+		gAtmosphere.reset();
 		gDefaultRenderPass.reset();
 		gPostprocessingRenderPass.reset();
-		gShadowRenderPass.reset();
 		gGlobalUniformBuffer.reset();
 
 		gDefaultWhiteImage.reset();
@@ -925,12 +915,6 @@ namespace eg::Renderer
 		GlobalUBOData.mView = gCamera->buildView();
 		GlobalUBOData.mCameraPosition = gCamera->mPosition;
 
-		//Copy directional light data
-		auto directionalLightData = gDirectionalLight->getDirectionalLightViewProj(*gCamera);
-		for (size_t i = 0; i < directionalLightData.size(); i++)
-		{
-			GlobalUBOData.mDirectionaLightViewProj[i] = directionalLightData.at(i);
-		}
 		gGlobalUniformBuffer->update(GlobalUBOData, gCurrentFrame);
 
 		vk::CommandBuffer& cmd = frameData.commandBuffer;
@@ -1014,14 +998,9 @@ namespace eg::Renderer
 		return *gDefaultRenderPass;
 	}
 
-	const ShadowRenderPass& getShadowRenderPass()
+	const Atmosphere& getAtmosphere()
 	{
-		return *gShadowRenderPass;
-	}
-
-	const uint32_t getShadowMapResolution()
-	{
-		return gShadowMapResolution;
+		return *gAtmosphere;
 	}
 
 	vk::DescriptorSet getCurrentFrameGUBODescSet()

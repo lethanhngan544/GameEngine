@@ -20,8 +20,6 @@ namespace eg::Data
 	bool LoadImageData(tinygltf::Image* image, const int image_idx, std::string* err,
 		std::string* warn, int req_width, int req_height,
 		const unsigned char* bytes, int size, void* user_data);
-	static constexpr uint8_t SKY_STENCIL_VALUE = 0x00;
-	static constexpr uint8_t MESH_STENCIL_VALUE = 0x01;
 	//Systems
 
 	namespace StaticModelRenderer
@@ -88,7 +86,6 @@ namespace eg::Data
 		void destroy();
 
 		void renderAmbient(vk::CommandBuffer cmd);
-		void renderDirectionalLight(vk::CommandBuffer cmd, const Components::DirectionalLight& light);
 
 		void beginPointLight(vk::CommandBuffer cmd);
 

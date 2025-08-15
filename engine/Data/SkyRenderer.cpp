@@ -156,7 +156,7 @@ namespace eg::Data::SkyRenderer
 			.setCompareOp(vk::CompareOp::eEqual)
 			.setCompareMask(0xFF)
 			.setWriteMask(0x00)
-			.setReference(SKY_STENCIL_VALUE);
+			.setReference(Renderer::SKY_STENCIL_VALUE);
 
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
 		depthStencilStateCI.setDepthTestEnable(false)

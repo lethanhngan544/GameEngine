@@ -241,7 +241,7 @@ namespace eg::Data::DebugRenderer
 				0.0f, 1.0f } });
 			cmd.setScissor(0, Renderer::getScaledDrawExtent());
 			
-			cmd.draw(gLineVertices.size(), 1, 0, 0);
+			cmd.draw(static_cast<uint32_t>(gLineVertices.size()), 1, 0, 0);
 		}
 		gLineVertices.clear();
 	}

@@ -12,13 +12,15 @@
 namespace eg::Components
 {
 	class Camera;
-	class DirectionalLight;
 	class PointLight;
 	class StaticModel;
 }
 
 namespace eg::Renderer
 {
+	static constexpr uint8_t SKY_STENCIL_VALUE = 0x00;
+	static constexpr uint8_t MESH_STENCIL_VALUE = 0x01;
+
 	using RenderFn = std::function<void(vk::CommandBuffer cmd)>;
 
 	//Global functions
@@ -30,7 +32,6 @@ namespace eg::Renderer
 	void create(uint32_t width, uint32_t height, uint32_t shadowMapRes);
 	void setCamera(const Components::Camera* camera);
 	const Components::Camera& getMainCamera();
-	void setDirectionalLight(const Components::DirectionalLight* directionalLight);
 	void render();
 	void waitIdle();
 	void destory();
@@ -49,9 +50,9 @@ namespace eg::Renderer
 	vk::DescriptorSet getCurrentFrameGUBODescSet();
 	vk::DescriptorSetLayout getGlobalDescriptorSet();
 
+	const class Atmosphere& getAtmosphere();
+
 	const class DefaultRenderPass& getDefaultRenderPass();
-	const class ShadowRenderPass& getShadowRenderPass();
-	const uint32_t getShadowMapResolution();
 	const class CombinedImageSampler2D& getDefaultWhiteImage();
 	const class CombinedImageSampler2D& getDefaultCheckerboardImage();
 	const uint32_t getGraphicsQueueFamilyIndex();
@@ -217,7 +218,62 @@ namespace eg::Renderer
 		vk::Sampler getSampler() const { return mSampler;  }
 	};
 
-	
+
+
+	class DefaultRenderPass;
+	class Atmosphere
+	{
+	public:
+		static constexpr size_t MAX_CSM_COUNT = 4;
+
+		struct DirectionalLightUniformBuffer
+		{
+			glm::vec3 direction = { 1, -1, 0 };
+			float intensity = 1.0f;
+			glm::vec4 color = { 1, 1, 1, 1 };
+			glm::mat4x4 csmMatrices[MAX_CSM_COUNT] = { glm::mat4x4(1.0f) };
+			float csmPlanes[MAX_CSM_COUNT] = { 0 };
+		};
+	private:
+		//Directional light shadow map
+		vk::Format mDepthFormat = vk::Format::eD32Sfloat;
+		vk::ImageUsageFlags mUsageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
+
+		vk::RenderPass mRenderPass;
+		vk::Framebuffer mFramebuffer;
+		vk::Image mDepthImage;
+		vk::ImageView mDepthImageView;
+		vma::Allocation mDepthAllocation;
+		vk::Sampler mDepthSampler;
+
+		//Directional light
+		uint32_t mShadowMapSize;
+		vk::Pipeline mDirectionalPipeline;
+		vk::PipelineLayout mDirectionalLayout;
+		vk::DescriptorSetLayout mDirectionalDescLayout;
+		vk::DescriptorSet mDirectionalSet;
+		Renderer::CPUBuffer mDirectionalBuffer;
+		DirectionalLightUniformBuffer mDirectionalLightUniformBuffer;
+	public:
+		Atmosphere(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout, uint32_t shadowMapSize);
+		~Atmosphere();
+
+		void beginDirectionalShadowPass(const vk::CommandBuffer& cmd) const;
+		void renderDirectionalLight(const vk::CommandBuffer& cmd) const;
+
+		void updateDirectionalLight();
+		void generateCSMMatrices(float fov, const glm::mat4x4& viewMatrix);
+
+		vk::DescriptorSetLayout getDirectionalDescLayout() const { return mDirectionalDescLayout; }
+		vk::DescriptorSet getDirectionalSet() const { return mDirectionalSet; }
+		vk::RenderPass getRenderPass() const { return mRenderPass; }
+		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
+		uint32_t getShadowMapSize() const { return mShadowMapSize; }
+	private:
+		void createDirectionalShadowPass(uint32_t size);
+		void createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout);
+		void generateCSMPlanes(float maxDistance);
+	};
 
 
 	//Renderpasses
@@ -249,37 +305,6 @@ namespace eg::Renderer
 		const Image2D& getDepth() const { return mDepth; }
 	};
 
-	//Only for directional light
-	class ShadowRenderPass
-	{
-	private:
-		static constexpr size_t mCsmCount = 3;
-		vk::Format mDepthFormat = vk::Format::eD32Sfloat;
-		vk::ImageUsageFlags mUsageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
-
-		vk::RenderPass mRenderPass;
-		vk::Framebuffer mFramebuffer;
-		vk::Image mDepthImage;
-		vk::ImageView mDepthImageView;
-		vma::Allocation mDepthAllocation;
-		vk::Sampler mDepthSampler;
-	public:
-		ShadowRenderPass(uint32_t size);
-		~ShadowRenderPass();
-
-		void begin(const vk::CommandBuffer& cmd) const;
-
-
-		vk::RenderPass getRenderPass() const { return mRenderPass; }
-		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
-		vk::Image getDepth() const { return mDepthImage; }
-		vk::ImageView getDepthView() const { return mDepthImageView; }
-		vk::Sampler getDepthSampler() const { return mDepthSampler; }
-
-		static constexpr size_t getCsmCount() { return mCsmCount; }
-		
-	};
-
 	class PostprocessingRenderPass
 	{
 	private:
@@ -304,7 +329,6 @@ namespace eg::Renderer
 		{
 			glm::mat4x4 mProjection = { 1.0f };
 			glm::mat4x4 mView = { 1.0f };
-			glm::mat4x4 mDirectionaLightViewProj[ShadowRenderPass::getCsmCount()];
 			glm::vec3 mCameraPosition = { 0, 0, 0 };
 		};
 

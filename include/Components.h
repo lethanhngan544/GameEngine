@@ -32,38 +32,6 @@ namespace eg::Components
 
 		nlohmann::json toJson() const;
 	};
-	
-
-	/*class Transform
-	{
-	public:
-		glm::vec3 mPosition = { 0, 0, 0 };
-		glm::quat mRotation = { 1, 0, 0, 0 };
-		glm::vec3 mScale = { 1, 1, 1 };
-	public:
-		Transform() = default;
-		Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale) :
-			mPosition(position), mRotation(rotation), mScale(scale) {
-		}
-
-		void identity()
-		{
-			mPosition = { 0, 0, 0 };
-			mRotation = { 1, 0, 0, 0 };
-			mScale = { 1, 1, 1 };
-		}
-
-		glm::mat4x4 build() const
-		{
-			glm::mat4x4 matrix(1.0f);
-			matrix = glm::translate(matrix, mPosition);
-			matrix *= glm::mat4_cast(mRotation);
-			matrix = glm::scale(matrix, mScale);
-			return matrix;
-		}
-
-
-	};*/
 
 
 	class Camera
@@ -133,7 +101,7 @@ namespace eg::Components
 		// Check if a bounding box is inside the camera frustum
 		bool isBoundingBoxInFrustum(const glm::vec3& min, const glm::vec3& max, const glm::vec3* offset = nullptr) const;
 		// Check if a sphere is inside the camera frustum
-		bool isSphereInFrustum( const glm::vec3& center, float radius) const;
+		bool isSphereInFrustum(const glm::vec3& center, float radius) const;
 		// Update the frustum planes based on the camera's view and projection matrices
 		void updateFrustumPlanes(vk::Extent2D extent);
 	private:
@@ -143,29 +111,6 @@ namespace eg::Components
 		std::array<FrustumPlane, 6> mFrustumPlanes;
 	};
 
-	class DirectionalLight
-	{
-	public:
-		struct UniformBuffer
-		{
-			glm::vec3 direction = { 1, -1, 0 };
-			float intensity = 5.0f;
-			glm::vec4 color = { 1, 1, 1, 1 };
-		} mUniformBuffer;
-
-		Renderer::CPUBuffer mBuffer;
-	private:
-		vk::DescriptorSet mSet;
-	public:
-		DirectionalLight();
-		~DirectionalLight();
-
-		void update();
-
-		std::array<glm::mat4x4, Renderer::ShadowRenderPass::getCsmCount()> getDirectionalLightViewProj(const Camera& camera) const;
-
-		inline vk::DescriptorSet getSet() const { return mSet; }
-	};
 
 	class PointLight
 	{
@@ -212,11 +157,11 @@ namespace eg::Components
 				mUniformBuffer.color = { col[0], col[1], col[2], 1.0f };
 			}
 			if (json.contains("intensity")) mUniformBuffer.intensity = json["intensity"];
-			if (json.contains("constant")) 
-mUniformBuffer.constant = json["constant"];
-			if (json.contains("linear")) 
+			if (json.contains("constant"))
+				mUniformBuffer.constant = json["constant"];
+			if (json.contains("linear"))
 				mUniformBuffer.linear = json["linear"];
-			if (json.contains("exponent")) 
+			if (json.contains("exponent"))
 				mUniformBuffer.exponent = json["exponent"];
 		}
 
@@ -224,7 +169,7 @@ mUniformBuffer.constant = json["constant"];
 		vk::DescriptorSet getDescriptorSet() const { return mSet; }
 	};
 
-	
+
 
 	class StaticModel
 	{
@@ -360,12 +305,12 @@ mUniformBuffer.constant = json["constant"];
 			std::vector<int32_t> joints;
 			std::vector<glm::mat4x4> inverseBindMatrices;
 		};
-		
+
 		int mRootNodeIndex = -1;
 		std::vector<AnimatedRawMesh> mAnimatedRawMeshes;
 		std::vector<Node> mNodes;
 		std::vector<Skin> mSkins;
-		
+
 	public:
 
 		static constexpr size_t MAX_BONE_COUNT = 100;
@@ -433,19 +378,30 @@ mUniformBuffer.constant = json["constant"];
 
 	class Animator2DBlend : public Animator
 	{
+		struct CustomAnimation
+		{
+			std::shared_ptr<Animation> animation;
+			float currentTime;
+		};
 	private:
 		glm::vec2 mState = { 0.0f, 0.0f }; // x = horizontal, y = vertical
-		std::shared_ptr<Animation> mForward, mBackward, mLeft, mRight, mIdle;
+		std::vector<CustomAnimation> mCustomAnimations;
 	public:
-		Animator2DBlend(std::shared_ptr<Animation> forward, 
+		Animator2DBlend(std::shared_ptr<Animation> forward,
 			std::shared_ptr<Animation> backward,
 			std::shared_ptr<Animation> left,
 			std::shared_ptr<Animation> right,
 			std::shared_ptr<Animation> idle,
-			const AnimatedModel& model)
-			: Animator({ forward, backward, left, right, idle }, model),
-			mForward(forward), mBackward(backward), mLeft(left), mRight(right), mIdle(idle) {}
-		
+			const AnimatedModel& model): 
+			Animator({ forward, backward, left, right, idle }, model)		
+		{
+			mCustomAnimations.push_back({ forward, 0.0f });
+			mCustomAnimations.push_back({ backward, 0.0f });
+			mCustomAnimations.push_back({ left, 0.0f });
+			mCustomAnimations.push_back({ right, 0.0f });
+			mCustomAnimations.push_back({ idle, 0.0f });
+		}
+
 
 		inline void setState(const glm::vec2& state) { mState = state; }
 	protected:

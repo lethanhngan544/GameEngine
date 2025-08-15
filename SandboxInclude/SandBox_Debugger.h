@@ -15,7 +15,7 @@ namespace sndbx
 
 		void drawWorldDebuggerDialog(eg::World::GameObjectManager& gameObjManager, eg::World::JsonToIGameObjectDispatcher dispatcherFn);
 		void drawPhysicsDebuggerDialog();
-		void drawRendererSettingsDialog(eg::Components::DirectionalLight& directionalLight);
+		void drawRendererSettingsDialog();
 	private:
 		bool mEnabled = false;
 

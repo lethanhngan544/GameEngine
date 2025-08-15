@@ -12,10 +12,6 @@ namespace eg::Components
 			glm::quat rotation = { 1, 0, 0, 0 };
 			glm::vec3 scale = { 1, 1, 1 };
 		};
-		mCurrentTime += delta;
-
-		
-		
 		std::vector<BlendedNode> blendedNodes;
 		blendedNodes.resize(mAnimationNodes.size());
 
@@ -26,8 +22,10 @@ namespace eg::Components
 			mState = glm::normalize(mState); // Ensure state is normalized
 		}
 		size_t i = 0;
-		for (const auto& animation : mAnimations)
+		for (auto& animation : mCustomAnimations)
 		{
+			animation.currentTime += delta;
+
 			float blendFactor = 0.0f;
 			switch (i)
 			{
@@ -44,19 +42,19 @@ namespace eg::Components
 				blendFactor = mState.x; // Horizontal
 				break;
 			case 4: // Idle
-				blendFactor = 1.0 - length2;
+				blendFactor = 1.0f - length2;
 				break;
 			}
 
 			
-			if (mCurrentTime > animation->getDuration())
+			if (animation.currentTime > animation.animation->getDuration())
 			{
-				mCurrentTime = 0.0f; // Loop the animation
+				animation.currentTime = 0.0f; // Loop the animation
 			}
 			if (blendFactor < 0.0f)
 				blendFactor = 0.0f;
 
-			for (const auto& channel : animation->getChannels())
+			for (const auto& channel : animation.animation->getChannels())
 			{
 				auto& blendedNode = blendedNodes.at(channel.targetJoint);
 				blendedNode.targetJoint = channel.targetJoint;
@@ -64,7 +62,7 @@ namespace eg::Components
 				size_t keyframeIndex = 0;
 				for (size_t i = 0; i < channel.keyTimes.size(); ++i)
 				{
-					if (channel.keyTimes[i] > mCurrentTime)
+					if (channel.keyTimes[i] > animation.currentTime)
 					{
 						keyframeIndex = i == 0 ? 0 : i - 1; // Use previous keyframe if current time is before first keyframe
 						break;
@@ -76,7 +74,7 @@ namespace eg::Components
 				//Interpolate
 				const auto& keyData = channel.data[keyframeIndex];
 				const auto& nextKeyData = channel.data[keyframeIndex + 1];
-				float t = (mCurrentTime - channel.keyTimes[keyframeIndex]) / (channel.keyTimes[keyframeIndex + 1] - channel.keyTimes[keyframeIndex]);
+				float t = (animation.currentTime - channel.keyTimes[keyframeIndex]) / (channel.keyTimes[keyframeIndex + 1] - channel.keyTimes[keyframeIndex]);
 				switch (channel.path)
 				{
 				case Animation::Channel::Path::Translation:
