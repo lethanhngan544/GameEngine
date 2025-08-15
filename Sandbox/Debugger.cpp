@@ -36,13 +36,33 @@ namespace sndbx
 	{
 		if (!mEnabled) return;
 		ImGui::Begin("Renderer Settings");
-		/*if (ImGui::DragFloat3("Directional Light direction", &directionalLight.mUniformBuffer.direction.x, 0.01f))
-		{
-			directionalLight.mUniformBuffer.direction = glm::normalize(directionalLight.mUniformBuffer.direction);
-		}*/
-
 
 		ImGui::SliderFloat("Render scale", &eg::Renderer::getRenderScale(), 0.1f, 1.0f);
+		ImGui::Separator();
+		/*
+			glm::vec3 direction = { 1, -1, 0 };
+			float intensity = 1.0f;
+			glm::vec4 color = { 1, 1, 1, 1 };
+		*/
+
+		auto& directionalLight = eg::Renderer::getAtmosphereMutable().getDirectionalLightUniformBuffer();
+		ImGui::Text("Directional Light Settings");
+		if (ImGui::DragFloat3("Directional Light direction", &directionalLight.direction.x, 0.01f))
+		{
+			directionalLight.direction = glm::normalize(directionalLight.direction);
+		}
+
+		ImGui::DragFloat("Directional Light intensity", &directionalLight.intensity, 0.01f);
+		ImGui::ColorEdit3("Directional Light color", &directionalLight.color.x);
+
+		ImGui::Separator();
+		//Ambient
+		auto& ambientLight = eg::Renderer::getAtmosphereMutable().getAmbientLightUniformBuffer();
+		ImGui::Text("Ambient Light Settings");
+		ImGui::ColorEdit3("Ambient Light color", &ambientLight.color.x);
+		ImGui::DragFloat("Ambient Light intensity", &ambientLight.intensity, 0.01f);
+
+
 
 		ImGui::End();
 	}

@@ -15,7 +15,10 @@ namespace eg::Renderer
 		mDrawImage(width, height, format, 
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
 			vk::ImageAspectFlagBits::eColor),
-		mDepth(width, height, vk::Format::eD24UnormS8Uint, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eInputAttachment,
+		mDepth(width, height, vk::Format::eD24UnormS8Uint, 
+			vk::ImageUsageFlagBits::eSampled |
+			vk::ImageUsageFlagBits::eDepthStencilAttachment |
+			vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eDepth)
 	{
 
@@ -102,7 +105,7 @@ namespace eg::Renderer
 			vk::AttachmentReference(0, vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::AttachmentReference(1, vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::AttachmentReference(2, vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::AttachmentReference(3, vk::ImageLayout::eDepthStencilReadOnlyOptimal)
+			vk::AttachmentReference(3, vk::ImageLayout::eShaderReadOnlyOptimal)
 		};
 
 
@@ -110,7 +113,7 @@ namespace eg::Renderer
 		{
 			vk::AttachmentReference(4, vk::ImageLayout::eColorAttachmentOptimal),
 		};
-		vk::AttachmentReference pass1OutputDepthStencilAttachmentRef = vk::AttachmentReference(3, vk::ImageLayout::eDepthStencilReadOnlyOptimal); //Depth;
+		vk::AttachmentReference pass1OutputDepthStencilAttachmentRef = vk::AttachmentReference(3, vk::ImageLayout::eDepthStencilAttachmentOptimal); //Depth;
 
 		
 		vk::SubpassDescription subpasses[] = {

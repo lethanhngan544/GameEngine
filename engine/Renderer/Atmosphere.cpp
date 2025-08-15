@@ -1,5 +1,7 @@
 #include "Renderer.h"
 
+#include <random>
+
 #include <shaderc/shaderc.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -8,14 +10,28 @@ namespace eg::Renderer
 {
 	Atmosphere::Atmosphere(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout, uint32_t shadowMapSize) :
 		mDirectionalBuffer(nullptr, sizeof(DirectionalLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer),
+		mAmbientBuffer(nullptr, sizeof(AmbientLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer),
 		mShadowMapSize(shadowMapSize)
 	{
+		generateCSMPlanes(500.0f);
+		generateSSAOKernel();
+		generateSSAONoise();
+
+
+		createAmbientLightPipeline(defaultpass, globalSetLayout);
 		createDirectionalShadowPass(shadowMapSize);
 		createDirectionalLightPipeline(defaultpass, globalSetLayout);
-		generateCSMPlanes(500.0f);
+		
 	}
 	Atmosphere::~Atmosphere()
 	{
+		getDevice().destroySampler(mSSAONoiseSampler);
+
+		getDevice().destroyPipeline(mAmbientPipeline);
+		getDevice().destroyPipelineLayout(mAmbientLayout);
+		getDevice().destroyDescriptorSetLayout(mAmbientDescLayout);
+		getDevice().freeDescriptorSets(getDescriptorPool(), mAmbientSet);
+
 
 		getDevice().destroyPipeline(mDirectionalPipeline);
 		getDevice().destroyPipelineLayout(mDirectionalLayout);
@@ -118,6 +134,11 @@ namespace eg::Renderer
 		mDirectionalBuffer.write(&mDirectionalLightUniformBuffer, sizeof(DirectionalLightUniformBuffer));
 	}
 
+	void Atmosphere::updateAmbientLight()
+	{
+		mAmbientBuffer.write(&mAmbientLightUniformBuffer, sizeof(AmbientLightUniformBuffer));
+	}
+
 	void Atmosphere::beginDirectionalShadowPass(const vk::CommandBuffer& cmd) const
 	{
 		vk::ClearValue clearValues[] =
@@ -152,6 +173,84 @@ namespace eg::Renderer
 		cmd.draw(3, 1, 0, 0);
 	}
 
+	void Atmosphere::renderAmbientLight(const vk::CommandBuffer& cmd) const
+	{
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mAmbientPipeline);
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+			mAmbientLayout,
+			0,
+			{ Renderer::getCurrentFrameGUBODescSet(), mAmbientSet },
+			{}
+		);
+		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
+			0.0f, 1.0f } });
+		cmd.setScissor(0, Renderer::getScaledDrawExtent());
+		cmd.draw(3, 1, 0, 0);
+	}
+
+	void Atmosphere::generateSSAOKernel()
+	{
+		std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
+		std::default_random_engine generator;
+		for (size_t i = 0; i < SSAO_KERNEL_SIZE; ++i)
+		{
+			glm::vec3 sample(
+				randomFloats(generator) * 2.0 - 1.0,
+				randomFloats(generator) * 2.0 - 1.0,
+				randomFloats(generator)
+			);
+			sample = glm::normalize(sample);
+			sample *= randomFloats(generator);
+			float scale = (float)i / 64.0;
+			scale = glm::mix(0.1f, 1.0f, scale * scale);
+			sample *= scale;
+			mAmbientLightUniformBuffer.ssaoKernel[i] = glm::vec4(sample, 0.69f);
+		}
+	}
+
+	void Atmosphere::generateSSAONoise()
+	{
+		std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
+		std::default_random_engine generator;
+		std::vector<glm::vec4> ssaoNoise;
+		for (unsigned int i = 0; i < 16; i++)
+		{
+			glm::vec4 noise(
+				randomFloats(generator) * 2.0 - 1.0,
+				randomFloats(generator) * 2.0 - 1.0,
+				0.0f, 0.69f);
+			ssaoNoise.push_back(noise);
+		}
+
+		mSSAONoiseImage.emplace(4, 4, vk::Format::eR32G32B32A32Sfloat,
+			vk::ImageUsageFlagBits::eSampled,
+			vk::ImageAspectFlagBits::eColor, ssaoNoise.data(), sizeof(glm::vec4) * ssaoNoise.size());
+
+		{
+
+			vk::SamplerCreateInfo ci{};
+			ci.setMagFilter(vk::Filter::eLinear)
+				.setMinFilter(vk::Filter::eLinear)
+				.setMipmapMode(vk::SamplerMipmapMode::eLinear)
+				.setAddressModeU(vk::SamplerAddressMode::eRepeat)
+				.setAddressModeV(vk::SamplerAddressMode::eRepeat)
+				.setAddressModeW(vk::SamplerAddressMode::eRepeat)
+				.setMipLodBias(0)
+				.setMinLod(-1)
+				.setMaxLod(1)
+				.setAnisotropyEnable(false)
+				.setMaxAnisotropy(0.0f)
+				.setCompareEnable(false)
+				.setCompareOp(vk::CompareOp::eAlways);
+
+			mSSAONoiseSampler = getDevice().createSampler(ci);
+
+		}
+
+	}
+
 	void Atmosphere::generateCSMPlanes(float maxDistance)
 	{
 		//Generate CSM planes using linear distribution
@@ -165,6 +264,243 @@ namespace eg::Renderer
 		}
 	}
 
+	void Atmosphere::createAmbientLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout)
+	{
+		//Define shader layout
+		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
+		{
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Normal
+			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Albedo
+			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //mr
+			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth,
+			vk::DescriptorSetLayoutBinding(4, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment, {}), //Ambient light uniform buffer
+			vk::DescriptorSetLayoutBinding(5, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //SSAO noise
+		};
+		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
+		descLayoutCI.setBindings(descLayoutBindings);
+
+		mAmbientDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
+
+		//Allocate descriptor set right here
+
+		vk::DescriptorSetAllocateInfo ai{};
+		ai.setDescriptorPool(Renderer::getDescriptorPool())
+			.setDescriptorSetCount(1)
+			.setSetLayouts(mAmbientDescLayout);
+		mAmbientSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
+
+
+		
+		vk::DescriptorImageInfo imageInfos[] = {
+			vk::DescriptorImageInfo(nullptr, defaultpass.getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, defaultpass.getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, defaultpass.getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSSAONoiseSampler, defaultpass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSSAONoiseSampler, mSSAONoiseImage->getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+		};
+
+		vk::DescriptorBufferInfo bufferInfo{};
+		bufferInfo.setBuffer(mAmbientBuffer.getBuffer())
+			.setOffset(0)
+			.setRange(sizeof(AmbientLightUniformBuffer));
+
+		Renderer::getDevice().updateDescriptorSets({
+			vk::WriteDescriptorSet(mAmbientSet, 0, 0,
+				1,
+				vk::DescriptorType::eInputAttachment,
+				&imageInfos[0]),
+			vk::WriteDescriptorSet(mAmbientSet, 1, 0,
+				1,
+				vk::DescriptorType::eInputAttachment,
+				&imageInfos[1]),
+			vk::WriteDescriptorSet(mAmbientSet, 2, 0,
+				1,
+				vk::DescriptorType::eInputAttachment,
+				&imageInfos[2]),
+
+			vk::WriteDescriptorSet(mAmbientSet, 3, 0,
+				1,
+				vk::DescriptorType::eCombinedImageSampler,
+				&imageInfos[3]),
+
+			vk::WriteDescriptorSet(mAmbientSet, 4, 0,
+				1,
+				vk::DescriptorType::eUniformBuffer, {}, &bufferInfo),
+
+			vk::WriteDescriptorSet(mAmbientSet, 5, 0,
+				1,
+				vk::DescriptorType::eCombinedImageSampler, &imageInfos[4]),
+
+			}, {});
+
+
+
+		//Load shaders
+		auto vertexBinary = Renderer::compileShaderFromFile("shaders/fullscreen_quad.glsl", shaderc_glsl_vertex_shader);
+		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/atmosphere_ambient.glsl", shaderc_glsl_fragment_shader, {
+			{"SSAO_KERNEL_SIZE", std::to_string(SSAO_KERNEL_SIZE) }}
+		);
+
+		//Create shader modules
+		vk::ShaderModuleCreateInfo vertexShaderModuleCI{}, fragmentShaderModuleCI{};
+		vertexShaderModuleCI.setCodeSize(vertexBinary.size() * sizeof(uint32_t));
+		vertexShaderModuleCI.setPCode(vertexBinary.data());
+		fragmentShaderModuleCI.setCodeSize(fragmentBinary.size() * sizeof(uint32_t));
+		fragmentShaderModuleCI.setPCode(fragmentBinary.data());
+
+		auto vertexShaderModule = Renderer::getDevice().createShaderModule(vertexShaderModuleCI);
+		auto fragmentShaderModule = Renderer::getDevice().createShaderModule(fragmentShaderModuleCI);
+
+		//Create pipeline layout
+		vk::DescriptorSetLayout setLayouts[] =
+		{
+			globalSetLayout, // Slot0
+			mAmbientDescLayout //Slot 1
+		};
+		vk::PipelineLayoutCreateInfo pipelineLayoutCI{};
+		pipelineLayoutCI.setFlags(vk::PipelineLayoutCreateFlags{})
+			.setSetLayouts(setLayouts)
+			.setPushConstantRangeCount(0)
+			.setPPushConstantRanges(nullptr);
+		mAmbientLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
+
+		//Create graphics pipeline
+		vk::PipelineShaderStageCreateInfo shaderStages[] =
+		{
+			vk::PipelineShaderStageCreateInfo
+			{
+				vk::PipelineShaderStageCreateFlags{},
+				vk::ShaderStageFlagBits::eVertex,
+				vertexShaderModule,
+				"main"
+			},
+			vk::PipelineShaderStageCreateInfo
+			{
+				vk::PipelineShaderStageCreateFlags{},
+				vk::ShaderStageFlagBits::eFragment,
+				fragmentShaderModule,
+				"main"
+			}
+		};
+
+
+		vk::PipelineVertexInputStateCreateInfo vertexInputStateCI{};
+		vertexInputStateCI.setFlags(vk::PipelineVertexInputStateCreateFlags{});
+
+		vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateCI{};
+		inputAssemblyStateCI.setFlags(vk::PipelineInputAssemblyStateCreateFlags{})
+			.setTopology(vk::PrimitiveTopology::eTriangleList)
+			.setPrimitiveRestartEnable(false);
+
+		vk::Viewport viewport{};
+		viewport.setMinDepth(0.0f)
+			.setMaxDepth(1.0f);
+		vk::Rect2D scissor{};
+		vk::PipelineViewportStateCreateInfo viewportStateCI{};
+		viewportStateCI.setFlags(vk::PipelineViewportStateCreateFlags{})
+			.setScissors(scissor)
+			.setViewports(viewport);
+
+		vk::PipelineRasterizationStateCreateInfo rasterizationStateCI{};
+		rasterizationStateCI.setDepthClampEnable(false)
+			.setRasterizerDiscardEnable(false)
+			.setPolygonMode(vk::PolygonMode::eFill)
+			.setLineWidth(1.0f)
+			.setCullMode(vk::CullModeFlagBits::eNone)
+			.setFrontFace(vk::FrontFace::eCounterClockwise)
+			.setDepthBiasClamp(0.0f)
+			.setDepthBiasEnable(false)
+			.setDepthBiasConstantFactor(0.0f)
+			.setDepthBiasSlopeFactor(0.0f);
+
+		vk::PipelineMultisampleStateCreateInfo multisampleStateCI{};
+		multisampleStateCI.setRasterizationSamples(vk::SampleCountFlagBits::e1)
+			.setSampleShadingEnable(false)
+			.setMinSampleShading(1.0f)
+			.setPSampleMask(nullptr)
+			.setAlphaToCoverageEnable(false)
+			.setAlphaToOneEnable(false);
+
+
+		vk::PipelineColorBlendAttachmentState colorBlendAttachmentState{};
+		colorBlendAttachmentState
+			.setColorWriteMask(
+				vk::ColorComponentFlagBits::eR |
+				vk::ColorComponentFlagBits::eG |
+				vk::ColorComponentFlagBits::eB |
+				vk::ColorComponentFlagBits::eA)
+			.setBlendEnable(true)
+			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
+			.setDstColorBlendFactor(vk::BlendFactor::eOne)
+			.setColorBlendOp(vk::BlendOp::eAdd)
+			.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
+			.setDstAlphaBlendFactor(vk::BlendFactor::eOne)
+			.setAlphaBlendOp(vk::BlendOp::eAdd);
+
+		vk::PipelineColorBlendStateCreateInfo colorBlendStateCI{};
+		colorBlendStateCI.setLogicOpEnable(false)
+			.setLogicOp(vk::LogicOp::eCopy)
+			.setAttachments(colorBlendAttachmentState)
+			.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+
+		vk::StencilOpState stencilOpState = {};
+		stencilOpState.setFailOp(vk::StencilOp::eKeep)
+			.setPassOp(vk::StencilOp::eKeep)
+			.setDepthFailOp(vk::StencilOp::eKeep)
+			.setCompareOp(vk::CompareOp::eEqual)
+			.setCompareMask(0xFF)
+			.setWriteMask(0x00)
+			.setReference(Renderer::MESH_STENCIL_VALUE);
+
+		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
+		depthStencilStateCI.setDepthTestEnable(false)
+			.setDepthWriteEnable(false)
+			.setDepthCompareOp(vk::CompareOp::eLess)
+			.setDepthBoundsTestEnable(false)
+			.setStencilTestEnable(true)
+			.setFront(stencilOpState)
+			.setBack(stencilOpState)
+			.setMinDepthBounds(0.0f)
+			.setMaxDepthBounds(1.0f);
+
+		std::vector<vk::DynamicState> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+		vk::PipelineDynamicStateCreateInfo dynamicStateCI{};
+		dynamicStateCI.setDynamicStates(dynamicStates);
+
+
+
+		vk::GraphicsPipelineCreateInfo pipelineCI{};
+		pipelineCI.setLayout(mAmbientLayout)
+			.setRenderPass(defaultpass.getRenderPass())
+			.setSubpass(1)
+			.setBasePipelineHandle(nullptr)
+			.setBasePipelineIndex(-1)
+			.setStages(shaderStages)
+			.setPVertexInputState(&vertexInputStateCI)
+			.setBasePipelineHandle(nullptr)
+			.setBasePipelineIndex(-1)
+			.setPInputAssemblyState(&inputAssemblyStateCI)
+			.setPViewportState(&viewportStateCI)
+			.setPRasterizationState(&rasterizationStateCI)
+			.setPMultisampleState(&multisampleStateCI)
+			.setPDepthStencilState(&depthStencilStateCI)
+			.setPColorBlendState(&colorBlendStateCI)
+			.setPDynamicState(&dynamicStateCI);
+
+		auto pipeLineResult = Renderer::getDevice().createGraphicsPipeline(nullptr, pipelineCI);
+		if (pipeLineResult.result != vk::Result::eSuccess)
+		{
+			throw std::runtime_error("Failed to create AmbientLight pipeline !");
+		}
+		mAmbientPipeline = pipeLineResult.value;
+
+
+
+		//Destroy shader modules
+		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
+		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
+	}
 
 	void Atmosphere::createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout)
 	{
@@ -177,6 +513,7 @@ namespace eg::Renderer
 			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
 			vk::DescriptorSetLayoutBinding(4, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Shadow map
 			vk::DescriptorSetLayoutBinding(5, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eGeometry | vk::ShaderStageFlagBits::eFragment, {}), //UniformBuffer
+
 		};
 
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
@@ -473,7 +810,7 @@ namespace eg::Renderer
 				vk::AttachmentLoadOp::eDontCare,
 				vk::AttachmentStoreOp::eDontCare,
 				vk::ImageLayout::eUndefined,
-				vk::ImageLayout::eShaderReadOnlyOptimal
+				vk::ImageLayout::eDepthStencilReadOnlyOptimal
 			),
 
 		};
@@ -506,15 +843,15 @@ namespace eg::Renderer
 				vk::DependencyFlagBits::eByRegion
 			),
 
-				// Shadow map pass -> External: ensure depth write is visible to future shader reads
-				vk::SubpassDependency(
-					0, VK_SUBPASS_EXTERNAL,
-					vk::PipelineStageFlagBits::eLateFragmentTests,
-					vk::PipelineStageFlagBits::eFragmentShader,
-					vk::AccessFlagBits::eDepthStencilAttachmentWrite,
-					vk::AccessFlagBits::eShaderRead,
-					vk::DependencyFlagBits::eByRegion
-				)
+			// Shadow map pass -> External: ensure depth write is visible to future shader reads
+			vk::SubpassDependency(
+				0, VK_SUBPASS_EXTERNAL,
+				vk::PipelineStageFlagBits::eLateFragmentTests,
+				vk::PipelineStageFlagBits::eFragmentShader,
+				vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+				vk::AccessFlagBits::eShaderRead,
+				vk::DependencyFlagBits::eByRegion
+			)
 		};
 		vk::RenderPassCreateInfo renderPassCI{};
 		renderPassCI

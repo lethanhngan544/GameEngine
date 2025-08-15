@@ -41,7 +41,7 @@ void main()
 
 		fsNormal = gsNormal[i];
 		fsUv = gsUv[i];
-		fsTBN = mat3(T, B, normalize(vec3(ps.model * vec4(gsNormal[i], 0.0f))));
+		fsTBN = mat3(T, B, fsNormal);
 
 
 		EmitVertex();

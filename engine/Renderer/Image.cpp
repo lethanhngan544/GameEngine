@@ -229,7 +229,7 @@ namespace eg::Renderer
 			.setAddressModeW(vk::SamplerAddressMode::eRepeat)
 			.setMipLodBias(0)
 			.setMinLod(-1)
-			.setMaxLod(mImage.getMipLevels())
+			.setMaxLod(static_cast<uint32_t>(mImage.getMipLevels()))
 			.setAnisotropyEnable(false)
 			.setMaxAnisotropy(0.0f)
 			.setCompareEnable(false)

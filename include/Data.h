@@ -85,7 +85,6 @@ namespace eg::Data
 		void create();
 		void destroy();
 
-		void renderAmbient(vk::CommandBuffer cmd);
 
 		void beginPointLight(vk::CommandBuffer cmd);
 

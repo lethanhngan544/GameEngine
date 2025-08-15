@@ -735,6 +735,7 @@ namespace eg::Renderer
 
 		gAtmosphere->generateCSMMatrices(gCamera->mFov, gCamera->buildView());
 		gAtmosphere->updateDirectionalLight();
+		gAtmosphere->updateAmbientLight();
 
 		gAtmosphere->beginDirectionalShadowPass(cmd);
 		cmd.executeCommands(gShadowCmdBuffer);
@@ -744,7 +745,7 @@ namespace eg::Renderer
 		cmd.executeCommands(gBufferCmdBuffer);
 		cmd.nextSubpass(vk::SubpassContents::eInline); //Subpass 1
 		Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
-		Data::LightRenderer::renderAmbient(cmd);	
+		gAtmosphere->renderAmbientLight(cmd);
 		gAtmosphere->renderDirectionalLight(cmd);
 		Data::LightRenderer::beginPointLight(cmd);
 		gLightRenderFn(cmd);
@@ -825,10 +826,6 @@ namespace eg::Renderer
 			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
 				vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags{}, {}, {}, { barrier });
 		}
-
-
-
-
 
 		Renderer::end();
 	}
@@ -1002,6 +999,12 @@ namespace eg::Renderer
 	{
 		return *gAtmosphere;
 	}
+
+	class Atmosphere& getAtmosphereMutable()
+	{
+		return *gAtmosphere;
+	}
+
 
 	vk::DescriptorSet getCurrentFrameGUBODescSet()
 	{

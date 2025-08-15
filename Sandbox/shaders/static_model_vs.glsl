@@ -18,6 +18,6 @@ layout(location = 1) out vec3 gsNormal;
 void main() {
     vec4 v = ps.model * vec4(inPos, 1.0);
     gl_Position = gUBO.projection * gUBO.view * v;
-    gsNormal = inNormal;
+    gsNormal = vec3(ps.model * vec4(inNormal, 0.0f));
     gsUv = inUv;
 }

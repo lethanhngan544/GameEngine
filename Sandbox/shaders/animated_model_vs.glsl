@@ -33,7 +33,7 @@ void main() {
       inBoneWeights.w * gBoneUniform.matrices[inBoneIds.w];
 
     gl_Position = gUBO.projection * gUBO.view * ps.model * skinMat * vec4(inPos, 1.0);
-    gsNormal = inNormal;
+    gsNormal = vec3(ps.model * vec4(inNormal, 0.0f));
     gsUv = inUv;
 
 

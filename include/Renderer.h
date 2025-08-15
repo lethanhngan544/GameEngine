@@ -6,6 +6,7 @@
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
 #include <functional>
+#include <optional>
 
 #include <Logger.h>
 
@@ -51,6 +52,7 @@ namespace eg::Renderer
 	vk::DescriptorSetLayout getGlobalDescriptorSet();
 
 	const class Atmosphere& getAtmosphere();
+	class Atmosphere& getAtmosphereMutable();
 
 	const class DefaultRenderPass& getDefaultRenderPass();
 	const class CombinedImageSampler2D& getDefaultWhiteImage();
@@ -225,6 +227,7 @@ namespace eg::Renderer
 	{
 	public:
 		static constexpr size_t MAX_CSM_COUNT = 4;
+		static constexpr size_t SSAO_KERNEL_SIZE = 64;
 
 		struct DirectionalLightUniformBuffer
 		{
@@ -233,6 +236,14 @@ namespace eg::Renderer
 			glm::vec4 color = { 1, 1, 1, 1 };
 			glm::mat4x4 csmMatrices[MAX_CSM_COUNT] = { glm::mat4x4(1.0f) };
 			float csmPlanes[MAX_CSM_COUNT] = { 0 };
+		};
+		 
+
+		struct AmbientLightUniformBuffer
+		{
+			glm::vec3 color = { 1.0f, 1.0f, 1.0f };
+			float intensity = 1.0f;
+			glm::vec4 ssaoKernel[SSAO_KERNEL_SIZE];
 		};
 	private:
 		//Directional light shadow map
@@ -245,6 +256,17 @@ namespace eg::Renderer
 		vk::ImageView mDepthImageView;
 		vma::Allocation mDepthAllocation;
 		vk::Sampler mDepthSampler;
+
+		//Ambient light, ssao
+		vk::Pipeline mAmbientPipeline;
+		vk::PipelineLayout mAmbientLayout;
+		vk::DescriptorSetLayout mAmbientDescLayout;
+		vk::DescriptorSet mAmbientSet;
+		Renderer::CPUBuffer mAmbientBuffer;
+		AmbientLightUniformBuffer mAmbientLightUniformBuffer;
+		std::optional<Image2D> mSSAONoiseImage;
+		vk::Sampler mSSAONoiseSampler;
+		vk::Sampler mSubpass0DepthSampler;
 
 		//Directional light
 		uint32_t mShadowMapSize;
@@ -260,8 +282,10 @@ namespace eg::Renderer
 
 		void beginDirectionalShadowPass(const vk::CommandBuffer& cmd) const;
 		void renderDirectionalLight(const vk::CommandBuffer& cmd) const;
+		void renderAmbientLight(const vk::CommandBuffer& cmd) const;
 
 		void updateDirectionalLight();
+		void updateAmbientLight();
 		void generateCSMMatrices(float fov, const glm::mat4x4& viewMatrix);
 
 		vk::DescriptorSetLayout getDirectionalDescLayout() const { return mDirectionalDescLayout; }
@@ -269,10 +293,17 @@ namespace eg::Renderer
 		vk::RenderPass getRenderPass() const { return mRenderPass; }
 		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
 		uint32_t getShadowMapSize() const { return mShadowMapSize; }
+
+
+		AmbientLightUniformBuffer& getAmbientLightUniformBuffer() { return mAmbientLightUniformBuffer; }
+		DirectionalLightUniformBuffer& getDirectionalLightUniformBuffer() { return mDirectionalLightUniformBuffer; }
 	private:
 		void createDirectionalShadowPass(uint32_t size);
 		void createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout);
+		void createAmbientLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout);
 		void generateCSMPlanes(float maxDistance);
+		void generateSSAOKernel();
+		void generateSSAONoise();
 	};
 
 
