@@ -107,13 +107,13 @@ namespace eg::Renderer
 	static std::condition_variable gShadowCV;
 	static bool gShadowThreadReady = false;
 	static bool gShadowThreadRunning = true;
-	static vk::CommandBuffer gShadowCmdBuffer;
+	static vk::CommandBuffer gShadowCmdBuffers[gFrameCount];
 
 	static std::mutex gBufferMutex;
 	static std::condition_variable gBufferCV;
 	static bool gBufferThreadReady = false;
 	static bool gBufferThreadRunning = true;
-	static vk::CommandBuffer gBufferCmdBuffer;
+	static vk::CommandBuffer gBufferCmdBuffers[gFrameCount];
 
 	static std::unique_ptr<std::thread> gShadowThread;
 	static std::unique_ptr<std::thread> gBufferThread;
@@ -274,9 +274,12 @@ namespace eg::Renderer
 		vk::CommandBufferAllocateInfo cmdAI{};
 		cmdAI.setCommandPool(cmdPool)
 			.setLevel(vk::CommandBufferLevel::eSecondary)
-			.setCommandBufferCount(1);
-		gShadowCmdBuffer = gDevice.allocateCommandBuffers(cmdAI)[0];
-
+			.setCommandBufferCount(gFrameCount);
+		auto buffers = gDevice.allocateCommandBuffers(cmdAI);
+		for(size_t i = 0; i < gFrameCount; i++)
+		{
+			gShadowCmdBuffers[i] = buffers[i];
+		}
 
 		while (gShadowThreadRunning)
 		{
@@ -293,14 +296,15 @@ namespace eg::Renderer
 				.setSubpass(0)
 				.setFramebuffer(gAtmosphere->getFramebuffer());
 
+			auto cmd = gShadowCmdBuffers[gCurrentFrame];
 
 			vk::CommandBufferBeginInfo cmdBeginInfo{};
 			cmdBeginInfo.setFlags(vk::CommandBufferUsageFlagBits::eRenderPassContinue | vk::CommandBufferUsageFlagBits::eSimultaneousUse)
 				.setPInheritanceInfo(&cmdInheritanceInfo);
-			gShadowCmdBuffer.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
-			gShadowCmdBuffer.begin(cmdBeginInfo);
-			gShadowRenderFn(gShadowCmdBuffer);
-			gShadowCmdBuffer.end();
+			cmd.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+			cmd.begin(cmdBeginInfo);
+			gShadowRenderFn(cmd);
+			cmd.end();
 
 			//Notify main thread that gShadow commands are ready
 			{
@@ -328,8 +332,12 @@ namespace eg::Renderer
 		vk::CommandBufferAllocateInfo cmdAI{};
 		cmdAI.setCommandPool(cmdPool)
 			.setLevel(vk::CommandBufferLevel::eSecondary)
-			.setCommandBufferCount(1);
-		gBufferCmdBuffer = gDevice.allocateCommandBuffers(cmdAI)[0];
+			.setCommandBufferCount(gFrameCount);
+		auto buffers = gDevice.allocateCommandBuffers(cmdAI);
+		for (size_t i = 0; i < gFrameCount; i++)
+		{
+			gBufferCmdBuffers[i] = buffers[i];
+		}
 
 
 		while (gBufferThreadRunning)
@@ -347,13 +355,15 @@ namespace eg::Renderer
 				.setSubpass(0)
 				.setFramebuffer(eg::Renderer::getDefaultRenderPass().getFramebuffer());
 
+			auto cmd = gBufferCmdBuffers[gCurrentFrame];
+
 			vk::CommandBufferBeginInfo cmdBeginInfo{};
 			cmdBeginInfo.setFlags(vk::CommandBufferUsageFlagBits::eRenderPassContinue | vk::CommandBufferUsageFlagBits::eSimultaneousUse)
 				.setPInheritanceInfo(&cmdInheritanceInfo);
-			gBufferCmdBuffer.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
-			gBufferCmdBuffer.begin(cmdBeginInfo);
-			gBufferRenderFn(gBufferCmdBuffer);
-			gBufferCmdBuffer.end();
+			cmd.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+			cmd.begin(cmdBeginInfo);
+			gBufferRenderFn(cmd);
+			cmd.end();
 
 			//Notify main thread that gShadow commands are ready
 			{
@@ -738,11 +748,11 @@ namespace eg::Renderer
 		gAtmosphere->updateAmbientLight();
 
 		gAtmosphere->beginDirectionalShadowPass(cmd);
-		cmd.executeCommands(gShadowCmdBuffer);
+		cmd.executeCommands(gShadowCmdBuffers[gCurrentFrame]);
 		cmd.endRenderPass();
 
 		gDefaultRenderPass->begin(cmd); // subpass 0
-		cmd.executeCommands(gBufferCmdBuffer);
+		cmd.executeCommands(gBufferCmdBuffers[gCurrentFrame]);
 		cmd.nextSubpass(vk::SubpassContents::eInline); //Subpass 1
 		Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
 		gAtmosphere->renderAmbientLight(cmd);

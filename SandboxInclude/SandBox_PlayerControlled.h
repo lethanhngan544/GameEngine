@@ -11,7 +11,7 @@ namespace sndbx
 		std::shared_ptr<eg::Components::Animator::AnimationNode> mHeadNode;
 		glm::vec2 mAnimState;
 	public:
-		PlayerControlled() : Player(false) {}
+		PlayerControlled() : Player(true) {}
 		~PlayerControlled() = default;
 
 		void update(float delta) override;

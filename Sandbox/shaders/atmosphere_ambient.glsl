@@ -21,7 +21,7 @@ layout (location = 0) out vec4 outColor;
 
 
 const vec2 noiseScale = vec2(1600.0/4.0, 900.0/4.0); // screen = 800x600
-const float radius = 0.7; // SSAO radius
+const float radius = 1.7; // SSAO radius
 
 
 vec3 getPositionFromDepth(float depth, vec2 uv)

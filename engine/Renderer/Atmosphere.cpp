@@ -832,32 +832,31 @@ namespace eg::Renderer
 
 		};
 
-		vk::SubpassDependency dependencies[] = {
-			// External -> Shadow map pass: ensure previous depth reads/writes are done
-			vk::SubpassDependency(
-				VK_SUBPASS_EXTERNAL, 0,
-				vk::PipelineStageFlagBits::eFragmentShader,
-				vk::PipelineStageFlagBits::eEarlyFragmentTests,
-				vk::AccessFlagBits::eShaderRead,
-				vk::AccessFlagBits::eDepthStencilAttachmentWrite,
-				vk::DependencyFlagBits::eByRegion
-			),
+		//vk::SubpassDependency dependencies[] = {
+		//	//// External -> Shadow map pass: ensure previous depth reads/writes are done
+		//	//vk::SubpassDependency(
+		//	//	VK_SUBPASS_EXTERNAL, 0,
+		//	//	vk::PipelineStageFlagBits::eFragmentShader,
+		//	//	vk::PipelineStageFlagBits::eEarlyFragmentTests,
+		//	//	vk::AccessFlagBits::eShaderRead,
+		//	//	vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+		//	//	vk::DependencyFlagBits::eByRegion
+		//	//),
 
-			// Shadow map pass -> External: ensure depth write is visible to future shader reads
-			vk::SubpassDependency(
-				0, VK_SUBPASS_EXTERNAL,
-				vk::PipelineStageFlagBits::eLateFragmentTests,
-				vk::PipelineStageFlagBits::eFragmentShader,
-				vk::AccessFlagBits::eDepthStencilAttachmentWrite,
-				vk::AccessFlagBits::eShaderRead,
-				vk::DependencyFlagBits::eByRegion
-			)
-		};
+
+		//	//vk::SubpassDependency(
+		//	//	0, VK_SUBPASS_EXTERNAL,
+		//	//	vk::PipelineStageFlagBits::eLateFragmentTests,
+		//	//	vk::PipelineStageFlagBits::eFragmentShader,
+		//	//	vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+		//	//	vk::AccessFlagBits::eShaderRead,
+		//	//	vk::DependencyFlagBits::eByRegion
+		//	//)
+		//};
 		vk::RenderPassCreateInfo renderPassCI{};
 		renderPassCI
 			.setAttachments(attachments)
-			.setSubpasses(subpasses)
-			.setDependencies(dependencies);
+			.setSubpasses(subpasses);
 
 		mRenderPass = getDevice().createRenderPass(renderPassCI);
 
