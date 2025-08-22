@@ -136,6 +136,7 @@ namespace eg::Renderer
 
 	void Atmosphere::updateAmbientLight()
 	{
+		mAmbientLightUniformBuffer.renderScale = Renderer::getRenderScale();
 		mAmbientBuffer.write(&mAmbientLightUniformBuffer, sizeof(AmbientLightUniformBuffer));
 	}
 

@@ -61,7 +61,8 @@ namespace sndbx
 		ImGui::Text("Ambient Light Settings");
 		ImGui::ColorEdit3("Ambient Light color", &ambientLight.color.x);
 		ImGui::DragFloat("Ambient Light intensity", &ambientLight.intensity, 0.01f);
-
+		ImGui::DragFloat2("Ambient Light height", &ambientLight.noiseScale.x, 0.01f, 0.0f);
+		ImGui::DragFloat("Ambient Light radius", &ambientLight.radius, 0.01f, 0.001f, 5.0f);
 
 
 		ImGui::End();

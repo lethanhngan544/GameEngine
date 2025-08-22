@@ -241,8 +241,11 @@ namespace eg::Renderer
 
 		struct AmbientLightUniformBuffer
 		{
-			glm::vec3 color = { 1.0f, 1.0f, 1.0f };
+			glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+			glm::vec2 noiseScale = { 300.0f, 300.0f };
+			float radius = 1.0f;;
 			float intensity = 1.0f;
+			float renderScale = 1.0f; float _padding[3];
 			glm::vec4 ssaoKernel[SSAO_KERNEL_SIZE];
 		};
 	private:
