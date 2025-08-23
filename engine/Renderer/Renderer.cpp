@@ -1,4 +1,5 @@
 #include <Data.h>
+#include <Core.h>
 #include <Components.h>
 #include <Window.h>
 #include <GLFW/glfw3.h>
@@ -85,14 +86,13 @@ namespace eg::Renderer
 	static vk::Framebuffer gImGuiFramebuffer;
 
 	//Render passes
-	static std::optional<Atmosphere> gAtmosphere;
 	static std::optional<DefaultRenderPass> gDefaultRenderPass;
 	static std::optional<PostprocessingRenderPass> gPostprocessingRenderPass;
 
 	//Render functions
 	static RenderFn dummyRenderFn = [](vk::CommandBuffer cmd) {
 		//This is a dummy render function that does nothing
-		};
+	};
 
 	static RenderFn gShadowRenderFn = dummyRenderFn;
 	static RenderFn gBufferRenderFn = dummyRenderFn;
@@ -292,9 +292,9 @@ namespace eg::Renderer
 
 			//Record commands
 			vk::CommandBufferInheritanceInfo cmdInheritanceInfo{};
-			cmdInheritanceInfo.setRenderPass(gAtmosphere->getRenderPass())
+			cmdInheritanceInfo.setRenderPass(Atmosphere::getRenderPass())
 				.setSubpass(0)
-				.setFramebuffer(gAtmosphere->getFramebuffer());
+				.setFramebuffer(Atmosphere::getFramebuffer());
 
 			auto cmd = gShadowCmdBuffers[gCurrentFrame];
 
@@ -384,7 +384,7 @@ namespace eg::Renderer
 		gDevice.waitIdle();
 	}
 
-	void create(uint32_t width, uint32_t height, uint32_t gShadowMapRes)
+	void create(uint32_t width, uint32_t height, uint32_t shadowMapRes)
 	{
 		gDrawExtent = vk::Rect2D{ {0, 0}, {width, height} };
 		VULKAN_HPP_DEFAULT_DISPATCHER.init();
@@ -656,10 +656,9 @@ namespace eg::Renderer
 		gDefaultWhiteImage.emplace(64, 64, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, whitePixels.data(), whitePixels.size());
 		gDefaultCheckerboardImage.emplace(64, 64, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, checkerPixels.data(), checkerPixels.size());
 
-
 		gDefaultRenderPass.emplace(width, height, gSurfaceFormat.format);
-		gAtmosphere.emplace(gDefaultRenderPass.value(), gGlobalUniformBuffer->getLayout(), gShadowMapRes);
 		gPostprocessingRenderPass.emplace(width, height, gSurfaceFormat.format);
+		Atmosphere::create(shadowMapRes);
 
 		//Init imgui
 		IMGUI_CHECKVERSION();
@@ -695,6 +694,9 @@ namespace eg::Renderer
 		gShadowThread = std::make_unique<std::thread>(gShadowThreadFn);
 		gBufferThread = std::make_unique<std::thread>(gBufferThreadFn);
 
+
+		Command::registerFn("eg::Renderer::ChangeResolution", [](size_t argc, char* argv[]) {});
+		
 	}
 
 	void setCamera(const Components::Camera* camera)
@@ -743,11 +745,11 @@ namespace eg::Renderer
 				});
 		}
 
-		gAtmosphere->generateCSMMatrices(gCamera->mFov, gCamera->buildView());
-		gAtmosphere->updateDirectionalLight();
-		gAtmosphere->updateAmbientLight();
+		Atmosphere::generateCSMMatrices(gCamera->mFov, gCamera->buildView());
+		Atmosphere::updateDirectionalLight();
+		Atmosphere::updateAmbientLight();
 
-		gAtmosphere->beginDirectionalShadowPass(cmd);
+		Atmosphere::beginDirectionalShadowPass(cmd);
 		cmd.executeCommands(gShadowCmdBuffers[gCurrentFrame]);
 		cmd.endRenderPass();
 
@@ -755,8 +757,8 @@ namespace eg::Renderer
 		cmd.executeCommands(gBufferCmdBuffers[gCurrentFrame]);
 		cmd.nextSubpass(vk::SubpassContents::eInline); //Subpass 1
 		Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
-		gAtmosphere->renderAmbientLight(cmd);
-		gAtmosphere->renderDirectionalLight(cmd);
+		Atmosphere::renderAmbientLight(cmd);
+		Atmosphere::renderDirectionalLight(cmd);
 		Data::LightRenderer::beginPointLight(cmd);
 		gLightRenderFn(cmd);
 		Data::ParticleRenderer::render(cmd);
@@ -859,8 +861,8 @@ namespace eg::Renderer
 		}
 		gShadowThread->join();
 
+		Atmosphere::destroy();
 
-		gAtmosphere.reset();
 		gDefaultRenderPass.reset();
 		gPostprocessingRenderPass.reset();
 		gGlobalUniformBuffer.reset();
@@ -1004,17 +1006,6 @@ namespace eg::Renderer
 	{
 		return *gDefaultRenderPass;
 	}
-
-	const Atmosphere& getAtmosphere()
-	{
-		return *gAtmosphere;
-	}
-
-	class Atmosphere& getAtmosphereMutable()
-	{
-		return *gAtmosphere;
-	}
-
 
 	vk::DescriptorSet getCurrentFrameGUBODescSet()
 	{

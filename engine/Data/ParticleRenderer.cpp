@@ -1,4 +1,5 @@
 #include <Data.h>
+#include <Core.h>
 
 #include <shaderc/shaderc.hpp>
 
@@ -37,12 +38,121 @@ namespace eg::Data::ParticleRenderer
 	std::optional<Renderer::GPUBuffer> gVertexBuffer;
 	std::optional<Renderer::CPUBuffer> gInstanceBufferCPU;
 
+	void createPipeline();
+
 	void create()
 	{
+		Command::registerFn("eg::Renderer::ReloadAllPipelines", [](size_t, char* []) {
+			Renderer::getDevice().destroyPipeline(gPipeline);
+			Renderer::getDevice().destroyPipelineLayout(gPipelineLayout);
+			Renderer::getDevice().destroyDescriptorSetLayout(gDescLayout);
+			createPipeline();
+		});
+
 		gVertexBuffer.emplace(particleVertices.data(), particleVertices.size() * sizeof(ParticleVertex), vk::BufferUsageFlagBits::eVertexBuffer);
 		gInstanceBufferCPU.emplace(nullptr, sizeof(Components::ParticleInstance) * MAX_PARTICLES, vk::BufferUsageFlagBits::eTransferSrc);
+		createPipeline();
+	}
+
+
+	void recordParticle(const Components::ParticleInstance instance, vk::DescriptorSet textureAtlas, glm::uvec2 atlasSize)
+	{
+		gParticleMap[textureAtlas].size = atlasSize;
+		gParticleMap[textureAtlas].instances.push_back(instance);
+	}
+
+
+	vk::DescriptorSetLayout getTextureAtlasDescLayout()
+	{
+		return gDescLayout;
+	}
+
+	void updateBuffers()
+	{
+		for (auto& [set, atlas] : gParticleMap)
+		{
+			if (!atlas.buffer.has_value())
+			{
+				atlas.buffer.emplace(nullptr,
+					sizeof(Components::ParticleInstance) * MAX_PARTICLES,
+					vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer);
+			}
+
+			//Update buffer
+			if (atlas.instances.size() == 0)
+			{
+				continue;
+			}
+			if (atlas.instances.size() > MAX_PARTICLES)
+			{
+				atlas.instances.resize(MAX_PARTICLES);
+			}
+			if (atlas.instances.size() > 0)
+			{
+				Renderer::immediateSubmit([&](vk::CommandBuffer cmd)
+					{
+						gInstanceBufferCPU->write(atlas.instances.data(), atlas.instances.size() * sizeof(Components::ParticleInstance));
+
+						vk::BufferCopy copyRegion{};
+						copyRegion.setSize(sizeof(Components::ParticleInstance) * atlas.instances.size());
+						cmd.copyBuffer(gInstanceBufferCPU->getBuffer(), atlas.buffer->getBuffer(), copyRegion);
+					});
+			}
+		}	
+	}
+	void render(vk::CommandBuffer cmd)
+	{
+		
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, gPipeline);
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+			gPipelineLayout,
+			0,
+			{ Renderer::getCurrentFrameGUBODescSet() },
+			{}
+		);
+		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
+			0.0f, 1.0f } });
+		cmd.setScissor(0, Renderer::getScaledDrawExtent());
 		
 
+		for (auto& [set, atlas] : gParticleMap)
+		{
+			VertexPushConstant ps;
+			ps.atlasSize = atlas.size;
+			cmd.pushConstants(gPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(VertexPushConstant), &ps);
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+				gPipelineLayout,
+				1,
+				{ set },
+				{}
+			);
+
+			cmd.bindVertexBuffers(0, { gVertexBuffer->getBuffer(), atlas.buffer->getBuffer() }, { 0, 0 });
+			cmd.draw(4, static_cast<uint32_t>(atlas.instances.size()), 0, 0);
+		}
+
+
+		for (auto& [set, atlas] : gParticleMap)
+		{
+			atlas.instances.clear();
+		}
+	}
+	
+	void destroy()
+	{
+		Renderer::getDevice().destroyPipeline(gPipeline);
+		Renderer::getDevice().destroyPipelineLayout(gPipelineLayout);
+		Renderer::getDevice().destroyDescriptorSetLayout(gDescLayout);
+		gVertexBuffer.reset();
+		gInstanceBufferCPU.reset();
+		gParticleMap.clear();
+	}
+
+
+	void createPipeline()
+	{
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
 		{
@@ -227,101 +337,4 @@ namespace eg::Data::ParticleRenderer
 		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
-
-
-	void recordParticle(const Components::ParticleInstance instance, vk::DescriptorSet textureAtlas, glm::uvec2 atlasSize)
-	{
-		gParticleMap[textureAtlas].size = atlasSize;
-		gParticleMap[textureAtlas].instances.push_back(instance);
-	}
-
-
-	vk::DescriptorSetLayout getTextureAtlasDescLayout()
-	{
-		return gDescLayout;
-	}
-
-	void updateBuffers()
-	{
-		for (auto& [set, atlas] : gParticleMap)
-		{
-			if (!atlas.buffer.has_value())
-			{
-				atlas.buffer.emplace(nullptr,
-					sizeof(Components::ParticleInstance) * MAX_PARTICLES,
-					vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer);
-			}
-
-			//Update buffer
-			if (atlas.instances.size() == 0)
-			{
-				continue;
-			}
-			if (atlas.instances.size() > MAX_PARTICLES)
-			{
-				atlas.instances.resize(MAX_PARTICLES);
-			}
-			if (atlas.instances.size() > 0)
-			{
-				Renderer::immediateSubmit([&](vk::CommandBuffer cmd)
-					{
-						gInstanceBufferCPU->write(atlas.instances.data(), atlas.instances.size() * sizeof(Components::ParticleInstance));
-
-						vk::BufferCopy copyRegion{};
-						copyRegion.setSize(sizeof(Components::ParticleInstance) * atlas.instances.size());
-						cmd.copyBuffer(gInstanceBufferCPU->getBuffer(), atlas.buffer->getBuffer(), copyRegion);
-					});
-			}
-		}	
-	}
-	void render(vk::CommandBuffer cmd)
-	{
-		
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, gPipeline);
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-			gPipelineLayout,
-			0,
-			{ Renderer::getCurrentFrameGUBODescSet() },
-			{}
-		);
-		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
-			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getScaledDrawExtent());
-		
-
-		for (auto& [set, atlas] : gParticleMap)
-		{
-			VertexPushConstant ps;
-			ps.atlasSize = atlas.size;
-			cmd.pushConstants(gPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(VertexPushConstant), &ps);
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-				gPipelineLayout,
-				1,
-				{ set },
-				{}
-			);
-
-			cmd.bindVertexBuffers(0, { gVertexBuffer->getBuffer(), atlas.buffer->getBuffer() }, { 0, 0 });
-			cmd.draw(4, static_cast<uint32_t>(atlas.instances.size()), 0, 0);
-		}
-
-
-		for (auto& [set, atlas] : gParticleMap)
-		{
-			atlas.instances.clear();
-		}
-	}
-	
-	void destroy()
-	{
-		Renderer::getDevice().destroyPipeline(gPipeline);
-		Renderer::getDevice().destroyPipelineLayout(gPipelineLayout);
-		Renderer::getDevice().destroyDescriptorSetLayout(gDescLayout);
-		gVertexBuffer.reset();
-		gInstanceBufferCPU.reset();
-		gParticleMap.clear();
-	}
-
 }

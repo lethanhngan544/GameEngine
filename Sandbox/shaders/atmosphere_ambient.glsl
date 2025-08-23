@@ -65,8 +65,8 @@ void main()
 		fragPosSampled = vec3(gUBO.view * vec4(fragPosSampled, 1.0));
 
 
-		float rangeCheck = smoothstep(0.0, 1.0, ubo.radius / abs(fragPos.z - samplePos.z));
-		occlusion += (fragPosSampled.z >= samplePos.z ? 1.0 : 0.0) * rangeCheck;  
+		float rangeCheck = smoothstep(0.0, 1.0, ubo.radius / abs(fragPos.z - fragPosSampled.z));
+		occlusion += (fragPosSampled.z >= (samplePos.z + 0.025) ? 1.0 : 0.0) * rangeCheck;  
 		
 	} 
 	occlusion = 1.0 - (occlusion / SSAO_KERNEL_SIZE);

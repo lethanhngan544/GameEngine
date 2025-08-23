@@ -1,4 +1,5 @@
 #include <Data.h>
+#include <Core.h>
 
 #include <shaderc/shaderc.hpp>
 
@@ -14,6 +15,11 @@ namespace eg::Data::LightRenderer
 
 	void create()
 	{
+		Command::registerFn("eg::Renderer::ReloadAllPipelines", [](size_t, char* []) {
+			destroy();
+			createPointPipeline(Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
+		});
+
 		createPointPipeline(Renderer::getDefaultRenderPass(), Renderer::getGlobalDescriptorSet());
 	}
 	void destroy()

@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include <Core.h>
 
 #include <random>
 
@@ -6,27 +7,89 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace eg::Renderer
+namespace eg::Renderer::Atmosphere
 {
-	Atmosphere::Atmosphere(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout, uint32_t shadowMapSize) :
-		mDirectionalBuffer(nullptr, sizeof(DirectionalLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer),
-		mAmbientBuffer(nullptr, sizeof(AmbientLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer),
-		mShadowMapSize(shadowMapSize)
+	//Directional light shadow map
+	vk::Format mDepthFormat = vk::Format::eD32Sfloat;
+	vk::ImageUsageFlags mUsageFlags = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled;
+
+	vk::RenderPass mRenderPass;
+	vk::Framebuffer mFramebuffer;
+	vk::Image mDepthImage;
+	vk::ImageView mDepthImageView;
+	vma::Allocation mDepthAllocation;
+	vk::Sampler mDepthSampler;
+
+	//Ambient light, ssao
+	vk::Pipeline mAmbientPipeline;
+	vk::PipelineLayout mAmbientLayout;
+	vk::DescriptorSetLayout mAmbientDescLayout;
+	vk::DescriptorSet mAmbientSet;
+	std::optional<Renderer::CPUBuffer> mAmbientBuffer;
+	AmbientLightUniformBuffer mAmbientLightUniformBuffer;
+	std::optional<Image2D> mSSAONoiseImage;
+	vk::Sampler mSSAONoiseSampler;
+	vk::Sampler mSubpass0DepthSampler;
+
+	//Directional light
+	uint32_t mShadowMapSize;
+	vk::Pipeline mDirectionalPipeline;
+	vk::PipelineLayout mDirectionalLayout;
+	vk::DescriptorSetLayout mDirectionalDescLayout;
+	vk::DescriptorSet mDirectionalSet;
+	std::optional<Renderer::CPUBuffer> mDirectionalBuffer;
+	DirectionalLightUniformBuffer mDirectionalLightUniformBuffer;
+
+	void destroyAllPipelines();
+	void createDirectionalShadowPass(uint32_t size);
+	void createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout);
+	void createAmbientLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout);
+	void generateCSMPlanes(float maxDistance);
+	void generateSSAOKernel();
+	void generateSSAONoise();
+
+	void create(uint32_t shadowMapSize)
 	{
+		mDirectionalBuffer.emplace(nullptr, sizeof(DirectionalLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer);
+		mAmbientBuffer.emplace(nullptr, sizeof(AmbientLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer);
+		mShadowMapSize = shadowMapSize;
 		generateCSMPlanes(500.0f);
 		generateSSAOKernel();
 		generateSSAONoise();
 
+		Command::registerFn("eg::Renderer::ReloadAllPipelines",
+		[](size_t, char* []) {
+			destroyAllPipelines();
+			createAmbientLightPipeline(getDefaultRenderPass(), getGlobalDescriptorSet());
+			createDirectionalLightPipeline(getDefaultRenderPass(), getGlobalDescriptorSet());
+		});
 
-		createAmbientLightPipeline(defaultpass, globalSetLayout);
+
+		createAmbientLightPipeline(getDefaultRenderPass(), getGlobalDescriptorSet());
 		createDirectionalShadowPass(shadowMapSize);
-		createDirectionalLightPipeline(defaultpass, globalSetLayout);
+		createDirectionalLightPipeline(getDefaultRenderPass(), getGlobalDescriptorSet());
 		
 	}
-	Atmosphere::~Atmosphere()
+	void destroy()
 	{
 		getDevice().destroySampler(mSSAONoiseSampler);
 
+		destroyAllPipelines();
+
+		getDevice().destroySampler(mDepthSampler);
+		getDevice().destroyImageView(mDepthImageView);
+		getAllocator().destroyImage(mDepthImage, mDepthAllocation);
+
+		getDevice().destroyFramebuffer(mFramebuffer);
+		getDevice().destroyRenderPass(mRenderPass);
+
+		mDirectionalBuffer.reset();
+		mAmbientBuffer.reset();
+		mSSAONoiseImage.reset();
+	}
+
+	void destroyAllPipelines()
+	{
 		getDevice().destroyPipeline(mAmbientPipeline);
 		getDevice().destroyPipelineLayout(mAmbientLayout);
 		getDevice().destroyDescriptorSetLayout(mAmbientDescLayout);
@@ -37,17 +100,9 @@ namespace eg::Renderer
 		getDevice().destroyPipelineLayout(mDirectionalLayout);
 		getDevice().destroyDescriptorSetLayout(mDirectionalDescLayout);
 		getDevice().freeDescriptorSets(getDescriptorPool(), mDirectionalSet);
-
-		getDevice().destroySampler(mDepthSampler);
-		getDevice().destroyImageView(mDepthImageView);
-		getAllocator().destroyImage(mDepthImage, mDepthAllocation);
-
-		getDevice().destroyFramebuffer(mFramebuffer);
-		getDevice().destroyRenderPass(mRenderPass);
 	}
 
-
-	void Atmosphere::generateCSMMatrices(float fov, const glm::mat4x4& viewMatrix)
+	void generateCSMMatrices(float fov, const glm::mat4x4& viewMatrix)
 	{
 		auto generateMat = [&](float nearPlane, float farPlane)
 			{
@@ -129,18 +184,18 @@ namespace eg::Renderer
 		}
 	}
 
-	void Atmosphere::updateDirectionalLight()
+	void updateDirectionalLight()
 	{
-		mDirectionalBuffer.write(&mDirectionalLightUniformBuffer, sizeof(DirectionalLightUniformBuffer));
+		mDirectionalBuffer->write(&mDirectionalLightUniformBuffer, sizeof(DirectionalLightUniformBuffer));
 	}
 
-	void Atmosphere::updateAmbientLight()
+	void updateAmbientLight()
 	{
 		mAmbientLightUniformBuffer.renderScale = Renderer::getRenderScale();
-		mAmbientBuffer.write(&mAmbientLightUniformBuffer, sizeof(AmbientLightUniformBuffer));
+		mAmbientBuffer->write(&mAmbientLightUniformBuffer, sizeof(AmbientLightUniformBuffer));
 	}
 
-	void Atmosphere::beginDirectionalShadowPass(const vk::CommandBuffer& cmd) const
+	void beginDirectionalShadowPass(const vk::CommandBuffer& cmd)
 	{
 		vk::ClearValue clearValues[] =
 		{
@@ -157,7 +212,7 @@ namespace eg::Renderer
 		cmd.beginRenderPass(renderPassBI, vk::SubpassContents::eSecondaryCommandBuffers);
 	}
 
-	void Atmosphere::renderDirectionalLight(const vk::CommandBuffer& cmd) const
+	void renderDirectionalLight(const vk::CommandBuffer& cmd)
 	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mDirectionalPipeline);
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
@@ -174,7 +229,7 @@ namespace eg::Renderer
 		cmd.draw(3, 1, 0, 0);
 	}
 
-	void Atmosphere::renderAmbientLight(const vk::CommandBuffer& cmd) const
+	void renderAmbientLight(const vk::CommandBuffer& cmd)
 	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mAmbientPipeline);
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
@@ -191,7 +246,7 @@ namespace eg::Renderer
 		cmd.draw(3, 1, 0, 0);
 	}
 
-	void Atmosphere::generateSSAOKernel()
+	void generateSSAOKernel()
 	{
 		std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
 		std::default_random_engine generator;
@@ -211,7 +266,7 @@ namespace eg::Renderer
 		}
 	}
 
-	void Atmosphere::generateSSAONoise()
+	void generateSSAONoise()
 	{
 		std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
 		std::default_random_engine generator;
@@ -265,7 +320,16 @@ namespace eg::Renderer
 		}
 	}
 
-	void Atmosphere::createAmbientLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout)
+
+	vk::DescriptorSetLayout getDirectionalDescLayout() { return mDirectionalDescLayout; }
+	vk::DescriptorSet getDirectionalSet() { return mDirectionalSet; }
+	vk::RenderPass getRenderPass() { return mRenderPass; }
+	vk::Framebuffer getFramebuffer() { return mFramebuffer; }
+	uint32_t getShadowMapSize() { return mShadowMapSize; }
+	AmbientLightUniformBuffer& getAmbientLightUniformBuffer() { return mAmbientLightUniformBuffer; }
+	DirectionalLightUniformBuffer& getDirectionalLightUniformBuffer() { return mDirectionalLightUniformBuffer; }
+
+	void createAmbientLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout)
 	{
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
@@ -301,7 +365,7 @@ namespace eg::Renderer
 		};
 
 		vk::DescriptorBufferInfo bufferInfo{};
-		bufferInfo.setBuffer(mAmbientBuffer.getBuffer())
+		bufferInfo.setBuffer(mAmbientBuffer->getBuffer())
 			.setOffset(0)
 			.setRange(sizeof(AmbientLightUniformBuffer));
 
@@ -503,7 +567,7 @@ namespace eg::Renderer
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
 
-	void Atmosphere::createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout)
+	void createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout)
 	{
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
@@ -539,7 +603,7 @@ namespace eg::Renderer
 			vk::DescriptorImageInfo(mDepthSampler, mDepthImageView, vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 		vk::DescriptorBufferInfo bufferInfo;
-		bufferInfo.setBuffer(mDirectionalBuffer.getBuffer())
+		bufferInfo.setBuffer(mDirectionalBuffer->getBuffer())
 			.setOffset(0)
 			.setRange(sizeof(DirectionalLightUniformBuffer));
 
@@ -733,7 +797,7 @@ namespace eg::Renderer
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
 
-	void Atmosphere::createDirectionalShadowPass(uint32_t size)
+	void createDirectionalShadowPass(uint32_t size)
 	{
 		vk::ImageCreateInfo imageCI{};
 		imageCI.setImageType(vk::ImageType::e2D)

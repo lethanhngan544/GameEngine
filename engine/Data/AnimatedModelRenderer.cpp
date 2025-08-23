@@ -1,4 +1,6 @@
 #include <Data.h>
+#include <Core.h>
+
 
 #include <Renderer.h>
 #include <shaderc/shaderc.hpp>
@@ -7,7 +9,6 @@
 
 namespace eg::Data::AnimatedModelRenderer
 {
-
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
 	vk::DescriptorSetLayout mMaterialLayout;
@@ -22,6 +23,12 @@ namespace eg::Data::AnimatedModelRenderer
 
 	void create()
 	{
+		Command::registerFn("eg::Renderer::ReloadAllPipelines", [](size_t, char* []) {
+			destroy();
+			createAnimatedModelPipeline();
+			createAnimatedModelShadowPipeline();
+		});
+
 		createAnimatedModelPipeline();
 		createAnimatedModelShadowPipeline();
 	}
@@ -118,15 +125,15 @@ namespace eg::Data::AnimatedModelRenderer
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mShadowPipelineLayout,
 			0,
-			{ Renderer::getCurrentFrameGUBODescSet(), Renderer::getAtmosphere().getDirectionalSet() },
+			{ Renderer::getCurrentFrameGUBODescSet(), Renderer::Atmosphere::getDirectionalSet() },
 			{}
 		);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getAtmosphere().getShadowMapSize()),
-			static_cast<float>(Renderer::getAtmosphere().getShadowMapSize()),
+			static_cast<float>(Renderer::Atmosphere::getShadowMapSize()),
+			static_cast<float>(Renderer::Atmosphere::getShadowMapSize()),
 			0.0f, 1.0f } });
 		cmd.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0),
-			vk::Extent2D(Renderer::getAtmosphere().getShadowMapSize(), Renderer::getAtmosphere().getShadowMapSize())));
+			vk::Extent2D(Renderer::Atmosphere::getShadowMapSize(), Renderer::Atmosphere::getShadowMapSize())));
 
 		using Node = Components::Animator::AnimationNode;
 		using NodeVec = std::vector<std::shared_ptr<Node>>;
@@ -480,7 +487,7 @@ namespace eg::Data::AnimatedModelRenderer
 		vk::DescriptorSetLayout setLayouts[] =
 		{
 			Renderer::getGlobalDescriptorSet(), // Slot0
-			Renderer::getAtmosphere().getDirectionalDescLayout(), // Slot 1
+			Renderer::Atmosphere::getDirectionalDescLayout(), // Slot 1
 			mBoneLayout, //Slot 2
 		};
 		vk::PushConstantRange pushConstantRanges[] =
@@ -596,7 +603,7 @@ namespace eg::Data::AnimatedModelRenderer
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(mShadowPipelineLayout)
-			.setRenderPass(Renderer::getAtmosphere().getRenderPass())
+			.setRenderPass(Renderer::Atmosphere::getRenderPass())
 			.setSubpass(0)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)

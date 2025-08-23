@@ -1,4 +1,5 @@
 #include "Data.h"
+#include <Core.h>
 
 #include "Renderer.h"
 
@@ -11,7 +12,46 @@ namespace eg::Data::SkyRenderer
 	vk::PipelineLayout gLayout;
 	vk::DescriptorSetLayout gSetLayout;
 
+	void createPipeline();
+
 	void create()
+	{
+		Command::registerFn("eg::Renderer::ReloadAllPipelines", [](size_t, char* []) {
+			Renderer::getDevice().destroyPipeline(gPipeline);
+			Renderer::getDevice().destroyPipelineLayout(gLayout);
+			Renderer::getDevice().destroyDescriptorSetLayout(gSetLayout);
+			createPipeline();
+		});
+
+		createPipeline();
+		
+	}
+	void destroy()
+	{
+		Renderer::getDevice().destroyPipeline(gPipeline);
+		Renderer::getDevice().destroyPipelineLayout(gLayout);
+		Renderer::getDevice().destroyDescriptorSetLayout(gSetLayout);
+		//Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), gSet);
+	}
+	void render(vk::CommandBuffer cmd, const SkySettings& skydome)
+	{
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, gPipeline);
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+			gLayout,
+			0,
+			{ Renderer::getCurrentFrameGUBODescSet() },
+			{}
+		);
+		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
+			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
+			0.0f, 1.0f } });
+		cmd.setScissor(0, Renderer::getScaledDrawExtent());
+		cmd.draw(3, 1, 0, 0);
+	}
+
+
+	void createPipeline()
 	{
 		//Define shader layout
 		//vk::DescriptorSetLayoutBinding descLayoutBindings[] =
@@ -42,7 +82,7 @@ namespace eg::Data::SkyRenderer
 			}, {});*/
 
 
-		//Load shaders
+			//Load shaders
 		auto vertexBinary = Renderer::compileShaderFromFile("shaders/fullscreen_quad.glsl", shaderc_glsl_vertex_shader);
 		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/sky.glsl", shaderc_glsl_fragment_shader);
 
@@ -206,29 +246,7 @@ namespace eg::Data::SkyRenderer
 		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
-	void destroy()
-	{
-		Renderer::getDevice().destroyPipeline(gPipeline);
-		Renderer::getDevice().destroyPipelineLayout(gLayout);
-		Renderer::getDevice().destroyDescriptorSetLayout(gSetLayout);
-		//Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), gSet);
-	}
-	void render(vk::CommandBuffer cmd, const SkySettings& skydome)
-	{
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, gPipeline);
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-			gLayout,
-			0,
-			{ Renderer::getCurrentFrameGUBODescSet() },
-			{}
-		);
-		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
-			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getScaledDrawExtent());
-		cmd.draw(3, 1, 0, 0);
-	}
+
 	vk::DescriptorSetLayout getDescLayout()
 	{
 		return gSetLayout;

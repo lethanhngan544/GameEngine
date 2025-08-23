@@ -4,6 +4,7 @@
 #include <Input.h>
 #include <Data.h>
 #include <Window.h>
+#include <Core.h>
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -37,6 +38,12 @@ namespace sndbx
 		if (!mEnabled) return;
 		ImGui::Begin("Renderer Settings");
 
+		if (ImGui::Button("Reload all pipelines"))
+		{
+			eg::Renderer::waitIdle();
+			eg::Command::execute("eg::Renderer::ReloadAllPipelines");
+		}
+
 		ImGui::SliderFloat("Render scale", &eg::Renderer::getRenderScale(), 0.1f, 1.0f);
 		ImGui::Separator();
 		/*
@@ -45,7 +52,7 @@ namespace sndbx
 			glm::vec4 color = { 1, 1, 1, 1 };
 		*/
 
-		auto& directionalLight = eg::Renderer::getAtmosphereMutable().getDirectionalLightUniformBuffer();
+		auto& directionalLight = eg::Renderer::Atmosphere::getDirectionalLightUniformBuffer();
 		ImGui::Text("Directional Light Settings");
 		if (ImGui::DragFloat3("Directional Light direction", &directionalLight.direction.x, 0.01f))
 		{
@@ -57,7 +64,7 @@ namespace sndbx
 
 		ImGui::Separator();
 		//Ambient
-		auto& ambientLight = eg::Renderer::getAtmosphereMutable().getAmbientLightUniformBuffer();
+		auto& ambientLight = eg::Renderer::Atmosphere::getAmbientLightUniformBuffer();
 		ImGui::Text("Ambient Light Settings");
 		ImGui::ColorEdit3("Ambient Light color", &ambientLight.color.x);
 		ImGui::DragFloat("Ambient Light intensity", &ambientLight.intensity, 0.01f);

@@ -22,6 +22,7 @@
 #include <Data.h>
 #include <Input.h>
 #include <World.h>
+#include <Core.h>
 #include <chrono>
 #include <thread>
 
@@ -63,7 +64,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
-		Renderer::create(1600, 900, 4096);
+		Renderer::create(1600, 900, 2048);
 		Data::StaticModelRenderer::create();
 		Data::AnimatedModelRenderer::create();
 		Data::LightRenderer::create();
@@ -150,6 +151,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 					gameObjManager.fixedUpdate(TICK_INTERVAL);
 					accumulator -= TICK_INTERVAL;
 				}
+
 				//Update
 				debugger.checkKeyboardInput();
 				gameObjManager.update(deltaTime);
@@ -182,6 +184,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	Data::LightRenderer::destroy();
 	Data::StaticModelRenderer::destroy();
 	Data::AnimatedModelRenderer::destroy();
+	
 	Renderer::destory();
 	Window::destroy();
 	Physics::destroy();

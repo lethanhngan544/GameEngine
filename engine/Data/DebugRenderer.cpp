@@ -1,4 +1,5 @@
 #include <Data.h>
+#include <Core.h>
 
 #include <shaderc/shaderc.hpp>
 #include <Renderer.h>
@@ -12,9 +13,32 @@ namespace eg::Data::DebugRenderer
 	
 	vk::PipelineLayout gLinePipelineLayout;
 	vk::Pipeline gLinePipeline;
-	//vk::DescriptorSetLayout gLineSetLayout;
-	//vk::DescriptorSet gLineSet;
+	
+
+	void createPipeline();
+
 	void create()
+	{
+		Command::registerFn("eg::Renderer::ReloadAllPipelines", [](size_t, char* []) {
+			vk::Device dv = Renderer::getDevice();
+			dv.destroyPipeline(gLinePipeline);
+			dv.destroyPipelineLayout(gLinePipelineLayout);
+			createPipeline();
+		});
+
+		createPipeline();
+	}
+
+	void destroy()
+	{
+		vk::Device dv = Renderer::getDevice();
+		dv.destroyPipeline(gLinePipeline);
+		dv.destroyPipelineLayout(gLinePipelineLayout);
+		gLineVertexBuffer.reset();
+		gLineStagingVertexBuffer.reset();
+	}
+
+	void createPipeline()
 	{
 		Logger::gTrace("Creating debug renderer !");
 
@@ -188,15 +212,6 @@ namespace eg::Data::DebugRenderer
 		//Allocate vertex buffer
 		gLineVertexBuffer.emplace(nullptr, sizeof(VertexFormat) * MAX_LINE_COUNT, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst);
 		gLineStagingVertexBuffer.emplace(nullptr, sizeof(VertexFormat) * MAX_LINE_COUNT, vk::BufferUsageFlagBits::eTransferSrc);
-	}
-
-	void destroy()
-	{
-		vk::Device dv = Renderer::getDevice();
-		dv.destroyPipeline(gLinePipeline);
-		dv.destroyPipelineLayout(gLinePipelineLayout);
-		gLineVertexBuffer.reset();
-		gLineStagingVertexBuffer.reset();
 	}
 
 	void recordLine(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color)
