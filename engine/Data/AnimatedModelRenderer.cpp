@@ -55,11 +55,17 @@ namespace eg::Data::AnimatedModelRenderer
 			Renderer::getCurrentFrameGUBODescSet(),
 			{}
 		);
-		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
+		Command::Var* renderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
+
+		float scaledWidth = static_cast<float>(widthCVar->value * renderScaleCVar->value);
+		float scaledHeight = static_cast<float>(heightCVar->value * renderScaleCVar->value);
+
+		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, scaledWidth, scaledHeight,
 			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getScaledDrawExtent());
+		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, { static_cast<uint32_t>(scaledWidth), static_cast<uint32_t>(scaledHeight) }));
 
 		using Node = Components::Animator::AnimationNode;
 		using NodeVec = std::vector<std::shared_ptr<Node>>;

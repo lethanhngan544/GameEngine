@@ -44,7 +44,13 @@ namespace sndbx
 			eg::Command::execute("eg::Renderer::ReloadAllPipelines");
 		}
 
-		ImGui::SliderFloat("Render scale", &eg::Renderer::getRenderScale(), 0.1f, 1.0f);
+		eg::Command::Var* renderScaleCVar = eg::Command::findVar("eg::Renderer::ScreenRenderScale");
+		auto renderscaleFloat = static_cast<float>(renderScaleCVar->value);
+		if (ImGui::SliderFloat("Render scale", &renderscaleFloat, 0.1f, 1.0f))
+		{
+			renderScaleCVar->value = static_cast<double>(renderscaleFloat);
+		}
+
 		ImGui::Separator();
 		/*
 			glm::vec3 direction = { 1, -1, 0 };

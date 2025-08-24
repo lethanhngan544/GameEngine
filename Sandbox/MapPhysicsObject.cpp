@@ -1,6 +1,7 @@
 #include <SandBox_MapPhysicsObject.h>
 #include <RenderStages.h>
 #include <Data.h>
+#include <Core.h>
 
 #include <Physics.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
@@ -77,7 +78,11 @@ namespace sndbx
 	void MapPhysicsObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
 	{
 		glm::mat4x4 mat = mBody.getBodyMatrix();
-		mCuller->updateFrustumPlanes(eg::Renderer::getDrawExtent().extent);
+		eg::Command::Var* widthCVar = eg::Command::findVar("eg::Renderer::ScreenWidth");
+		eg::Command::Var* heightCVar = eg::Command::findVar("eg::Renderer::ScreenHeight");
+
+		mCuller->updateFrustumPlanes(vk::Extent2D( static_cast<uint32_t>(widthCVar->value), 
+			static_cast<uint32_t>(heightCVar->value)));
 
 		switch (stage)
 		{

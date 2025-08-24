@@ -45,13 +45,15 @@ namespace eg::Renderer
 		vk::CommandBuffer commandBuffer;
 		uint32_t swapchainIndex = 0;
 	};
-	static float gRenderScale = 1.0f;
 	static Components::Camera gDummyCamera;
 	static const Components::Camera* gCamera = &gDummyCamera;
 
 	static shaderc::Compiler gShaderCompiler;
 	static shaderc::CompileOptions gShaderCompilerOptions;
-	static vk::Rect2D gDrawExtent;
+	static Command::Var* gScreenWidth = nullptr;
+	static Command::Var* gScreenHeight = nullptr;
+	static Command::Var* gScreenRenderScale = nullptr;
+
 	static vk::Instance gInstance;
 	static vk::DebugUtilsMessengerEXT gDbgMsg;
 	static vk::SurfaceKHR gSurface;
@@ -69,8 +71,7 @@ namespace eg::Renderer
 	//Double buffer setup
 
 	static vk::CommandPool gCommandPool;
-	static constexpr size_t gFrameCount = 2;
-	static FrameData gFrameData[gFrameCount];
+	static FrameData gFrameData[MAX_FRAMES_IN_FLIGHT];
 	static uint32_t gCurrentFrame = 0;
 
 	static vk::DescriptorPool gDescriptorPool;
@@ -107,13 +108,13 @@ namespace eg::Renderer
 	static std::condition_variable gShadowCV;
 	static bool gShadowThreadReady = false;
 	static bool gShadowThreadRunning = true;
-	static vk::CommandBuffer gShadowCmdBuffers[gFrameCount];
+	static vk::CommandBuffer gShadowCmdBuffers[MAX_FRAMES_IN_FLIGHT];
 
 	static std::mutex gBufferMutex;
 	static std::condition_variable gBufferCV;
 	static bool gBufferThreadReady = false;
 	static bool gBufferThreadRunning = true;
-	static vk::CommandBuffer gBufferCmdBuffers[gFrameCount];
+	static vk::CommandBuffer gBufferCmdBuffers[MAX_FRAMES_IN_FLIGHT];
 
 	static std::unique_ptr<std::thread> gShadowThread;
 	static std::unique_ptr<std::thread> gBufferThread;
@@ -274,9 +275,9 @@ namespace eg::Renderer
 		vk::CommandBufferAllocateInfo cmdAI{};
 		cmdAI.setCommandPool(cmdPool)
 			.setLevel(vk::CommandBufferLevel::eSecondary)
-			.setCommandBufferCount(gFrameCount);
+			.setCommandBufferCount(MAX_FRAMES_IN_FLIGHT);
 		auto buffers = gDevice.allocateCommandBuffers(cmdAI);
-		for(size_t i = 0; i < gFrameCount; i++)
+		for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			gShadowCmdBuffers[i] = buffers[i];
 		}
@@ -332,9 +333,9 @@ namespace eg::Renderer
 		vk::CommandBufferAllocateInfo cmdAI{};
 		cmdAI.setCommandPool(cmdPool)
 			.setLevel(vk::CommandBufferLevel::eSecondary)
-			.setCommandBufferCount(gFrameCount);
+			.setCommandBufferCount(MAX_FRAMES_IN_FLIGHT);
 		auto buffers = gDevice.allocateCommandBuffers(cmdAI);
-		for (size_t i = 0; i < gFrameCount; i++)
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			gBufferCmdBuffers[i] = buffers[i];
 		}
@@ -386,7 +387,11 @@ namespace eg::Renderer
 
 	void create(uint32_t width, uint32_t height, uint32_t shadowMapRes)
 	{
-		gDrawExtent = vk::Rect2D{ {0, 0}, {width, height} };
+		//Create cvar for draw extent
+		gScreenWidth = Command::registerVar("eg::Renderer::ScreenWidth", "None", static_cast<double>(width));
+		gScreenHeight = Command::registerVar("eg::Renderer::ScreenHeight", "None", static_cast<double>(height));
+		gScreenRenderScale = Command::registerVar("eg::Renderer::ScreenRenderScale", "None", 1.0);
+
 		VULKAN_HPP_DEFAULT_DISPATCHER.init();
 		//Create instance
 		vk::ApplicationInfo instanceAI{};
@@ -553,7 +558,7 @@ namespace eg::Renderer
 			.setMinImageCount(imageCount)
 			.setImageFormat(gSurfaceFormat.format)
 			.setImageColorSpace(gSurfaceFormat.colorSpace)
-			.setImageExtent(gDrawExtent.extent)
+			.setImageExtent(vk::Extent2D(width, height))
 			.setImageArrayLayers(1)
 			.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst)
 			.setImageSharingMode(vk::SharingMode::eExclusive)
@@ -594,7 +599,7 @@ namespace eg::Renderer
 
 
 		//Create frame data
-		for (size_t i = 0; i < gFrameCount; i++)
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			FrameData& frameData = gFrameData[i];
 			vk::SemaphoreCreateInfo semaphoreCI{};
@@ -616,8 +621,8 @@ namespace eg::Renderer
 		//Create descriptor pool
 		vk::DescriptorPoolSize poolSizes[] =
 		{
-			vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 1000},
-			vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 1000}
+			vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 4096},
+			vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 4096}
 		};
 		vk::DescriptorPoolCreateInfo descriptorPoolCI{};
 		descriptorPoolCI
@@ -627,7 +632,7 @@ namespace eg::Renderer
 		gDescriptorPool = gDevice.createDescriptorPool(descriptorPoolCI);
 
 		//Create global uniform buffers
-		gGlobalUniformBuffer.emplace(gFrameCount);
+		gGlobalUniformBuffer.emplace(MAX_FRAMES_IN_FLIGHT);
 
 		//Create default resources
 		std::vector<uint8_t> whitePixels(64 * 64 * 4, 255);
@@ -716,7 +721,7 @@ namespace eg::Renderer
 
 
 	void render()
-	{
+	{	
 		auto cmd = begin();
 		auto& frameData = gFrameData[gCurrentFrame];
 		gDebugRenderFn(cmd);
@@ -783,11 +788,18 @@ namespace eg::Renderer
 				vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, {}, {}, { barrier });
 
 			//Now copy the image
+
+			//Calculate scaled extent
+			uint32_t scaledWidth = static_cast<uint32_t>(gScreenWidth->value * gScreenRenderScale->value);
+			uint32_t scaledHeight = static_cast<uint32_t>(gScreenHeight->value * gScreenRenderScale->value);
+
+
 			vk::ImageBlit blitRegion{};
 			blitRegion.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
-				.setSrcOffsets({ vk::Offset3D(0, 0, 0) , vk::Offset3D(getScaledDrawExtent().extent.width, getScaledDrawExtent().extent.height, 1) })
+				.setSrcOffsets({ vk::Offset3D(0, 0, 0) , vk::Offset3D(scaledWidth, scaledHeight, 1) })
 				.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
-				.setDstOffsets({ vk::Offset3D(0, 0, 0) , vk::Offset3D(gDrawExtent.extent.width, gDrawExtent.extent.height, 1) });
+				.setDstOffsets({ vk::Offset3D(0, 0, 0) , vk::Offset3D(static_cast<uint32_t>(gScreenWidth->value),
+					static_cast<uint32_t>(gScreenHeight->value), 1)});
 
 			cmd.blitImage(gDefaultRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
 				gPostprocessingRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferDstOptimal, { blitRegion }, vk::Filter::eLinear);
@@ -824,7 +836,7 @@ namespace eg::Renderer
 				.setSrcOffset({ 0, 0, 0 })
 				.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
 				.setDstOffset({ 0, 0, 0 })
-				.setExtent({ gDrawExtent.extent.width, gDrawExtent.extent.height, 1 });
+				.setExtent({ static_cast<uint32_t>(gScreenWidth->value), static_cast<uint32_t>(gScreenHeight->value), 1 });
 
 			cmd.copyImage(gPostprocessingRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
 				gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { blitRegion });
@@ -875,7 +887,7 @@ namespace eg::Renderer
 		ImGui::DestroyContext();
 		gAllocator.destroy();
 		gDevice.destroyDescriptorPool(gDescriptorPool);
-		for (size_t i = 0; i < gFrameCount; i++)
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			auto& frameData = gFrameData[i];
 			gDevice.destroySemaphore(frameData.presentSemaphore);
@@ -903,6 +915,16 @@ namespace eg::Renderer
 	vk::CommandBuffer begin()
 	{
 		auto& frameData = gFrameData[gCurrentFrame];
+
+		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
+
+		uint32_t width = static_cast<uint32_t>(widthCVar->value);
+		uint32_t height = static_cast<uint32_t>(heightCVar->value);
+
+
+
 		auto fenceWaitStatus = gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000);
 		if (fenceWaitStatus != vk::Result::eSuccess)
 		{
@@ -920,7 +942,7 @@ namespace eg::Renderer
 
 		//Update global uniform buffer
 		GlobalUniformBuffer::Data GlobalUBOData;
-		GlobalUBOData.mProjection = gCamera->buildProjection(gDrawExtent.extent);
+		GlobalUBOData.mProjection = gCamera->buildProjection(vk::Extent2D(width, height));
 		GlobalUBOData.mView = gCamera->buildView();
 		GlobalUBOData.mCameraPosition = gCamera->mPosition;
 
@@ -966,22 +988,13 @@ namespace eg::Renderer
 		{
 			Logger::gWarn("Failed to present image: " + vk::to_string(presentResult));
 		}
-		gCurrentFrame = (gCurrentFrame + 1) % gFrameCount;
+		gCurrentFrame = (gCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 
-	vk::Rect2D getScaledDrawExtent()
+	uint32_t getCurrentFrameIndex()
 	{
-		vk::Rect2D scaledExtent = gDrawExtent;
-		scaledExtent.extent.width = static_cast<uint32_t>(gDrawExtent.extent.width * gRenderScale);
-		scaledExtent.extent.height = static_cast<uint32_t>(gDrawExtent.extent.height * gRenderScale);
-		return scaledExtent;
+		return gCurrentFrame;
 	}
-
-	float& getRenderScale()
-	{
-		return gRenderScale;
-	}
-
 	vk::Instance getInstance()
 	{
 		return gInstance;
@@ -1021,10 +1034,6 @@ namespace eg::Renderer
 		return *gDefaultWhiteImage;
 	}
 
-	vk::Rect2D getDrawExtent()
-	{
-		return gDrawExtent;
-	}
 	const CombinedImageSampler2D& getDefaultCheckerboardImage()
 	{
 		return *gDefaultCheckerboardImage;

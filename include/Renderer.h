@@ -19,8 +19,10 @@ namespace eg::Components
 
 namespace eg::Renderer
 {
+	static constexpr size_t MAX_FRAMES_IN_FLIGHT = 2;
 	static constexpr uint8_t SKY_STENCIL_VALUE = 0x00;
 	static constexpr uint8_t MESH_STENCIL_VALUE = 0x01;
+
 
 	using RenderFn = std::function<void(vk::CommandBuffer cmd)>;
 
@@ -45,18 +47,15 @@ namespace eg::Renderer
 	vk::Device getDevice();
 	vma::Allocator getAllocator();
 	vk::DescriptorPool getDescriptorPool();
-
-	vk::Rect2D getDrawExtent();
-	vk::Rect2D getScaledDrawExtent();
 	vk::DescriptorSet getCurrentFrameGUBODescSet();
 	vk::DescriptorSetLayout getGlobalDescriptorSet();
+	uint32_t getCurrentFrameIndex();
 
 
 	const class DefaultRenderPass& getDefaultRenderPass();
 	const class CombinedImageSampler2D& getDefaultWhiteImage();
 	const class CombinedImageSampler2D& getDefaultCheckerboardImage();
 	const uint32_t getGraphicsQueueFamilyIndex();
-	float& getRenderScale();
 
 	void setShadowRenderFunction(RenderFn&& renderFn);
 	void setGBufferRenderFunction(RenderFn&& renderFn);

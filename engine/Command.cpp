@@ -1,15 +1,16 @@
 #include "Core.h"
 
-#include <map>
+#include <unordered_map>
 #include <sstream>
+#include <string.h>
 
 #include "Logger.h"
 
 namespace eg::Command
 {
-	static std::map<std::string, std::vector<Fn>>		gCommandFns;
-	static std::map<std::string, Var>					gCommandVars;
-	static Var gEmptyVar = {"UNKNOWN", "ERROR", std::numeric_limits<double>::max()};
+	static std::unordered_map<std::string, std::vector<Fn>>		gCommandFns;
+	static std::unordered_map<std::string, std::unique_ptr<Var>>	gCommandVars;
+	static Var gEmptyVar = {"UNKNOWN", "ERROR", 69.69};
 
 	std::vector<std::string> splitString(const std::string& str, char delimiter);
 
@@ -27,30 +28,28 @@ namespace eg::Command
 			//TODO: Print error
 		}
 	}
-	Var& registerVar(const std::string& name, const std::string& value)
+	Var* registerVar(const std::string& name, const std::string& value, double value2)
 	{
 		auto& var = gCommandVars[name];
-		var.name = name;
-		var.string = value;
-		try
-		{
-			var.value = std::stod(value);
-		}
-		catch (const std::exception&)
-		{
-			var.value = 0.0; // Default value if conversion fails
-		}
-		return var;
+
+		var = std::make_unique<Var>();
+
+		std::strncpy(var->name, name.c_str(), MAX_VAR_NAME_SIZE);
+		std::strncpy(var->string, value.c_str(), MAX_VAR_STRING_SIZE);
+		var->value = value2;
+		
+
+		return var.get();
 	}
 
-	Var& findVar(const std::string& name)
+	Var* findVar(const std::string& name)
 	{
 		auto it = gCommandVars.find(name);
 		if (it != gCommandVars.end())
 		{
-			return it->second;
+			return it->second.get();
 		}
-		return gEmptyVar;
+		return &gEmptyVar;
 	}
 
 
@@ -77,26 +76,13 @@ namespace eg::Command
 		}
 
 		// cvar?
-		Var& cv = findVar(cmd);
-		if (&cv != &gEmptyVar) {
-			setVar(cv, tokens[1]);
+		Var* cv = findVar(cmd);
+		if (cv != &gEmptyVar) {
+			std::strncpy(cv->string, tokens[1].c_str(), MAX_VAR_STRING_SIZE);
 			return;
 		}
 
 		//Print unknown command
-	}
-
-	void setVar(Var& var, std::string string)
-	{
-		var.string = string;
-		try
-		{
-			var.value = std::stod(string);
-
-		} catch (const std::exception&)
-		{
-			var.value = gEmptyVar.value; // Default value if conversion fails
-		}
 	}
 
 	std::vector<std::string> splitString(const std::string& str, char delimiter)

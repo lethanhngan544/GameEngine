@@ -1,4 +1,5 @@
 #include <Renderer.h>
+#include <Core.h>
 
 namespace eg::Renderer
 {
@@ -189,10 +190,18 @@ namespace eg::Renderer
 			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}),
 		};
 
+		Command::Var* renderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
+
+		uint32_t scaledWidth = static_cast<uint32_t>(widthCVar->value * renderScaleCVar->value);
+		uint32_t scaledHeight = static_cast<uint32_t>(heightCVar->value * renderScaleCVar->value);
+
 		vk::RenderPassBeginInfo renderPassBI{};
 		renderPassBI.setRenderPass(mRenderPass)
 			.setFramebuffer(mFramebuffer)
-			.setRenderArea(Renderer::getScaledDrawExtent())
+			.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(scaledWidth, scaledHeight)))
 			.setClearValues(clearValues);
 
 

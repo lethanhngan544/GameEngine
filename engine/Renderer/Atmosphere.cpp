@@ -36,8 +36,8 @@ namespace eg::Renderer::Atmosphere
 	vk::Pipeline mDirectionalPipeline;
 	vk::PipelineLayout mDirectionalLayout;
 	vk::DescriptorSetLayout mDirectionalDescLayout;
-	vk::DescriptorSet mDirectionalSet;
-	std::optional<Renderer::CPUBuffer> mDirectionalBuffer;
+	vk::DescriptorSet mDirectionalSet[MAX_FRAMES_IN_FLIGHT];
+	std::optional<Renderer::CPUBuffer> mDirectionalBuffer[MAX_FRAMES_IN_FLIGHT];
 	DirectionalLightUniformBuffer mDirectionalLightUniformBuffer;
 
 	void destroyAllPipelines();
@@ -50,7 +50,10 @@ namespace eg::Renderer::Atmosphere
 
 	void create(uint32_t shadowMapSize)
 	{
-		mDirectionalBuffer.emplace(nullptr, sizeof(DirectionalLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer);
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+		{
+			mDirectionalBuffer[i].emplace(nullptr, sizeof(DirectionalLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer);
+		}
 		mAmbientBuffer.emplace(nullptr, sizeof(AmbientLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer);
 		mShadowMapSize = shadowMapSize;
 		generateCSMPlanes(500.0f);
@@ -83,7 +86,10 @@ namespace eg::Renderer::Atmosphere
 		getDevice().destroyFramebuffer(mFramebuffer);
 		getDevice().destroyRenderPass(mRenderPass);
 
-		mDirectionalBuffer.reset();
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+		{
+			mDirectionalBuffer[i].reset();
+		}
 		mAmbientBuffer.reset();
 		mSSAONoiseImage.reset();
 	}
@@ -106,7 +112,11 @@ namespace eg::Renderer::Atmosphere
 	{
 		auto generateMat = [&](float nearPlane, float farPlane)
 			{
-				auto aspectRatio = (float)Renderer::getDrawExtent().extent.width / (float)Renderer::getDrawExtent().extent.height;
+				Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+				Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
+
+				auto aspectRatio = static_cast<float>(widthCVar->value / heightCVar->value);
 				glm::mat4 cameraProjection = glm::perspectiveRH_ZO(
 					glm::radians(fov),
 					aspectRatio,
@@ -186,12 +196,13 @@ namespace eg::Renderer::Atmosphere
 
 	void updateDirectionalLight()
 	{
-		mDirectionalBuffer->write(&mDirectionalLightUniformBuffer, sizeof(DirectionalLightUniformBuffer));
+		mDirectionalBuffer[getCurrentFrameIndex()]->write(&mDirectionalLightUniformBuffer, sizeof(DirectionalLightUniformBuffer));
 	}
 
 	void updateAmbientLight()
 	{
-		mAmbientLightUniformBuffer.renderScale = Renderer::getRenderScale();
+		Command::Var* renderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		mAmbientLightUniformBuffer.renderScale = renderScaleCVar->value;
 		mAmbientBuffer->write(&mAmbientLightUniformBuffer, sizeof(AmbientLightUniformBuffer));
 	}
 
@@ -218,14 +229,21 @@ namespace eg::Renderer::Atmosphere
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mDirectionalLayout,
 			0,
-			{ Renderer::getCurrentFrameGUBODescSet(), mDirectionalSet },
+			{ Renderer::getCurrentFrameGUBODescSet(), mDirectionalSet[getCurrentFrameIndex()] },
 			{}
 		);
-		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
+
+		Command::Var* renderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
+
+		float scaledWidth = static_cast<float>(widthCVar->value * renderScaleCVar->value);
+		float scaledHeight = static_cast<float>(heightCVar->value * renderScaleCVar->value);
+
+		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, scaledWidth, scaledHeight,
 			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getScaledDrawExtent());
+		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, { static_cast<uint32_t>(scaledWidth), static_cast<uint32_t>(scaledHeight) }));
 		cmd.draw(3, 1, 0, 0);
 	}
 
@@ -238,11 +256,17 @@ namespace eg::Renderer::Atmosphere
 			{ Renderer::getCurrentFrameGUBODescSet(), mAmbientSet },
 			{}
 		);
-		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f,
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.width),
-			static_cast<float>(Renderer::getScaledDrawExtent().extent.height),
+		Command::Var* renderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
+
+		float scaledWidth = static_cast<float>(widthCVar->value * renderScaleCVar->value);
+		float scaledHeight = static_cast<float>(heightCVar->value * renderScaleCVar->value);
+
+		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, scaledWidth, scaledHeight,
 			0.0f, 1.0f } });
-		cmd.setScissor(0, Renderer::getScaledDrawExtent());
+		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, { static_cast<uint32_t>(scaledWidth), static_cast<uint32_t>(scaledHeight) }));
 		cmd.draw(3, 1, 0, 0);
 	}
 
@@ -322,7 +346,7 @@ namespace eg::Renderer::Atmosphere
 
 
 	vk::DescriptorSetLayout getDirectionalDescLayout() { return mDirectionalDescLayout; }
-	vk::DescriptorSet getDirectionalSet() { return mDirectionalSet; }
+	vk::DescriptorSet getDirectionalSet() { return mDirectionalSet[getCurrentFrameIndex()]; }
 	vk::RenderPass getRenderPass() { return mRenderPass; }
 	vk::Framebuffer getFramebuffer() { return mFramebuffer; }
 	uint32_t getShadowMapSize() { return mShadowMapSize; }
@@ -588,12 +612,14 @@ namespace eg::Renderer::Atmosphere
 
 
 		//Allocate descriptor set right here
-
-		vk::DescriptorSetAllocateInfo ai{};
-		ai.setDescriptorPool(Renderer::getDescriptorPool())
-			.setDescriptorSetCount(1)
-			.setSetLayouts(mDirectionalDescLayout);
-		mDirectionalSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+		{
+			vk::DescriptorSetAllocateInfo ai{};
+			ai.setDescriptorPool(Renderer::getDescriptorPool())
+				.setDescriptorSetCount(1)
+				.setSetLayouts(mDirectionalDescLayout);
+			mDirectionalSet[i] = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
+		}
 
 		vk::DescriptorImageInfo imageInfos[] = {
 			vk::DescriptorImageInfo(nullptr, defaultpass.getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
@@ -602,41 +628,45 @@ namespace eg::Renderer::Atmosphere
 			vk::DescriptorImageInfo(nullptr, defaultpass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(mDepthSampler, mDepthImageView, vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
-		vk::DescriptorBufferInfo bufferInfo;
-		bufferInfo.setBuffer(mDirectionalBuffer->getBuffer())
-			.setOffset(0)
-			.setRange(sizeof(DirectionalLightUniformBuffer));
+
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+		{
+
+			vk::DescriptorBufferInfo bufferInfo;
+			bufferInfo.setBuffer(mDirectionalBuffer[i].value().getBuffer())
+				.setOffset(0)
+				.setRange(sizeof(DirectionalLightUniformBuffer));
 
 
-		Renderer::getDevice().updateDescriptorSets({
-			vk::WriteDescriptorSet(mDirectionalSet, 0, 0,
-				1,
-				vk::DescriptorType::eInputAttachment,
-				&imageInfos[0]),
-			vk::WriteDescriptorSet(mDirectionalSet, 1, 0,
-				1,
-				vk::DescriptorType::eInputAttachment,
-				&imageInfos[1]),
-			vk::WriteDescriptorSet(mDirectionalSet, 2, 0,
-				1,
-				vk::DescriptorType::eInputAttachment,
-				&imageInfos[2]),
-			vk::WriteDescriptorSet(mDirectionalSet, 3, 0,
-				1,
-				vk::DescriptorType::eInputAttachment,
-				&imageInfos[3]),
-			vk::WriteDescriptorSet(mDirectionalSet, 4, 0,
-				1,
-				vk::DescriptorType::eCombinedImageSampler,
-				&imageInfos[4]),
-			vk::WriteDescriptorSet(mDirectionalSet, 5, 0,
-				1,
-				vk::DescriptorType::eUniformBuffer,
-				nullptr,
-				&bufferInfo)
-			},
-			{});
-
+			Renderer::getDevice().updateDescriptorSets({
+				vk::WriteDescriptorSet(mDirectionalSet[i], 0, 0,
+					1,
+					vk::DescriptorType::eInputAttachment,
+					&imageInfos[0]),
+				vk::WriteDescriptorSet(mDirectionalSet[i], 1, 0,
+					1,
+					vk::DescriptorType::eInputAttachment,
+					&imageInfos[1]),
+				vk::WriteDescriptorSet(mDirectionalSet[i], 2, 0,
+					1,
+					vk::DescriptorType::eInputAttachment,
+					&imageInfos[2]),
+				vk::WriteDescriptorSet(mDirectionalSet[i], 3, 0,
+					1,
+					vk::DescriptorType::eInputAttachment,
+					&imageInfos[3]),
+				vk::WriteDescriptorSet(mDirectionalSet[i], 4, 0,
+					1,
+					vk::DescriptorType::eCombinedImageSampler,
+					&imageInfos[4]),
+				vk::WriteDescriptorSet(mDirectionalSet[i], 5, 0,
+					1,
+					vk::DescriptorType::eUniformBuffer,
+					nullptr,
+					&bufferInfo)
+				},
+				{});
+		}
 		//Load shaders
 		auto vertexBinary = Renderer::compileShaderFromFile("shaders/fullscreen_quad.glsl", shaderc_glsl_vertex_shader);
 		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/atmosphere_directional.glsl", shaderc_glsl_fragment_shader,
