@@ -12,10 +12,18 @@ namespace eg::Data::SkyRenderer
 	vk::PipelineLayout gLayout;
 	vk::DescriptorSetLayout gSetLayout;
 
+	Command::Var* mRenderScaleCVar;
+	Command::Var* mWidthCVar;
+	Command::Var* mHeightCVar;
+
 	void createPipeline();
 
 	void create()
 	{
+		mRenderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		mWidthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		mHeightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
 		Command::registerFn("eg::Renderer::ReloadAllPipelines", [](size_t, char* []) {
 			Renderer::getDevice().destroyPipeline(gPipeline);
 			Renderer::getDevice().destroyPipelineLayout(gLayout);

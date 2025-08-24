@@ -271,27 +271,29 @@ namespace eg::Renderer
 	private:
 		vk::RenderPass mRenderPass;
 		vk::Framebuffer mFramebuffer;
-		Image2D mNormal, mAlbedo, mMr, mDrawImage, mDepth;
+		std::optional<Image2D> mNormal, mAlbedo, mMr, mDrawImage, mDepth;
+		vk::Format mDrawImageFormat;
 	public:
 		DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format);
 		~DefaultRenderPass();
 
 		void begin(const vk::CommandBuffer& cmd) const;
+		void resize(uint32_t width, uint32_t height);
 		
 
 		vk::RenderPass getRenderPass() const { return mRenderPass; }
 		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
-		Image2D& getDrawImage() { return mDrawImage; }
-		Image2D& getNormal() { return mNormal; }
-		Image2D& getAlbedo() { return mAlbedo; }
-		Image2D& getMr() { return mMr; }
-		Image2D& getDepth() { return mDepth; }
+		Image2D& getDrawImage() { return *mDrawImage; }
+		Image2D& getNormal() { return *mNormal; }
+		Image2D& getAlbedo() { return *mAlbedo; }
+		Image2D& getMr() { return *mMr; }
+		Image2D& getDepth() { return *mDepth; }
 
-		const Image2D& getDrawImage() const  { return mDrawImage; }
-		const Image2D& getNormal() const { return mNormal; }
-		const Image2D& getAlbedo() const { return mAlbedo; }
-		const Image2D& getMr() const { return mMr; }
-		const Image2D& getDepth() const { return mDepth; }
+		const Image2D& getDrawImage() const  { return *mDrawImage; }
+		const Image2D& getNormal() const { return *mNormal; }
+		const Image2D& getAlbedo() const { return *mAlbedo; }
+		const Image2D& getMr() const { return *mMr; }
+		const Image2D& getDepth() const { return *mDepth; }
 	};
 
 	class PostprocessingRenderPass
@@ -299,16 +301,18 @@ namespace eg::Renderer
 	private:
 		vk::RenderPass mRenderPass;
 		vk::Framebuffer mFramebuffer;
-		Image2D mDrawImage;
+		std::optional<Image2D> mDrawImage;
+		vk::Format mDrawImageFormat;
 	public:
 		PostprocessingRenderPass(uint32_t width, uint32_t height, vk::Format format);
 		~PostprocessingRenderPass();
 		void begin(const vk::CommandBuffer& cmd) const;
+		void resize(uint32_t width, uint32_t height);
 
 		vk::RenderPass getRenderPass() const { return mRenderPass; }
 		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
-		Image2D& getDrawImage() { return mDrawImage; }
-		const Image2D& getDrawImage() const { return mDrawImage; }
+		Image2D& getDrawImage() { return *mDrawImage; }
+		const Image2D& getDrawImage() const { return *mDrawImage; }
 	};
 
 	class GlobalUniformBuffer

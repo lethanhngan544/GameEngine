@@ -380,6 +380,58 @@ namespace eg::Renderer
 		eg::Logger::gInfo("GBuffer thread destroyed !");
 	}
 
+
+	static std::tuple<uint32_t, vk::SurfaceCapabilitiesKHR> createSwapchain(uint32_t width, uint32_t height)
+	{
+		//Create swapchain
+		vk::SurfaceCapabilitiesKHR surfaceCapabilities = gPhysicalDevice.getSurfaceCapabilitiesKHR(gSurface);
+		uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
+		if (surfaceCapabilities.maxImageCount > 0 && imageCount > surfaceCapabilities.maxImageCount)
+		{
+			imageCount = surfaceCapabilities.maxImageCount;
+		}
+
+		vk::SwapchainCreateInfoKHR swapchainCI{};
+		swapchainCI.setSurface(gSurface)
+			.setMinImageCount(imageCount)
+			.setImageFormat(gSurfaceFormat.format)
+			.setImageColorSpace(gSurfaceFormat.colorSpace)
+			.setImageExtent(vk::Extent2D(width, height))
+			.setImageArrayLayers(1)
+			.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst)
+			.setImageSharingMode(vk::SharingMode::eExclusive)
+			.setPreTransform(surfaceCapabilities.currentTransform)
+			.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
+			.setPresentMode(gPresentMode)
+			.setClipped(true)
+			.setQueueFamilyIndices({ gGraphicsQueueFamilyIndex })
+			.setPreTransform(surfaceCapabilities.currentTransform)
+			.setClipped(true)
+			.setOldSwapchain(nullptr);
+		gSwapchain = gDevice.createSwapchainKHR(swapchainCI);
+		if (!gSwapchain)
+		{
+			throw std::runtime_error("Failed to create swapchain !");
+		}
+		Logger::gInfo("Swapchain created !");
+		gSwapchainImages = gDevice.getSwapchainImagesKHR(gSwapchain);
+
+		//Create image views
+		gSwapchainImageViews.reserve(gSwapchainImages.size());
+		for (size_t i = 0; i < gSwapchainImages.size(); i++)
+		{
+			vk::ImageViewCreateInfo imageViewCI{};
+			imageViewCI.setImage(gSwapchainImages[i])
+				.setViewType(vk::ImageViewType::e2D)
+				.setFormat(gSurfaceFormat.format)
+				.setComponents(vk::ComponentMapping{})
+				.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
+			gSwapchainImageViews.push_back(gDevice.createImageView(imageViewCI));
+		}
+
+		return { imageCount, surfaceCapabilities };
+	}
+
 	void waitIdle()
 	{
 		gDevice.waitIdle();
@@ -391,6 +443,57 @@ namespace eg::Renderer
 		gScreenWidth = Command::registerVar("eg::Renderer::ScreenWidth", "None", static_cast<double>(width));
 		gScreenHeight = Command::registerVar("eg::Renderer::ScreenHeight", "None", static_cast<double>(height));
 		gScreenRenderScale = Command::registerVar("eg::Renderer::ScreenRenderScale", "None", 1.0);
+
+		Command::registerFn("eg::Renderer::UpdateResolution", [](size_t argc, char* argv[]) {
+			if (argc != 3)
+			{
+				Logger::gWarn("eg::Renderer::UpdateResolution <width> <height>");
+				return;
+			}
+			try
+			{
+				gDevice.waitIdle();
+
+				//Extract width and height
+				int screenWidth = std::stoi(argv[1]);
+				int screenHeight = std::stoi(argv[2]);
+				int framebufferWidth, framebufferHeight;
+				uint32_t changedWidth, changedHeight;
+
+				glfwSetWindowSize(Window::getHandle(), screenWidth, screenHeight);
+				glfwGetFramebufferSize(Window::getHandle(), &framebufferWidth, &framebufferHeight);
+				changedWidth = static_cast<uint32_t>(framebufferWidth);
+				changedHeight = static_cast<uint32_t>(framebufferHeight);
+
+
+				gDevice.waitIdle();
+				gScreenWidth->value = static_cast<double>(framebufferWidth);
+				gScreenHeight->value = static_cast<double>(framebufferHeight);
+
+
+				//We need to rebuild the swapchain
+				for (auto imageView : gSwapchainImageViews)
+				{
+					gDevice.destroyImageView(imageView);
+				}
+				gSwapchainImageViews.clear();
+				gDevice.destroySwapchainKHR(gSwapchain);
+				createSwapchain(changedWidth, changedHeight);
+				gDefaultRenderPass->resize(changedWidth, changedHeight);
+				gPostprocessingRenderPass->resize(changedWidth, changedHeight);
+
+				//Rebuild all pipelines
+				eg::Command::execute("eg::Renderer::ReloadAllPipelines");
+			} 
+			catch (const std::exception& e)
+			{
+				Logger::gError("Failed to update resolution: " + std::string(e.what()));
+			}
+
+
+		});
+
+
 
 		VULKAN_HPP_DEFAULT_DISPATCHER.init();
 		//Create instance
@@ -544,52 +647,7 @@ namespace eg::Renderer
 
 		gAllocator = vma::createAllocator(allocatorCI);
 
-
-		//Create swapchain
-		vk::SurfaceCapabilitiesKHR surfaceCapabilities = gPhysicalDevice.getSurfaceCapabilitiesKHR(gSurface);
-		uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
-		if (surfaceCapabilities.maxImageCount > 0 && imageCount > surfaceCapabilities.maxImageCount)
-		{
-			imageCount = surfaceCapabilities.maxImageCount;
-		}
-
-		vk::SwapchainCreateInfoKHR swapchainCI{};
-		swapchainCI.setSurface(gSurface)
-			.setMinImageCount(imageCount)
-			.setImageFormat(gSurfaceFormat.format)
-			.setImageColorSpace(gSurfaceFormat.colorSpace)
-			.setImageExtent(vk::Extent2D(width, height))
-			.setImageArrayLayers(1)
-			.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst)
-			.setImageSharingMode(vk::SharingMode::eExclusive)
-			.setPreTransform(surfaceCapabilities.currentTransform)
-			.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
-			.setPresentMode(gPresentMode)
-			.setClipped(true)
-			.setQueueFamilyIndices({ gGraphicsQueueFamilyIndex })
-			.setPreTransform(surfaceCapabilities.currentTransform)
-			.setClipped(true)
-			.setOldSwapchain(nullptr);
-		gSwapchain = gDevice.createSwapchainKHR(swapchainCI);
-		if (!gSwapchain)
-		{
-			throw std::runtime_error("Failed to create swapchain !");
-		}
-		Logger::gInfo("Swapchain created !");
-		gSwapchainImages = gDevice.getSwapchainImagesKHR(gSwapchain);
-
-		//Create image views
-		gSwapchainImageViews.reserve(gSwapchainImages.size());
-		for (size_t i = 0; i < gSwapchainImages.size(); i++)
-		{
-			vk::ImageViewCreateInfo imageViewCI{};
-			imageViewCI.setImage(gSwapchainImages[i])
-				.setViewType(vk::ImageViewType::e2D)
-				.setFormat(gSurfaceFormat.format)
-				.setComponents(vk::ComponentMapping{})
-				.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-			gSwapchainImageViews.push_back(gDevice.createImageView(imageViewCI));
-		}
+		const auto[imageCount, surfaceCapabilities] = createSwapchain(width, height);
 
 		//Create command pool
 		vk::CommandPoolCreateInfo commandPoolCI{};
@@ -874,7 +932,6 @@ namespace eg::Renderer
 		gShadowThread->join();
 
 		Atmosphere::destroy();
-
 		gDefaultRenderPass.reset();
 		gPostprocessingRenderPass.reset();
 		gGlobalUniformBuffer.reset();
@@ -916,21 +973,19 @@ namespace eg::Renderer
 	{
 		auto& frameData = gFrameData[gCurrentFrame];
 
-		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
-		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
 
+		uint32_t width = static_cast<uint32_t>(gScreenWidth->value);
+		uint32_t height = static_cast<uint32_t>(gScreenHeight->value);
 
-		uint32_t width = static_cast<uint32_t>(widthCVar->value);
-		uint32_t height = static_cast<uint32_t>(heightCVar->value);
-
-
-
-		auto fenceWaitStatus = gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000);
-		if (fenceWaitStatus != vk::Result::eSuccess)
+		try
 		{
-			Logger::gWarn("Failed to wait for fence !");
-			Logger::gWarn(vk::to_string(fenceWaitStatus));
+			gDevice.waitForFences(frameData.renderFence, VK_TRUE, 1000000000);
+		} 
+		catch(const std::exception& e)
+		{
+			Logger::gError("Failed to wait for fence: " + std::string(e.what()));
 		}
+
 		gDevice.resetFences(frameData.renderFence);
 		frameData.swapchainIndex = gDevice.acquireNextImageKHR(gSwapchain, 1000000000, frameData.presentSemaphore, nullptr).value;
 
@@ -983,11 +1038,16 @@ namespace eg::Renderer
 			.setSwapchainCount(1)
 			.setPSwapchains(&gSwapchain)
 			.setPImageIndices(&frameData.swapchainIndex);
-		vk::Result presentResult = gMainQueue.presentKHR(presentInfo);
-		if (presentResult != vk::Result::eSuccess)
+
+		try
 		{
-			Logger::gWarn("Failed to present image: " + vk::to_string(presentResult));
+			gMainQueue.presentKHR(presentInfo);
 		}
+		catch (const std::exception& e)
+		{
+			Logger::gWarn("Failed to present image: " + std::string(e.what()));
+		}
+		
 		gCurrentFrame = (gCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 

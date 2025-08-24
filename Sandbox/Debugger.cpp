@@ -43,13 +43,29 @@ namespace sndbx
 			eg::Renderer::waitIdle();
 			eg::Command::execute("eg::Renderer::ReloadAllPipelines");
 		}
-
-		eg::Command::Var* renderScaleCVar = eg::Command::findVar("eg::Renderer::ScreenRenderScale");
-		auto renderscaleFloat = static_cast<float>(renderScaleCVar->value);
-		if (ImGui::SliderFloat("Render scale", &renderscaleFloat, 0.1f, 1.0f))
+		//Render scale
 		{
-			renderScaleCVar->value = static_cast<double>(renderscaleFloat);
+			eg::Command::Var* renderScaleCVar = eg::Command::findVar("eg::Renderer::ScreenRenderScale");
+			auto renderscaleFloat = static_cast<float>(renderScaleCVar->value);
+			if (ImGui::SliderFloat("Render scale", &renderscaleFloat, 0.1f, 1.0f))
+			{
+				renderScaleCVar->value = static_cast<double>(renderscaleFloat);
+			}
 		}
+
+		//Resolution
+		{	
+			static char widthStr[32] = "1600";
+			static char heightStr[32] = "900";
+			ImGui::InputText("Width", widthStr, sizeof(widthStr), ImGuiInputTextFlags_CharsDecimal);
+			ImGui::InputText("Height", heightStr, sizeof(heightStr), ImGuiInputTextFlags_CharsDecimal);
+			if (ImGui::Button("Update resolution"))
+			{
+				eg::Command::execute("eg::Renderer::UpdateResolution " + std::string(widthStr) + " " + std::string(heightStr));
+			}
+		}
+
+
 
 		ImGui::Separator();
 		/*
@@ -132,7 +148,7 @@ namespace sndbx
 				std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
 				std::string fileName = ImGuiFileDialog::Instance()->GetCurrentFileName();
 
-				
+
 				gameObjManager.load(filePath, dispatcherFn);
 				worldName = gameObjManager.getWorldName();
 			}

@@ -40,6 +40,10 @@ namespace eg::Renderer::Atmosphere
 	std::optional<Renderer::CPUBuffer> mDirectionalBuffer[MAX_FRAMES_IN_FLIGHT];
 	DirectionalLightUniformBuffer mDirectionalLightUniformBuffer;
 
+	Command::Var* mRenderScaleCVar;
+	Command::Var* mWidthCVar;
+	Command::Var* mHeightCVar;
+
 	void destroyAllPipelines();
 	void createDirectionalShadowPass(uint32_t size);
 	void createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout);
@@ -50,6 +54,10 @@ namespace eg::Renderer::Atmosphere
 
 	void create(uint32_t shadowMapSize)
 	{
+		mRenderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		mWidthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		mHeightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 		{
 			mDirectionalBuffer[i].emplace(nullptr, sizeof(DirectionalLightUniformBuffer), vk::BufferUsageFlagBits::eUniformBuffer);
@@ -92,6 +100,19 @@ namespace eg::Renderer::Atmosphere
 		}
 		mAmbientBuffer.reset();
 		mSSAONoiseImage.reset();
+	}
+
+	void resize()
+	{
+		getDevice().destroySampler(mDepthSampler);
+		getDevice().destroyImageView(mDepthImageView);
+		getAllocator().destroyImage(mDepthImage, mDepthAllocation);
+
+		getDevice().destroyFramebuffer(mFramebuffer);
+		getDevice().destroyRenderPass(mRenderPass);
+
+		createDirectionalShadowPass(mShadowMapSize);
+
 	}
 
 	void destroyAllPipelines()
@@ -233,13 +254,8 @@ namespace eg::Renderer::Atmosphere
 			{}
 		);
 
-		Command::Var* renderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
-		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
-		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
-
-
-		float scaledWidth = static_cast<float>(widthCVar->value * renderScaleCVar->value);
-		float scaledHeight = static_cast<float>(heightCVar->value * renderScaleCVar->value);
+		float scaledWidth = static_cast<float>(mWidthCVar->value * mRenderScaleCVar->value);
+		float scaledHeight = static_cast<float>(mHeightCVar->value * mRenderScaleCVar->value);
 
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, scaledWidth, scaledHeight,
 			0.0f, 1.0f } });
@@ -256,13 +272,8 @@ namespace eg::Renderer::Atmosphere
 			{ Renderer::getCurrentFrameGUBODescSet(), mAmbientSet },
 			{}
 		);
-		Command::Var* renderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
-		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
-		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
-
-
-		float scaledWidth = static_cast<float>(widthCVar->value * renderScaleCVar->value);
-		float scaledHeight = static_cast<float>(heightCVar->value * renderScaleCVar->value);
+		float scaledWidth = static_cast<float>(mWidthCVar->value * mRenderScaleCVar->value);
+		float scaledHeight = static_cast<float>(mHeightCVar->value * mRenderScaleCVar->value);
 
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, scaledWidth, scaledHeight,
 			0.0f, 1.0f } });

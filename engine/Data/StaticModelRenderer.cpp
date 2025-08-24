@@ -17,12 +17,20 @@ namespace eg::Data::StaticModelRenderer
 	vk::Pipeline mShadowPipeline;
 	vk::PipelineLayout mShadowPipelineLayout;
 
+	Command::Var* mRenderScaleCVar;
+	Command::Var* mWidthCVar;
+	Command::Var* mHeightCVar;
+
 	static void createStaticModelPipeline();
 	static void createStaticModelShadowPipeline();
 	
 
 	void create()
 	{
+		mRenderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		mWidthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		mHeightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
 		Command::registerFn("eg::Renderer::ReloadAllPipelines", [](size_t, char* []) {
 			destroy();
 			createStaticModelPipeline();
@@ -53,14 +61,8 @@ namespace eg::Data::StaticModelRenderer
 			Renderer::getCurrentFrameGUBODescSet(),
 			{}
 		);
-
-		Command::Var* renderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
-		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
-		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
-
-
-		float scaledWidth = static_cast<float>(widthCVar->value * renderScaleCVar->value);
-		float scaledHeight = static_cast<float>(heightCVar->value * renderScaleCVar->value);
+		float scaledWidth = static_cast<float>(mWidthCVar->value * mRenderScaleCVar->value);
+		float scaledHeight = static_cast<float>(mHeightCVar->value * mRenderScaleCVar->value);
 
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, scaledWidth, scaledHeight,
 			0.0f, 1.0f } });

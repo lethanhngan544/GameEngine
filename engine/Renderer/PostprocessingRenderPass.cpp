@@ -4,10 +4,12 @@
 namespace eg::Renderer
 {
 	PostprocessingRenderPass::PostprocessingRenderPass(uint32_t width, uint32_t height, vk::Format format) :
-		mDrawImage(width, height, format,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
-			vk::ImageAspectFlagBits::eColor)
+		mDrawImageFormat(format)	
 	{
+		mDrawImage.emplace(width, height, format,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+			vk::ImageAspectFlagBits::eColor);
+
 		vk::AttachmentDescription attachments[] =
 		{
 			//Draw image, id = 0
@@ -75,7 +77,7 @@ namespace eg::Renderer
 
 		vk::ImageView frameBufferAttachments[] =
 		{
-			mDrawImage.getImageView(),
+			mDrawImage->getImageView(),
 		};
 		vk::FramebufferCreateInfo framebufferCI{};
 		framebufferCI.setRenderPass(mRenderPass)
@@ -92,6 +94,32 @@ namespace eg::Renderer
 		getDevice().destroyFramebuffer(mFramebuffer);
 		getDevice().destroyRenderPass(mRenderPass);
 	}
+
+	void PostprocessingRenderPass::resize(uint32_t width, uint32_t height)
+	{
+		//Destroy framebuffer, images
+		getDevice().destroyFramebuffer(mFramebuffer);
+		mDrawImage.reset();
+		//Recreate images
+		mDrawImage.emplace(width, height, mDrawImageFormat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+			vk::ImageAspectFlagBits::eColor);
+
+		vk::ImageView frameBufferAttachments[] =
+		{
+			mDrawImage->getImageView(),
+		};
+		vk::FramebufferCreateInfo framebufferCI{};
+		framebufferCI.setRenderPass(mRenderPass)
+			.setAttachments(frameBufferAttachments)
+			.setWidth(width)
+			.setHeight(height)
+			.setLayers(1);
+
+
+		mFramebuffer = getDevice().createFramebuffer(framebufferCI);
+	}
+
 	void PostprocessingRenderPass::begin(const vk::CommandBuffer& cmd) const
 	{
 		vk::ClearValue clearValues[] =
