@@ -220,7 +220,7 @@ namespace eg::Components
 				if (material.normalTexture.index >= this->mImages.size())
 				{
 					//Load new texture
-					auto& texture = model.textures.at(material.pbrMetallicRoughness.baseColorTexture.index);
+					auto& texture = model.textures.at(material.normalTexture.index);
 					auto& image = model.images.at(texture.source);
 					if (image.mimeType.find("image/png") == std::string::npos &&
 						image.mimeType.find("image/jpeg") == std::string::npos)
@@ -250,7 +250,7 @@ namespace eg::Components
 				if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= this->mImages.size())
 				{
 					//Load new texture
-					auto& texture = model.textures.at(material.pbrMetallicRoughness.baseColorTexture.index);
+					auto& texture = model.textures.at(material.pbrMetallicRoughness.metallicRoughnessTexture.index);
 					auto& image = model.images.at(texture.source);
 					if (image.mimeType.find("image/png") == std::string::npos &&
 						image.mimeType.find("image/jpeg") == std::string::npos)

@@ -123,8 +123,9 @@ namespace sndbx
 						const auto& positionBufferView = model.bufferViews.at(positionAccessor.bufferView);
 						const auto& positionBuffer = model.buffers.at(positionBufferView.buffer);
 
-						positions.resize(positions.size() + positionAccessor.count);
-						std::memcpy(positions.data(),
+						size_t oldSize = positions.size();
+						positions.resize(oldSize + positionAccessor.count);
+						std::memcpy(positions.data() + oldSize,
 							positionBuffer.data.data() + positionBufferView.byteOffset,
 							sizeof(glm::vec3) * positionAccessor.count);
 
