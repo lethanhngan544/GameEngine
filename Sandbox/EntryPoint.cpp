@@ -64,7 +64,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
-		Renderer::create(1600, 900, 2048);
+		Renderer::create(1600, 900, 4096);
 		Data::StaticModelRenderer::create();
 		Data::AnimatedModelRenderer::create();
 		Data::LightRenderer::create();
@@ -133,7 +133,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			using Clock = std::chrono::high_resolution_clock;
 			using TimePoint = std::chrono::time_point<Clock>;
 
-			constexpr double TICK_RATE = 64;
+			constexpr double MAX_FPS = 120.0;
+			constexpr double FRAME_TIME = 1.0 / MAX_FPS;
+			constexpr double TICK_RATE = 60.0;
 			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
 			TimePoint lastTime = Clock::now();
 			double accumulator = 0.0;
@@ -143,7 +145,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				TimePoint now = Clock::now();
 				double deltaTime = std::chrono::duration<double>(now - lastTime).count();
 				lastTime = now;
-				if (deltaTime > 0.25) deltaTime = 0.25;
+				deltaTime = std::min(deltaTime, 0.25);
 				accumulator += deltaTime;
 				while (accumulator >= TICK_INTERVAL) {
 
@@ -161,6 +163,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				//Render
 				Renderer::render();
 				Window::poll();
+
+				// Frame pacing
+				TimePoint frameEnd = Clock::now();
+				double frameTime = std::chrono::duration<double>(frameEnd - now).count();
+				if (frameTime < FRAME_TIME) {
+					auto sleepDuration = std::chrono::duration<double>(FRAME_TIME - frameTime);
+					std::this_thread::sleep_for(sleepDuration);
+				}
+
+
 			}
 			Renderer::waitIdle();
 

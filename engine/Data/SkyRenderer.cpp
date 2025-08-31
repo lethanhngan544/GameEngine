@@ -85,7 +85,7 @@ namespace eg::Data::SkyRenderer
 		gSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
 		vk::DescriptorImageInfo imageInfos[] = {
-			vk::DescriptorImageInfo(nullptr, Renderer::getDefaultRenderPass().getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, Renderer::DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
 		Renderer::getDevice().updateDescriptorSets({
@@ -231,7 +231,7 @@ namespace eg::Data::SkyRenderer
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(gLayout)
-			.setRenderPass(Renderer::getDefaultRenderPass().getRenderPass())
+			.setRenderPass(Renderer::DefaultRenderPass::getRenderPass())
 			.setSubpass(1)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)

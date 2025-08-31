@@ -19,7 +19,7 @@ namespace eg::Components
 
 namespace eg::Renderer
 {
-	static constexpr size_t MAX_FRAMES_IN_FLIGHT = 2;
+	static constexpr size_t MAX_FRAMES_IN_FLIGHT = 3;
 	static constexpr uint8_t SKY_STENCIL_VALUE = 0x00;
 	static constexpr uint8_t MESH_STENCIL_VALUE = 0x01;
 
@@ -51,8 +51,7 @@ namespace eg::Renderer
 	vk::DescriptorSetLayout getGlobalDescriptorSet();
 	uint32_t getCurrentFrameIndex();
 
-
-	const class DefaultRenderPass& getDefaultRenderPass();
+	const class PostprocessingRenderPass& getPostprocessingRenderPass();
 	const class CombinedImageSampler2D& getDefaultWhiteImage();
 	const class CombinedImageSampler2D& getDefaultCheckerboardImage();
 	const uint32_t getGraphicsQueueFamilyIndex();
@@ -265,43 +264,54 @@ namespace eg::Renderer
 	};
 
 
-	//Renderpasses
-	class DefaultRenderPass
+	namespace Postprocessing
 	{
-	private:
-		vk::RenderPass mRenderPass;
-		vk::Framebuffer mFramebuffer;
-		std::optional<Image2D> mNormal, mAlbedo, mMr, mDrawImage, mDepth;
-		vk::Format mDrawImageFormat;
-	public:
-		DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format);
-		~DefaultRenderPass();
+		struct FragmentPushConstants
+		{
+			float renderScale = 1.0f;
+			int scaledWidth = 1;
+			int scaledHeight = 1;
+			float resolution = 0.3f;
+			int steps = 32;
+			float thickness = 0.1f;
+		};
 
-		void begin(const vk::CommandBuffer& cmd) const;
+		void create();
+		void destroy();
+		void render(const vk::CommandBuffer& cmd);
+		vk::Pipeline getPipeline();
+		vk::PipelineLayout getPipelineLayout();
+		vk::DescriptorSet getDescriptorSet();
+
+		FragmentPushConstants& getPushConstants();
+	}
+
+	//Renderpasses
+	namespace DefaultRenderPass
+	{
+		void create(uint32_t width, uint32_t height, vk::Format format);
+		void destroy();
+
+		void begin(const vk::CommandBuffer& cmd);
 		void resize(uint32_t width, uint32_t height);
 		
 
-		vk::RenderPass getRenderPass() const { return mRenderPass; }
-		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
-		Image2D& getDrawImage() { return *mDrawImage; }
-		Image2D& getNormal() { return *mNormal; }
-		Image2D& getAlbedo() { return *mAlbedo; }
-		Image2D& getMr() { return *mMr; }
-		Image2D& getDepth() { return *mDepth; }
+		vk::RenderPass getRenderPass();
+		vk::Framebuffer getFramebuffer();
+		Image2D& getDrawImage();
+		Image2D& getNormal();
+		Image2D& getAlbedo();
+		Image2D& getMr();
+		Image2D& getDepth();
 
-		const Image2D& getDrawImage() const  { return *mDrawImage; }
-		const Image2D& getNormal() const { return *mNormal; }
-		const Image2D& getAlbedo() const { return *mAlbedo; }
-		const Image2D& getMr() const { return *mMr; }
-		const Image2D& getDepth() const { return *mDepth; }
-	};
+	}
 
 	class PostprocessingRenderPass
 	{
 	private:
 		vk::RenderPass mRenderPass;
 		vk::Framebuffer mFramebuffer;
-		std::optional<Image2D> mDrawImage;
+		std::optional<Image2D> mDrawImage, mPrevDrawImage;
 		vk::Format mDrawImageFormat;
 	public:
 		PostprocessingRenderPass(uint32_t width, uint32_t height, vk::Format format);
@@ -313,6 +323,8 @@ namespace eg::Renderer
 		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
 		Image2D& getDrawImage() { return *mDrawImage; }
 		const Image2D& getDrawImage() const { return *mDrawImage; }
+		const Image2D& getPrevDrawImage() const { return *mPrevDrawImage; }
+		Image2D& getPrevDrawImage() { return *mPrevDrawImage; }
 	};
 
 	class GlobalUniformBuffer

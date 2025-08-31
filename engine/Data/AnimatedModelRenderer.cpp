@@ -434,7 +434,7 @@ namespace eg::Data::AnimatedModelRenderer
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(mPipelineLayout)
-			.setRenderPass(Renderer::getDefaultRenderPass().getRenderPass())
+			.setRenderPass(Renderer::DefaultRenderPass::getRenderPass())
 			.setSubpass(0)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)

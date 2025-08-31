@@ -19,7 +19,7 @@ namespace eg::Window
 		
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-		gWindow = glfwCreateWindow(width, height, title, NULL, NULL);
+		gWindow = glfwCreateWindow(width, height, title, nullptr, nullptr);
 		if (!gWindow)
 		{
 			glfwTerminate();

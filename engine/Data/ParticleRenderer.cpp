@@ -318,7 +318,7 @@ namespace eg::Data::ParticleRenderer
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(gPipelineLayout)
-			.setRenderPass(Renderer::getDefaultRenderPass().getRenderPass())
+			.setRenderPass(Renderer::DefaultRenderPass::getRenderPass())
 			.setSubpass(1)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)

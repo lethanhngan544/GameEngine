@@ -10,6 +10,10 @@ namespace eg::Renderer
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
 			vk::ImageAspectFlagBits::eColor);
 
+		mPrevDrawImage.emplace(width, height, mDrawImageFormat,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,
+			vk::ImageAspectFlagBits::eColor);
+
 		vk::AttachmentDescription attachments[] =
 		{
 			//Draw image, id = 0
@@ -17,11 +21,11 @@ namespace eg::Renderer
 				(vk::AttachmentDescriptionFlags)0,
 				format,
 				vk::SampleCountFlagBits::e1,
-				vk::AttachmentLoadOp::eLoad,
+				vk::AttachmentLoadOp::eClear,
 				vk::AttachmentStoreOp::eStore,
 				vk::AttachmentLoadOp::eDontCare,
 				vk::AttachmentStoreOp::eDontCare,
-				vk::ImageLayout::eTransferDstOptimal,
+				vk::ImageLayout::eUndefined,
 				vk::ImageLayout::eTransferSrcOptimal // For copying to swapchain image
 			)
 		};
@@ -100,9 +104,14 @@ namespace eg::Renderer
 		//Destroy framebuffer, images
 		getDevice().destroyFramebuffer(mFramebuffer);
 		mDrawImage.reset();
+		mPrevDrawImage.reset();
 		//Recreate images
 		mDrawImage.emplace(width, height, mDrawImageFormat,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+			vk::ImageAspectFlagBits::eColor);
+
+		mPrevDrawImage.emplace(width, height, mDrawImageFormat,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,
 			vk::ImageAspectFlagBits::eColor);
 
 		vk::ImageView frameBufferAttachments[] =

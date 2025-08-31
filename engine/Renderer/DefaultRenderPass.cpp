@@ -1,23 +1,33 @@
 #include <Renderer.h>
 #include <Core.h>
 
-namespace eg::Renderer
+namespace eg::Renderer::DefaultRenderPass
 {
-	DefaultRenderPass::DefaultRenderPass(uint32_t width, uint32_t height, vk::Format format) :
-		mDrawImageFormat(format)
+	vk::RenderPass mRenderPass;
+	vk::Framebuffer mFramebuffer;
+	std::optional<Image2D> mNormal, mAlbedo, mMr, mDrawImage, mDepth;
+	vk::Format mDrawImageFormat;
+
+
+	void create(uint32_t width, uint32_t height, vk::Format format)
 	{
+		mDrawImageFormat = format; 
 		mNormal.emplace(width, height, vk::Format::eR32G32B32A32Sfloat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
+
 		mAlbedo.emplace(width, height, vk::Format::eR8G8B8A8Unorm,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
+
 		mMr.emplace(width, height, vk::Format::eR8G8B8A8Unorm,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
+
 		mDrawImage.emplace(width, height, format,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
 			vk::ImageAspectFlagBits::eColor);
+
 		mDepth.emplace(width, height, vk::Format::eD24UnormS8Uint,
 			vk::ImageUsageFlagBits::eSampled |
 			vk::ImageUsageFlagBits::eDepthStencilAttachment |
@@ -33,7 +43,7 @@ namespace eg::Renderer
 				vk::Format::eR32G32B32A32Sfloat,
 				vk::SampleCountFlagBits::e1,
 				vk::AttachmentLoadOp::eClear,
-				vk::AttachmentStoreOp::eDontCare,
+				vk::AttachmentStoreOp::eStore,
 				vk::AttachmentLoadOp::eDontCare,
 				vk::AttachmentStoreOp::eDontCare,
 				vk::ImageLayout::eUndefined,
@@ -46,7 +56,7 @@ namespace eg::Renderer
 					vk::Format::eR8G8B8A8Unorm,
 					vk::SampleCountFlagBits::e1,
 					vk::AttachmentLoadOp::eClear,
-					vk::AttachmentStoreOp::eDontCare,
+					vk::AttachmentStoreOp::eStore,
 					vk::AttachmentLoadOp::eDontCare,
 					vk::AttachmentStoreOp::eDontCare,
 					vk::ImageLayout::eUndefined,
@@ -59,7 +69,7 @@ namespace eg::Renderer
 					vk::Format::eR8G8B8A8Unorm,
 					vk::SampleCountFlagBits::e1,
 					vk::AttachmentLoadOp::eClear,
-					vk::AttachmentStoreOp::eDontCare,
+					vk::AttachmentStoreOp::eStore,
 					vk::AttachmentLoadOp::eDontCare,
 					vk::AttachmentStoreOp::eDontCare,
 					vk::ImageLayout::eUndefined,
@@ -89,7 +99,7 @@ namespace eg::Renderer
 					vk::AttachmentLoadOp::eDontCare,
 					vk::AttachmentStoreOp::eDontCare,
 					vk::ImageLayout::eUndefined,
-					vk::ImageLayout::eTransferSrcOptimal
+					vk::ImageLayout::eShaderReadOnlyOptimal
 				)
 
 		};
@@ -180,28 +190,40 @@ namespace eg::Renderer
 
 	}
 
-	void DefaultRenderPass::resize(uint32_t width, uint32_t height)
+	void destroy()
 	{
-		//Destroy framebuffer, images
-		getDevice().destroyFramebuffer(mFramebuffer);
 		mNormal.reset();
 		mAlbedo.reset();
 		mMr.reset();
 		mDrawImage.reset();
 		mDepth.reset();
+		getDevice().destroyFramebuffer(mFramebuffer);
+		getDevice().destroyRenderPass(mRenderPass);
+	}
+
+	void resize(uint32_t width, uint32_t height)
+	{
+		//Destroy framebuffer, images
+		getDevice().destroyFramebuffer(mFramebuffer);
+		mNormal.reset();
+		mAlbedo.reset(); 
+		mMr.reset();
+		mDrawImage.reset();
+		mDepth.reset();
 
 		mNormal.emplace(width, height, vk::Format::eR32G32B32A32Sfloat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
 		mAlbedo.emplace(width, height, vk::Format::eR8G8B8A8Unorm,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
 		mMr.emplace(width, height, vk::Format::eR8G8B8A8Unorm,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
 		mDrawImage.emplace(width, height, mDrawImageFormat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
 			vk::ImageAspectFlagBits::eColor);
+
 		mDepth.emplace(width, height, vk::Format::eD24UnormS8Uint,
 			vk::ImageUsageFlagBits::eSampled |
 			vk::ImageUsageFlagBits::eDepthStencilAttachment |
@@ -227,7 +249,7 @@ namespace eg::Renderer
 		mFramebuffer = getDevice().createFramebuffer(framebufferCI);
 	}
 
-	void DefaultRenderPass::begin(const vk::CommandBuffer& cmd) const
+	void begin(const vk::CommandBuffer& cmd)
 	{
 		vk::ClearValue clearValues[] =
 		{
@@ -257,9 +279,11 @@ namespace eg::Renderer
 	}
 
 
-	DefaultRenderPass::~DefaultRenderPass()
-	{
-		getDevice().destroyFramebuffer(mFramebuffer);
-		getDevice().destroyRenderPass(mRenderPass);
-	}
+	vk::RenderPass getRenderPass() { return mRenderPass; }
+	vk::Framebuffer getFramebuffer() { return mFramebuffer; }
+	Image2D& getDrawImage() { return *mDrawImage; }
+	Image2D& getNormal() { return *mNormal; }
+	Image2D& getAlbedo() { return *mAlbedo; }
+	Image2D& getMr() { return *mMr; }
+	Image2D& getDepth() { return *mDepth; }
 }

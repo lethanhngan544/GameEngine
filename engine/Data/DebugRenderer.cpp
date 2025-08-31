@@ -185,7 +185,7 @@ namespace eg::Data::DebugRenderer
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(gLinePipelineLayout)
-			.setRenderPass(Renderer::getDefaultRenderPass().getRenderPass())
+			.setRenderPass(Renderer::DefaultRenderPass::getRenderPass())
 			.setSubpass(1)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)

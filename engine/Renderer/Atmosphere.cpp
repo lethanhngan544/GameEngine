@@ -46,8 +46,8 @@ namespace eg::Renderer::Atmosphere
 
 	void destroyAllPipelines();
 	void createDirectionalShadowPass(uint32_t size);
-	void createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout);
-	void createAmbientLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout);
+	void createDirectionalLightPipeline(const vk::DescriptorSetLayout& globalSetLayout);
+	void createAmbientLightPipeline(const vk::DescriptorSetLayout& globalSetLayout);
 	void generateCSMPlanes(float maxDistance);
 	void generateSSAOKernel();
 	void generateSSAONoise();
@@ -71,14 +71,14 @@ namespace eg::Renderer::Atmosphere
 		Command::registerFn("eg::Renderer::ReloadAllPipelines",
 		[](size_t, char* []) {
 			destroyAllPipelines();
-			createAmbientLightPipeline(getDefaultRenderPass(), getGlobalDescriptorSet());
-			createDirectionalLightPipeline(getDefaultRenderPass(), getGlobalDescriptorSet());
+			createAmbientLightPipeline(getGlobalDescriptorSet());
+			createDirectionalLightPipeline(getGlobalDescriptorSet());
 		});
 
 
-		createAmbientLightPipeline(getDefaultRenderPass(), getGlobalDescriptorSet());
+		createAmbientLightPipeline(getGlobalDescriptorSet());
 		createDirectionalShadowPass(shadowMapSize);
-		createDirectionalLightPipeline(getDefaultRenderPass(), getGlobalDescriptorSet());
+		createDirectionalLightPipeline(getGlobalDescriptorSet());
 		
 	}
 	void destroy()
@@ -364,7 +364,7 @@ namespace eg::Renderer::Atmosphere
 	AmbientLightUniformBuffer& getAmbientLightUniformBuffer() { return mAmbientLightUniformBuffer; }
 	DirectionalLightUniformBuffer& getDirectionalLightUniformBuffer() { return mDirectionalLightUniformBuffer; }
 
-	void createAmbientLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout)
+	void createAmbientLightPipeline(const vk::DescriptorSetLayout& globalSetLayout)
 	{
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
@@ -392,10 +392,10 @@ namespace eg::Renderer::Atmosphere
 
 		
 		vk::DescriptorImageInfo imageInfos[] = {
-			vk::DescriptorImageInfo(nullptr, defaultpass.getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, defaultpass.getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, defaultpass.getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(mSSAONoiseSampler, defaultpass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSSAONoiseSampler, DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(mSSAONoiseSampler, mSSAONoiseImage->getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
@@ -572,7 +572,7 @@ namespace eg::Renderer::Atmosphere
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(mAmbientLayout)
-			.setRenderPass(defaultpass.getRenderPass())
+			.setRenderPass(DefaultRenderPass::getRenderPass())
 			.setSubpass(1)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)
@@ -602,7 +602,7 @@ namespace eg::Renderer::Atmosphere
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
 
-	void createDirectionalLightPipeline(const DefaultRenderPass& defaultpass, const vk::DescriptorSetLayout& globalSetLayout)
+	void createDirectionalLightPipeline(const vk::DescriptorSetLayout& globalSetLayout)
 	{
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
@@ -633,10 +633,10 @@ namespace eg::Renderer::Atmosphere
 		}
 
 		vk::DescriptorImageInfo imageInfos[] = {
-			vk::DescriptorImageInfo(nullptr, defaultpass.getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, defaultpass.getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, defaultpass.getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, defaultpass.getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(mDepthSampler, mDepthImageView, vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
@@ -810,7 +810,7 @@ namespace eg::Renderer::Atmosphere
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(mDirectionalLayout)
-			.setRenderPass(defaultpass.getRenderPass())
+			.setRenderPass(DefaultRenderPass::getRenderPass())
 			.setSubpass(1)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)

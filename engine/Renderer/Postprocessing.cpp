@@ -1,146 +1,129 @@
-#include <Data.h>
 #include <Renderer.h>
 #include <Core.h>
 
-#include <shaderc/shaderc.hpp>
+#include <shaderc/shaderc.h>
 
-namespace eg::Data::LightRenderer
+namespace eg::Renderer::Postprocessing
 {
-	vk::Pipeline mPointPipeline;
-	vk::PipelineLayout mPointLayout;
-	vk::DescriptorSetLayout mPointDescLayout;
-	vk::DescriptorSetLayout mPointPerDescLayout; //Per light data
-	vk::DescriptorSet mPointSet;
+	vk::Sampler mSampler;
+	vk::Pipeline mPipeline;
+	vk::PipelineLayout mLayout;
+	vk::DescriptorSetLayout mDescLayout;
+	vk::DescriptorSet mSet;
+	FragmentPushConstants mPushConstants;
 
-	Command::Var* mRenderScaleCVar;
 	Command::Var* mWidthCVar;
 	Command::Var* mHeightCVar;
+	Command::Var* mRenderScaleCVar;
 
-	void createPointPipeline(vk::DescriptorSetLayout globalSetLayout);
+	void createPipeline();
+	void destroyPipeline();
 
 	void create()
 	{
-		mRenderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
+		Command::registerFn("eg::Renderer::ReloadAllPipelines",
+			[](size_t, char* []) {
+				destroyPipeline();
+				createPipeline();
+			});
+
 		mWidthCVar = Command::findVar("eg::Renderer::ScreenWidth");
 		mHeightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+		mRenderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
 
-		Command::registerFn("eg::Renderer::ReloadAllPipelines", [](size_t, char* []) {
-			destroy();
-			createPointPipeline(Renderer::getGlobalDescriptorSet());
-		});
+		//Create sampler
 
-		createPointPipeline(Renderer::getGlobalDescriptorSet());
+		vk::SamplerCreateInfo samplerCI{};
+		samplerCI.setMagFilter(vk::Filter::eNearest)
+			.setMinFilter(vk::Filter::eNearest)
+			.setMipmapMode(vk::SamplerMipmapMode::eLinear)
+			.setAddressModeU(vk::SamplerAddressMode::eClampToEdge)
+			.setAddressModeV(vk::SamplerAddressMode::eClampToEdge)
+			.setAddressModeW(vk::SamplerAddressMode::eClampToEdge)
+			.setMipLodBias(0)
+			.setMinLod(-1)
+			.setMaxLod(1)
+			.setAnisotropyEnable(false)
+			.setMaxAnisotropy(0.0f)
+			.setCompareEnable(false)
+			.setCompareOp(vk::CompareOp::eAlways);
+		mSampler = Renderer::getDevice().createSampler(samplerCI);
+
+		createPipeline();
 	}
 	void destroy()
 	{
-		Renderer::getDevice().destroyPipeline(mPointPipeline);
-		Renderer::getDevice().destroyPipelineLayout(mPointLayout);
-		Renderer::getDevice().destroyDescriptorSetLayout(mPointDescLayout);
-		Renderer::getDevice().destroyDescriptorSetLayout(mPointPerDescLayout);
-		Renderer::getDevice().freeDescriptorSets(Renderer::getDescriptorPool(), mPointSet);
+		destroyPipeline();
+		//Free sampler
+		Renderer::getDevice().destroySampler(mSampler);
 	}
-
-	void beginPointLight(vk::CommandBuffer cmd)
+	FragmentPushConstants& getPushConstants()
 	{
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPointPipeline);
-
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-			mPointLayout,
-			0,
-			{ Renderer::getCurrentFrameGUBODescSet(), mPointSet },
-			{}
-		);
-
-		float scaledWidth = static_cast<float>(mWidthCVar->value * mRenderScaleCVar->value);
-		float scaledHeight = static_cast<float>(mHeightCVar->value * mRenderScaleCVar->value);
-
-		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, scaledWidth, scaledHeight,
-			0.0f, 1.0f } });
-		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, { static_cast<uint32_t>(scaledWidth), static_cast<uint32_t>(scaledHeight) }));
+		return mPushConstants;
 	}
-
-	void renderPointLight(vk::CommandBuffer cmd,
-		const Components::PointLight& pointLight)
-	{
-
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-			mPointLayout,
-			2,
-			{ pointLight.getDescriptorSet() },
-			{}
-		);
-		cmd.draw(3, 1, 0, 0);
-
-	}
-
-	vk::DescriptorSetLayout getPointLightPerDescLayout()
-	{
-		return mPointPerDescLayout;
-	}
-
-	void createPointPipeline(vk::DescriptorSetLayout globalSetLayout)
+	void createPipeline()
 	{
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
 		{
-			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Normal
-			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Albedo
-			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Mr
-			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}),//Draw image from default render pass
+			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Previous frame image
+			vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Depth image from default render pass
+			vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}), //Normal image from default render pass
+			vk::DescriptorSetLayoutBinding(4, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}) //MetalicRoughness image from default render pass
 		};
-
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 		descLayoutCI.setBindings(descLayoutBindings);
 
-		mPointDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
+		mDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
 		//Allocate descriptor set right here
 
 		vk::DescriptorSetAllocateInfo ai{};
 		ai.setDescriptorPool(Renderer::getDescriptorPool())
 			.setDescriptorSetCount(1)
-			.setSetLayouts(mPointDescLayout);
-		mPointSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
+			.setSetLayouts(mDescLayout);
+		mSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
 		vk::DescriptorImageInfo imageInfos[] = {
-			vk::DescriptorImageInfo(nullptr, Renderer::DefaultRenderPass::getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, Renderer::DefaultRenderPass::getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, Renderer::DefaultRenderPass::getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, Renderer::DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSampler, DefaultRenderPass::getDrawImage().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSampler, getPostprocessingRenderPass().getPrevDrawImage().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSampler, DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSampler, DefaultRenderPass::getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSampler, DefaultRenderPass::getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
 
 		Renderer::getDevice().updateDescriptorSets({
-			vk::WriteDescriptorSet(mPointSet, 0, 0,
+			vk::WriteDescriptorSet(mSet, 0, 0,
 				1,
-				vk::DescriptorType::eInputAttachment,
+				vk::DescriptorType::eCombinedImageSampler,
 				&imageInfos[0]),
-			vk::WriteDescriptorSet(mPointSet, 1, 0,
+
+			vk::WriteDescriptorSet(mSet, 1, 0,
 				1,
-				vk::DescriptorType::eInputAttachment,
+				vk::DescriptorType::eCombinedImageSampler,
 				&imageInfos[1]),
-			vk::WriteDescriptorSet(mPointSet, 2, 0,
+			vk::WriteDescriptorSet(mSet, 2, 0,
 				1,
-				vk::DescriptorType::eInputAttachment,
+				vk::DescriptorType::eCombinedImageSampler,
 				&imageInfos[2]),
-			vk::WriteDescriptorSet(mPointSet, 3, 0,
+
+			vk::WriteDescriptorSet(mSet, 3, 0,
 				1,
-				vk::DescriptorType::eInputAttachment,
-				&imageInfos[3])
+				vk::DescriptorType::eCombinedImageSampler,
+				&imageInfos[3]),
+			vk::WriteDescriptorSet(mSet, 4, 0,
+				1,
+				vk::DescriptorType::eCombinedImageSampler,
+				&imageInfos[4]),
 			}, {});
-		//Perlight descriptor set layout
-		vk::DescriptorSetLayoutBinding perLightDescLayoutBindings[] =
-		{
-			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment, {}), //position
-		};
 
-		descLayoutCI.setBindings(perLightDescLayoutBindings);
 
-		mPointPerDescLayout = Renderer::getDevice().createDescriptorSetLayout(descLayoutCI);
 
 		//Load shaders
 		auto vertexBinary = Renderer::compileShaderFromFile("shaders/fullscreen_quad.glsl", shaderc_glsl_vertex_shader);
-		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/point.glsl", shaderc_glsl_fragment_shader);
+		auto fragmentBinary = Renderer::compileShaderFromFile("shaders/postprocessing_test.glsl", shaderc_glsl_fragment_shader);
 
 		//Create shader modules
 		vk::ShaderModuleCreateInfo vertexShaderModuleCI{}, fragmentShaderModuleCI{};
@@ -155,16 +138,19 @@ namespace eg::Data::LightRenderer
 		//Create pipeline layout
 		vk::DescriptorSetLayout setLayouts[] =
 		{
-			globalSetLayout, // Slot0
-			mPointDescLayout, //Slot 1
-			mPointPerDescLayout //Slot 2
+			getGlobalDescriptorSet(), // Slot0
+			mDescLayout //Slot 1
+		};
+		vk::PushConstantRange pushConstantRanges[] =
+		{
+			vk::PushConstantRange{vk::ShaderStageFlagBits::eFragment, 0, sizeof(FragmentPushConstants)} //Render scale
 		};
 		vk::PipelineLayoutCreateInfo pipelineLayoutCI{};
 		pipelineLayoutCI.setFlags(vk::PipelineLayoutCreateFlags{})
 			.setSetLayouts(setLayouts)
 			.setPushConstantRangeCount(0)
-			.setPPushConstantRanges(nullptr);
-		mPointLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
+			.setPushConstantRanges(pushConstantRanges);
+		mLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
 
 		//Create graphics pipeline
 		vk::PipelineShaderStageCreateInfo shaderStages[] =
@@ -223,6 +209,7 @@ namespace eg::Data::LightRenderer
 			.setAlphaToCoverageEnable(false)
 			.setAlphaToOneEnable(false);
 
+
 		vk::PipelineColorBlendAttachmentState colorBlendAttachmentState{};
 		colorBlendAttachmentState
 			.setColorWriteMask(
@@ -238,12 +225,12 @@ namespace eg::Data::LightRenderer
 			.setDstAlphaBlendFactor(vk::BlendFactor::eOne)
 			.setAlphaBlendOp(vk::BlendOp::eAdd);
 
-
 		vk::PipelineColorBlendStateCreateInfo colorBlendStateCI{};
 		colorBlendStateCI.setLogicOpEnable(false)
 			.setLogicOp(vk::LogicOp::eCopy)
 			.setAttachments(colorBlendAttachmentState)
 			.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
+
 
 		vk::StencilOpState stencilOpState = {};
 		stencilOpState.setFailOp(vk::StencilOp::eKeep)
@@ -272,9 +259,9 @@ namespace eg::Data::LightRenderer
 
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
-		pipelineCI.setLayout(mPointLayout)
-			.setRenderPass(Renderer::DefaultRenderPass::getRenderPass())
-			.setSubpass(1)
+		pipelineCI.setLayout(mLayout)
+			.setRenderPass(getPostprocessingRenderPass().getRenderPass())
+			.setSubpass(0)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)
 			.setStages(shaderStages)
@@ -292,9 +279,9 @@ namespace eg::Data::LightRenderer
 		auto pipeLineResult = Renderer::getDevice().createGraphicsPipeline(nullptr, pipelineCI);
 		if (pipeLineResult.result != vk::Result::eSuccess)
 		{
-			throw std::runtime_error("Failed to create PointLight pipeline !");
+			throw std::runtime_error("Failed to create AmbientLight pipeline !");
 		}
-		mPointPipeline = pipeLineResult.value;
+		mPipeline = pipeLineResult.value;
 
 
 
@@ -302,5 +289,37 @@ namespace eg::Data::LightRenderer
 		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
 	}
-	
+	void destroyPipeline()
+	{
+		getDevice().destroyPipeline(mPipeline);
+		getDevice().destroyPipelineLayout(mLayout);
+		getDevice().destroyDescriptorSetLayout(mDescLayout);
+		getDevice().freeDescriptorSets(getDescriptorPool(), mSet);
+	}
+	void render(const vk::CommandBuffer& cmd)
+	{
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+			mLayout,
+			0,
+			{ Renderer::getCurrentFrameGUBODescSet(), mSet },
+			{}
+		);
+
+		float width = static_cast<float>(mWidthCVar->value);
+		float height = static_cast<float>(mHeightCVar->value);
+		float renderScale = static_cast<float>(mRenderScaleCVar->value);
+
+		mPushConstants.renderScale = renderScale;
+		mPushConstants.scaledWidth = static_cast<int>(width * renderScale);
+		mPushConstants.scaledHeight = static_cast<int>(height * renderScale);
+
+		cmd.pushConstants(mLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(FragmentPushConstants), &mPushConstants);
+
+
+		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, width, height,
+			0.0f, 1.0f } });
+		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }));
+		cmd.draw(3, 1, 0, 0);
+	}
 }
