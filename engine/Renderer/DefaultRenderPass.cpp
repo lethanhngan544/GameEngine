@@ -8,10 +8,20 @@ namespace eg::Renderer::DefaultRenderPass
 	std::optional<Image2D> mNormal, mAlbedo, mMr, mDrawImage, mDepth;
 	vk::Format mDrawImageFormat;
 
+	Command::Var* mWidthCVar;
+	Command::Var* mHeightCVar;
 
-	void create(uint32_t width, uint32_t height, vk::Format format)
+
+
+	void create(vk::Format format)
 	{
 		mDrawImageFormat = format; 
+		mWidthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		mHeightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
+		uint32_t width = static_cast<uint32_t>(mWidthCVar->value);
+		uint32_t height = static_cast<uint32_t>(mHeightCVar->value);
+
 		mNormal.emplace(width, height, vk::Format::eR32G32B32A32Sfloat,
 			vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);

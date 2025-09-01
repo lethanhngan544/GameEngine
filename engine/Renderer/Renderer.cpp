@@ -86,8 +86,6 @@ namespace eg::Renderer
 	static vk::RenderPass gImGuiRenderPass;
 	static vk::Framebuffer gImGuiFramebuffer;
 
-	//Render passes
-	static std::optional<PostprocessingRenderPass> gPostprocessingRenderPass;
 
 	//Render functions
 	static RenderFn dummyRenderFn = [](vk::CommandBuffer cmd) {
@@ -479,7 +477,7 @@ namespace eg::Renderer
 				gDevice.destroySwapchainKHR(gSwapchain);
 				createSwapchain(changedWidth, changedHeight);
 				DefaultRenderPass::resize(changedWidth, changedHeight);
-				gPostprocessingRenderPass->resize(changedWidth, changedHeight);
+				Postprocessing::resize(changedWidth, changedHeight);
 
 				//Rebuild all pipelines
 				eg::Command::execute("eg::Renderer::ReloadAllPipelines");
@@ -718,10 +716,9 @@ namespace eg::Renderer
 		gDefaultWhiteImage.emplace(64, 64, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, whitePixels.data(), whitePixels.size());
 		gDefaultCheckerboardImage.emplace(64, 64, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, checkerPixels.data(), checkerPixels.size());
 
-		DefaultRenderPass::create(width, height, gSurfaceFormat.format);
-		gPostprocessingRenderPass.emplace(width, height, gSurfaceFormat.format);
+		DefaultRenderPass::create(gSurfaceFormat.format);
+		Postprocessing::create(gSurfaceFormat.format);
 		Atmosphere::create(shadowMapRes);
-		Postprocessing::create();
 
 		//Init imgui
 		IMGUI_CHECKVERSION();
@@ -740,7 +737,7 @@ namespace eg::Renderer
 		init_info.Queue = gMainQueue;
 		init_info.PipelineCache = VK_NULL_HANDLE;
 		init_info.DescriptorPool = gDescriptorPool;
-		init_info.RenderPass = gPostprocessingRenderPass->getRenderPass();
+		init_info.RenderPass = Postprocessing::getRenderPass();
 		init_info.Subpass = 0;
 		init_info.MinImageCount = surfaceCapabilities.minImageCount;
 		init_info.ImageCount = imageCount;
@@ -827,91 +824,13 @@ namespace eg::Renderer
 
 		cmd.endRenderPass();
 
-		//Copy default render pass image to post processing image
-		//{
-		//	//At the end of the subpass, the default render pass image is in eTransferSrcOptimal layout so we just need to copy it
-		//	//First transition the post processing image to eTransferDstOptimal
-		//	vk::ImageMemoryBarrier barrier{};
-		//	barrier.setOldLayout(vk::ImageLayout::eUndefined)
-		//		.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
-		//		.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-		//		.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-		//		.setImage(gPostprocessingRenderPass->getDrawImage().getImage())
-		//		.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 })
-		//		.setSrcAccessMask(vk::AccessFlagBits{})
-		//		.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
-		//	cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
-		//		vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, {}, {}, { barrier });
-
-		//	//Now copy the image
-
-		//	//Calculate scaled extent
-		//	uint32_t scaledWidth = static_cast<uint32_t>(gScreenWidth->value * gScreenRenderScale->value);
-		//	uint32_t scaledHeight = static_cast<uint32_t>(gScreenHeight->value * gScreenRenderScale->value);
-
-
-		//	vk::ImageBlit blitRegion{};
-		//	blitRegion.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
-		//		.setSrcOffsets({ vk::Offset3D(0, 0, 0) , vk::Offset3D(scaledWidth, scaledHeight, 1) })
-		//		.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
-		//		.setDstOffsets({ vk::Offset3D(0, 0, 0) , vk::Offset3D(static_cast<uint32_t>(gScreenWidth->value),
-		//			static_cast<uint32_t>(gScreenHeight->value), 1)});
-
-		//	cmd.blitImage(gDefaultRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
-		//		gPostprocessingRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferDstOptimal, { blitRegion }, vk::Filter::eNearest);
-
-		//}
-
-		
-
 		//Post processing
-		gPostprocessingRenderPass->begin(cmd);
+		Postprocessing::begin(cmd);
 		Postprocessing::render(cmd);
 
 		ImGui::Render();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 		cmd.endRenderPass();
-
-		//Copy draw image to prev draw image for next frame temporal effects
-		{
-			//Transition default draw image to transfer src optimal
-			vk::ImageMemoryBarrier barrier{};
-			barrier.setOldLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-				.setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
-				.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-				.setImage(DefaultRenderPass::getDrawImage().getImage())
-				.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 })
-				.setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite)
-				.setDstAccessMask(vk::AccessFlagBits::eTransferRead);
-			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
-				vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, {}, {}, { barrier });
-
-			//Transition prev draw image to transfer dst optimal
-			barrier.setOldLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-				.setNewLayout(vk::ImageLayout::eTransferDstOptimal)
-				.setImage(gPostprocessingRenderPass->getPrevDrawImage().getImage())
-				.setSrcAccessMask(vk::AccessFlagBits{})
-				.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
-			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
-				vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, {}, {}, { barrier });
-			vk::ImageCopy blitRegion{};
-			blitRegion.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
-				.setSrcOffset({ 0, 0, 0 })
-				.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
-				.setDstOffset({ 0, 0, 0 })
-				.setExtent({ static_cast<uint32_t>(gScreenWidth->value), static_cast<uint32_t>(gScreenHeight->value), 1 });
-			cmd.copyImage(DefaultRenderPass::getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
-				gPostprocessingRenderPass->getPrevDrawImage().getImage(), vk::ImageLayout::eTransferDstOptimal, { blitRegion });
-			//Transition prev draw image to shader read only optimal
-			barrier.setOldLayout(vk::ImageLayout::eTransferDstOptimal)
-				.setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-				.setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)
-				.setDstAccessMask(vk::AccessFlagBits::eShaderRead);
-			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
-				vk::PipelineStageFlagBits::eFragmentShader, vk::DependencyFlags{}, {}, {}, { barrier });
-		}
-
 
 		//Copy the post processing image to the swapchain image
 		{
@@ -935,7 +854,7 @@ namespace eg::Renderer
 				.setDstOffset({ 0, 0, 0 })
 				.setExtent({ static_cast<uint32_t>(gScreenWidth->value), static_cast<uint32_t>(gScreenHeight->value), 1 });
 
-			cmd.copyImage(gPostprocessingRenderPass->getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
+			cmd.copyImage(Postprocessing::getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
 				gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { blitRegion });
 
 
@@ -973,7 +892,6 @@ namespace eg::Renderer
 		Atmosphere::destroy();
 		Postprocessing::destroy();
 		DefaultRenderPass::destroy();
-		gPostprocessingRenderPass.reset();
 		gGlobalUniformBuffer.reset();
 
 		gDefaultWhiteImage.reset();
@@ -1113,11 +1031,6 @@ namespace eg::Renderer
 	vk::DescriptorPool getDescriptorPool()
 	{
 		return gDescriptorPool;
-	}
-
-	const PostprocessingRenderPass& getPostprocessingRenderPass()
-	{
-		return *gPostprocessingRenderPass;
 	}
 
 	vk::DescriptorSet getCurrentFrameGUBODescSet()

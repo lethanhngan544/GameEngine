@@ -6,9 +6,9 @@ layout(location = 0) in vec2 fsUv;
 layout(location = 0) out vec4 outColor;
 
 layout(set = 1, binding = 0) uniform sampler2D uDefaultRenderPassDrawImage; // scene color
-layout(set = 1, binding = 2) uniform sampler2D uDepthImage;
-layout(set = 1, binding = 3) uniform sampler2D uNormalImage;
-layout(set = 1, binding = 4) uniform sampler2D uMr;
+layout(set = 1, binding = 1) uniform sampler2D uDepthImage;
+layout(set = 1, binding = 2) uniform sampler2D uNormalImage;
+layout(set = 1, binding = 3) uniform sampler2D uMr;
 
 // Push constants
 layout(push_constant) uniform PushConstants { 

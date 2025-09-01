@@ -5,6 +5,11 @@
 
 namespace eg::Renderer::Postprocessing
 {
+	vk::RenderPass mRenderPass;
+	vk::Framebuffer mFramebuffer;
+	std::optional<Image2D> mDrawImage;
+	vk::Format mDrawImageFormat;
+
 	vk::Sampler mSampler;
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mLayout;
@@ -19,7 +24,8 @@ namespace eg::Renderer::Postprocessing
 	void createPipeline();
 	void destroyPipeline();
 
-	void create()
+
+	void create(vk::Format format)
 	{
 		Command::registerFn("eg::Renderer::ReloadAllPipelines",
 			[](size_t, char* []) {
@@ -31,7 +37,90 @@ namespace eg::Renderer::Postprocessing
 		mHeightCVar = Command::findVar("eg::Renderer::ScreenHeight");
 		mRenderScaleCVar = Command::findVar("eg::Renderer::ScreenRenderScale");
 
-		//Create sampler
+		mDrawImageFormat = format;
+		mDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), format,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+			vk::ImageAspectFlagBits::eColor);
+
+
+		vk::AttachmentDescription attachments[] =
+		{
+			//Draw image, id = 0
+			vk::AttachmentDescription(
+				(vk::AttachmentDescriptionFlags)0,
+				format,
+				vk::SampleCountFlagBits::e1,
+				vk::AttachmentLoadOp::eClear,
+				vk::AttachmentStoreOp::eStore,
+				vk::AttachmentLoadOp::eDontCare,
+				vk::AttachmentStoreOp::eDontCare,
+				vk::ImageLayout::eUndefined,
+				vk::ImageLayout::eTransferSrcOptimal // For copying to swapchain image
+			)
+		};
+
+		vk::AttachmentReference pass0OutputAttachmentRef[] =
+		{
+			vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
+		};
+
+		vk::SubpassDescription subpasses[] = {
+			//Subpass 0
+			vk::SubpassDescription((vk::SubpassDescriptionFlags)0,
+				vk::PipelineBindPoint::eGraphics,
+				0, nullptr, // Input
+				sizeof(pass0OutputAttachmentRef) / sizeof(pass0OutputAttachmentRef[0]), pass0OutputAttachmentRef, //Output
+				nullptr, //Resolve
+				nullptr, //Depth
+				0, nullptr//Preserve
+			),
+		};
+
+		vk::SubpassDependency dependencies[] = {
+			// External -> Subpass 0
+			vk::SubpassDependency(
+				VK_SUBPASS_EXTERNAL,            // from outside render pass
+				0,                               // to subpass 0
+				vk::PipelineStageFlagBits::eFragmentShader,         // reading resources before draw
+				vk::PipelineStageFlagBits::eColorAttachmentOutput,  // going to write colors
+				vk::AccessFlagBits::eShaderRead,                     // possibly reading textures
+				vk::AccessFlagBits::eColorAttachmentWrite,           // writing color output
+				vk::DependencyFlagBits::eByRegion
+			),
+
+				// Subpass 0 -> External
+				vk::SubpassDependency(
+					0,                               // from subpass 0
+					VK_SUBPASS_EXTERNAL,             // to outside render pass (present or next pass)
+					vk::PipelineStageFlagBits::eColorAttachmentOutput,  // wait for color writes
+					vk::PipelineStageFlagBits::eBottomOfPipe,            // before GPU finishes
+					vk::AccessFlagBits::eColorAttachmentWrite,           // color writes
+					vk::AccessFlagBits::eMemoryRead,                     // make visible to presentation engine
+					vk::DependencyFlagBits::eByRegion
+				)
+		};
+
+		vk::RenderPassCreateInfo renderPassCI{};
+		renderPassCI
+			.setAttachments(attachments)
+			.setSubpasses(subpasses)
+			.setDependencies(dependencies);
+
+		mRenderPass = getDevice().createRenderPass(renderPassCI);
+
+		vk::ImageView frameBufferAttachments[] =
+		{
+			mDrawImage->getImageView(),
+		};
+		vk::FramebufferCreateInfo framebufferCI{};
+		framebufferCI.setRenderPass(mRenderPass)
+			.setAttachments(frameBufferAttachments)
+			.setWidth(static_cast<uint32_t>(mWidthCVar->value))
+			.setHeight(static_cast<uint32_t>(mHeightCVar->value))
+			.setLayers(1);
+
+
+		mFramebuffer = getDevice().createFramebuffer(framebufferCI);
 
 		vk::SamplerCreateInfo samplerCI{};
 		samplerCI.setMagFilter(vk::Filter::eNearest)
@@ -51,12 +140,7 @@ namespace eg::Renderer::Postprocessing
 
 		createPipeline();
 	}
-	void destroy()
-	{
-		destroyPipeline();
-		//Free sampler
-		Renderer::getDevice().destroySampler(mSampler);
-	}
+
 	FragmentPushConstants& getPushConstants()
 	{
 		return mPushConstants;
@@ -87,7 +171,6 @@ namespace eg::Renderer::Postprocessing
 
 		vk::DescriptorImageInfo imageInfos[] = {
 			vk::DescriptorImageInfo(mSampler, DefaultRenderPass::getDrawImage().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(mSampler, getPostprocessingRenderPass().getPrevDrawImage().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(mSampler, DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(mSampler, DefaultRenderPass::getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(mSampler, DefaultRenderPass::getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
@@ -113,10 +196,6 @@ namespace eg::Renderer::Postprocessing
 				1,
 				vk::DescriptorType::eCombinedImageSampler,
 				&imageInfos[3]),
-			vk::WriteDescriptorSet(mSet, 4, 0,
-				1,
-				vk::DescriptorType::eCombinedImageSampler,
-				&imageInfos[4]),
 			}, {});
 
 
@@ -260,7 +339,7 @@ namespace eg::Renderer::Postprocessing
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(mLayout)
-			.setRenderPass(getPostprocessingRenderPass().getRenderPass())
+			.setRenderPass(mRenderPass)
 			.setSubpass(0)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)
@@ -322,4 +401,73 @@ namespace eg::Renderer::Postprocessing
 		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }));
 		cmd.draw(3, 1, 0, 0);
 	}
+
+	
+
+	
+	void destroy()
+	{
+		destroyPipeline();
+		//Free sampler
+		Renderer::getDevice().destroySampler(mSampler);
+
+		mDrawImage.reset();
+		getDevice().destroyFramebuffer(mFramebuffer);
+		getDevice().destroyRenderPass(mRenderPass);
+	}
+
+	void resize(uint32_t width, uint32_t height)
+	{
+		//Destroy framebuffer, images
+		getDevice().destroyFramebuffer(mFramebuffer);
+		mDrawImage.reset();
+		//Recreate images
+		mDrawImage.emplace(width, height, mDrawImageFormat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc,
+			vk::ImageAspectFlagBits::eColor);
+
+		vk::ImageView frameBufferAttachments[] =
+		{
+			mDrawImage->getImageView(),
+		};
+		vk::FramebufferCreateInfo framebufferCI{};
+		framebufferCI.setRenderPass(mRenderPass)
+			.setAttachments(frameBufferAttachments)
+			.setWidth(width)
+			.setHeight(height)
+			.setLayers(1);
+
+
+		mFramebuffer = getDevice().createFramebuffer(framebufferCI);
+	}
+
+
+
+	void begin(const vk::CommandBuffer& cmd)
+	{
+		vk::ClearValue clearValues[] =
+		{
+			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
+		};
+
+		Command::Var* widthCVar = Command::findVar("eg::Renderer::ScreenWidth");
+		Command::Var* heightCVar = Command::findVar("eg::Renderer::ScreenHeight");
+
+
+		uint32_t width = static_cast<uint32_t>(widthCVar->value);
+		uint32_t height = static_cast<uint32_t>(heightCVar->value);
+
+		vk::RenderPassBeginInfo renderPassBI{};
+		renderPassBI.setRenderPass(mRenderPass)
+			.setFramebuffer(mFramebuffer)
+			.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(width, height)))
+			.setClearValues(clearValues);
+
+
+		cmd.beginRenderPass(renderPassBI, vk::SubpassContents::eInline);
+	}
+
+	vk::RenderPass getRenderPass() { return mRenderPass; }
+	vk::Framebuffer getFramebuffer() { return mFramebuffer; }
+	Image2D& getDrawImage() { return *mDrawImage; }
 }

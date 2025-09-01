@@ -51,7 +51,6 @@ namespace eg::Renderer
 	vk::DescriptorSetLayout getGlobalDescriptorSet();
 	uint32_t getCurrentFrameIndex();
 
-	const class PostprocessingRenderPass& getPostprocessingRenderPass();
 	const class CombinedImageSampler2D& getDefaultWhiteImage();
 	const class CombinedImageSampler2D& getDefaultCheckerboardImage();
 	const uint32_t getGraphicsQueueFamilyIndex();
@@ -276,12 +275,17 @@ namespace eg::Renderer
 			float thickness = 0.1f;
 		};
 
-		void create();
+		void create(vk::Format format);
 		void destroy();
 		void render(const vk::CommandBuffer& cmd);
+		void begin(const vk::CommandBuffer& cmd);
+		void resize(uint32_t width, uint32_t height);
 		vk::Pipeline getPipeline();
 		vk::PipelineLayout getPipelineLayout();
 		vk::DescriptorSet getDescriptorSet();
+		vk::RenderPass getRenderPass();
+		vk::Framebuffer getFramebuffer();
+		Image2D& getDrawImage();
 
 		FragmentPushConstants& getPushConstants();
 	}
@@ -289,7 +293,7 @@ namespace eg::Renderer
 	//Renderpasses
 	namespace DefaultRenderPass
 	{
-		void create(uint32_t width, uint32_t height, vk::Format format);
+		void create(vk::Format format);
 		void destroy();
 
 		void begin(const vk::CommandBuffer& cmd);
@@ -306,26 +310,7 @@ namespace eg::Renderer
 
 	}
 
-	class PostprocessingRenderPass
-	{
-	private:
-		vk::RenderPass mRenderPass;
-		vk::Framebuffer mFramebuffer;
-		std::optional<Image2D> mDrawImage, mPrevDrawImage;
-		vk::Format mDrawImageFormat;
-	public:
-		PostprocessingRenderPass(uint32_t width, uint32_t height, vk::Format format);
-		~PostprocessingRenderPass();
-		void begin(const vk::CommandBuffer& cmd) const;
-		void resize(uint32_t width, uint32_t height);
 
-		vk::RenderPass getRenderPass() const { return mRenderPass; }
-		vk::Framebuffer getFramebuffer() const { return mFramebuffer; }
-		Image2D& getDrawImage() { return *mDrawImage; }
-		const Image2D& getDrawImage() const { return *mDrawImage; }
-		const Image2D& getPrevDrawImage() const { return *mPrevDrawImage; }
-		Image2D& getPrevDrawImage() { return *mPrevDrawImage; }
-	};
 
 	class GlobalUniformBuffer
 	{
