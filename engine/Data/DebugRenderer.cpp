@@ -152,7 +152,7 @@ namespace eg::Data::DebugRenderer
 				vk::ColorComponentFlagBits::eG |
 				vk::ColorComponentFlagBits::eB |
 				vk::ColorComponentFlagBits::eA)
-			.setBlendEnable(true)
+			.setBlendEnable(false)
 			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
 			.setDstColorBlendFactor(vk::BlendFactor::eOne)
 			.setColorBlendOp(vk::BlendOp::eAdd)
@@ -185,8 +185,8 @@ namespace eg::Data::DebugRenderer
 
 		vk::GraphicsPipelineCreateInfo pipelineCI{};
 		pipelineCI.setLayout(gLinePipelineLayout)
-			.setRenderPass(Renderer::DefaultRenderPass::getRenderPass())
-			.setSubpass(1)
+			.setRenderPass(Renderer::Postprocessing::getRenderPass())
+			.setSubpass(3)
 			.setBasePipelineHandle(nullptr)
 			.setBasePipelineIndex(-1)
 			.setStages(shaderStages)

@@ -64,7 +64,7 @@ namespace eg::Renderer
 
 	static vk::Queue gMainQueue;
 	static vk::PresentModeKHR gPresentMode = vk::PresentModeKHR::eFifoRelaxed;
-	static vk::SurfaceFormatKHR gSurfaceFormat = vk::SurfaceFormatKHR{ vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear };
+	static vk::SurfaceFormatKHR gSurfaceFormat = vk::SurfaceFormatKHR{ vk::Format::eR16G16B16A16Sfloat, vk::ColorSpaceKHR::eSrgbNonlinear };
 	static vk::SwapchainKHR gSwapchain;
 	static std::vector<vk::Image> gSwapchainImages;
 	static std::vector<vk::ImageView> gSwapchainImageViews;
@@ -738,7 +738,7 @@ namespace eg::Renderer
 		init_info.PipelineCache = VK_NULL_HANDLE;
 		init_info.DescriptorPool = gDescriptorPool;
 		init_info.RenderPass = Postprocessing::getRenderPass();
-		init_info.Subpass = 0;
+		init_info.Subpass = 3;
 		init_info.MinImageCount = surfaceCapabilities.minImageCount;
 		init_info.ImageCount = imageCount;
 		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -820,14 +820,21 @@ namespace eg::Renderer
 		Data::LightRenderer::beginPointLight(cmd);
 		gLightRenderFn(cmd);
 		Data::ParticleRenderer::render(cmd);
-		Data::DebugRenderer::render(cmd);
+		
 
 		cmd.endRenderPass();
 
 		//Post processing
-		Postprocessing::begin(cmd);
-		Postprocessing::render(cmd);
+		Postprocessing::begin(cmd); //Subpass 0
+		Postprocessing::generateBloom(cmd);
+		cmd.nextSubpass(vk::SubpassContents::eInline); //Subpass 1
+		Postprocessing::generateBloomBlur(cmd, true);
+		cmd.nextSubpass(vk::SubpassContents::eInline);	 //Subpass 2
+		Postprocessing::generateBloomBlur(cmd, false);
+		cmd.nextSubpass(vk::SubpassContents::eInline); //Subpass 3
+		Postprocessing::compose(cmd);
 
+		Data::DebugRenderer::render(cmd);
 		ImGui::Render();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 		cmd.endRenderPass();
@@ -856,6 +863,16 @@ namespace eg::Renderer
 
 			cmd.copyImage(Postprocessing::getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
 				gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { blitRegion });
+
+			//Blit image with renderscale
+			/*vk::ImageBlit blitRegion2{};
+			blitRegion2.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+				.setSrcOffsets({ vk::Offset3D{0, 0, 0}, vk::Offset3D{ static_cast<int32_t>(gScreenWidth->value * gScreenRenderScale->value), static_cast<int32_t>(gScreenHeight->value * gScreenRenderScale->value), 1 } })
+				.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 })
+				.setDstOffsets({ vk::Offset3D{0, 0, 0}, vk::Offset3D{ static_cast<int32_t>(gScreenWidth->value), static_cast<int32_t>(gScreenHeight->value), 1 } });
+			cmd.blitImage(Postprocessing::getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
+				gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { blitRegion2 }, vk::Filter::eLinear);*/
+
 
 
 			//Transition swapchain image to present source optimal

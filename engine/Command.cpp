@@ -30,6 +30,7 @@ namespace eg::Command
 	}
 	Var* registerVar(const std::string& name, const std::string& value, double value2)
 	{
+		Logger::gInfo("Registering CVar: " + name + " = " + value);
 		auto& var = gCommandVars[name];
 
 		var = std::make_unique<Var>();
@@ -49,7 +50,10 @@ namespace eg::Command
 		{
 			return it->second.get();
 		}
-		return &gEmptyVar;
+		else
+		{
+			return registerVar(name, "0", 0.0);
+		}
 	}
 
 

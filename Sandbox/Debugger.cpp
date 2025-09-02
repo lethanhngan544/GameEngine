@@ -93,6 +93,28 @@ namespace sndbx
 		ImGui::DragFloat2("Ambient Light height", &ambientLight.noiseScale.x, 0.01f, 0.0f);
 		ImGui::DragFloat("Ambient Light radius", &ambientLight.radius, 0.01f, 0.001f, 5.0f);
 
+		ImGui::Separator();
+
+		ImGui::Text("Post process settings");
+		//Bloom
+		{
+			static eg::Command::Var* bloomRadiusCVar = eg::Command::findVar("eg::Renderer::Postprocessing::BloomRadius");
+			static eg::Command::Var* bloomThresholdCVar = eg::Command::findVar("eg::Renderer::Postprocessing::BloomThreshold");
+			static eg::Command::Var* bloomKneeCvar = eg::Command::findVar("eg::Renderer::Postprocessing::BloomKnee");
+
+			float radius = static_cast<float>(bloomRadiusCVar->value);
+			float threshold = static_cast<float>(bloomThresholdCVar->value);
+			float knee = static_cast<float>(bloomKneeCvar->value);
+
+			ImGui::DragFloat("Bloom radius", &radius, 0.1f, 0.0f, 20.0f);
+			ImGui::DragFloat("Bloom threshold", &threshold, 0.1f, 0.0f, 20.0f);
+			ImGui::DragFloat("Bloom knee", &knee, 0.1f, 0.0f, 20.0f);
+
+			bloomKneeCvar->value = static_cast<double>(knee);
+			bloomRadiusCVar->value = static_cast<double>(radius);
+			bloomThresholdCVar->value = static_cast<double>(threshold);
+		}
+
 
 		ImGui::End();
 	}

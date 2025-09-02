@@ -265,29 +265,25 @@ namespace eg::Renderer
 
 	namespace Postprocessing
 	{
-		struct FragmentPushConstants
-		{
-			float renderScale = 1.0f;
-			int scaledWidth = 1;
-			int scaledHeight = 1;
-			float resolution = 0.3f;
-			int steps = 32;
-			float thickness = 0.1f;
-		};
 
 		void create(vk::Format format);
 		void destroy();
-		void render(const vk::CommandBuffer& cmd);
+		void generateBloom(const vk::CommandBuffer& cmd);
+		void generateBloomBlur(const vk::CommandBuffer& cmd, bool vertical);
+		void compose(const vk::CommandBuffer& cmd);
 		void begin(const vk::CommandBuffer& cmd);
 		void resize(uint32_t width, uint32_t height);
+
+
 		vk::Pipeline getPipeline();
 		vk::PipelineLayout getPipelineLayout();
 		vk::DescriptorSet getDescriptorSet();
 		vk::RenderPass getRenderPass();
 		vk::Framebuffer getFramebuffer();
 		Image2D& getDrawImage();
+		Image2D& getBloomImage();
+		Image2D& getBloomBlurImage();
 
-		FragmentPushConstants& getPushConstants();
 	}
 
 	//Renderpasses
