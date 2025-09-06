@@ -31,7 +31,17 @@ namespace sndbx
 		eg::Physics::getBodyInterface()->DestroyBody(mBody.mBodyID);
 	}
 
-	void Player::update(float delta)
+	void Player::prePhysicsUpdate(float delta)
+	{
+		mBody.updatePrevState();
+	}
+
+	void Player::update(float delta, float alpha)
+	{
+		mAnimator->update(delta);
+	}
+
+	void Player::fixedUpdate(float delta)
 	{
 		const JPH::BodyLockInterface& lockInterface = eg::Physics::getPhysicsSystem().GetBodyLockInterface();
 		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
@@ -65,11 +75,6 @@ namespace sndbx
 		}
 
 
-
-		
-
-
-
 		// Separate horizontal and vertical velocity
 		JPH::Vec3 flatVelocity = velocity;
 		flatVelocity.SetY(0.0f);
@@ -95,6 +100,7 @@ namespace sndbx
 		if (mJumpRequested && grounded)
 		{
 			velocity.SetY(mJumpStrength); // Launch upward
+			mJumpRequested = false;
 		}
 		else
 		{
@@ -117,22 +123,14 @@ namespace sndbx
 
 		// Set character facing direction
 		bodyInterface->SetRotation(mBody.mBodyID, JPH::Quat::sRotation(JPH::Vec3(0, 1, 0), glm::radians(mYaw)), JPH::EActivation::Activate);
-
-		mLight.mUniformBuffer.position = glm::vec4(positionGlm + glm::vec3(0.0f, 0.5f, 0.0f), 0.0f);
-		mAnimator->update(delta);
 	}
 
-	void Player::fixedUpdate(float delta)
-	{
-
-	}
-
-	void Player::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
+	void Player::render(vk::CommandBuffer cmd, float alpha, eg::Renderer::RenderStage stage)
 	{
 		if (!mModel)
 			return;
 
-		glm::mat4x4 glmMatrix = mBody.getBodyMatrix();
+		glm::mat4x4 glmMatrix = mBody.getBodyMatrix(alpha);
 		glmMatrix *= mModelOffsetMatrix;
 
 		switch (stage)
@@ -159,7 +157,6 @@ namespace sndbx
 	nlohmann::json Player::toJson() const
 	{
 		return {
-			{ "light", mLight.toJson() },
 			{ "model", mModel->toJson() },
 			{ "body", mBody.toJson()},
 			{ "height", mHeight },
@@ -183,7 +180,6 @@ namespace sndbx
 
 	void Player::fromJson(const nlohmann::json& json)
 	{
-		mLight.fromJson(json["light"]);
 		mModel = eg::Components::ModelCache::loadAnimatedModelFromJson(json["model"]);
 
 		mHeight = json["height"];

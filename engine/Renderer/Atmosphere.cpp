@@ -395,7 +395,7 @@ namespace eg::Renderer::Atmosphere
 			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(mSSAONoiseSampler, DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(mSSAONoiseSampler, DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eDepthStencilReadOnlyOptimal),
 			vk::DescriptorImageInfo(mSSAONoiseSampler, mSSAONoiseImage->getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
@@ -529,7 +529,7 @@ namespace eg::Renderer::Atmosphere
 				vk::ColorComponentFlagBits::eG |
 				vk::ColorComponentFlagBits::eB |
 				vk::ColorComponentFlagBits::eA)
-			.setBlendEnable(true)
+			.setBlendEnable(false)
 			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
 			.setDstColorBlendFactor(vk::BlendFactor::eOne)
 			.setColorBlendOp(vk::BlendOp::eAdd)
@@ -554,7 +554,7 @@ namespace eg::Renderer::Atmosphere
 			.setReference(Renderer::MESH_STENCIL_VALUE);
 
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
-		depthStencilStateCI.setDepthTestEnable(false)
+		depthStencilStateCI.setDepthTestEnable(true)
 			.setDepthWriteEnable(false)
 			.setDepthCompareOp(vk::CompareOp::eLess)
 			.setDepthBoundsTestEnable(false)
@@ -636,8 +636,8 @@ namespace eg::Renderer::Atmosphere
 			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getNormal().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getAlbedo().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getMr().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(mDepthSampler, mDepthImageView, vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::DescriptorImageInfo(nullptr, DefaultRenderPass::getDepth().getImageView(), vk::ImageLayout::eDepthStencilReadOnlyOptimal),
+			vk::DescriptorImageInfo(mDepthSampler, mDepthImageView, vk::ImageLayout::eDepthStencilReadOnlyOptimal),
 		};
 
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)

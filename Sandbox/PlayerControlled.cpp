@@ -14,10 +14,9 @@ namespace sndbx
 	{
 		Player::fixedUpdate(delta);
 	}
-	void PlayerControlled::update(float delta)
+	void PlayerControlled::update(float delta, float alpha)
 	{
 		mDirection = { 0.0f, 0.0f, 0.0f };
-		mJumpRequested = false;
 		mGrabOject = false;
 		mYaw -= eg::Input::Mouse::getDeltaX() * mMouseSensitivity;
 		mPitch -= eg::Input::Mouse::getDeltaY() * mMouseSensitivity;
@@ -66,7 +65,7 @@ namespace sndbx
 		{
 			mDirection = glm::normalize(mDirection);
 		}
-		glm::mat4x4 bodyMatrix = mBody.getBodyMatrix();
+		glm::mat4x4 bodyMatrix = mBody.getBodyMatrix(alpha);
 		auto headLocalTransform = mHeadNode->localTransform;
 		auto headGlobalTransform = bodyMatrix * mModelOffsetMatrix * headLocalTransform;
 		auto headGlobalPosition = glm::vec3{ headGlobalTransform[3][0], headGlobalTransform[3][1], headGlobalTransform[3][2] };
@@ -90,13 +89,13 @@ namespace sndbx
 
 		mAnimator->setState(mAnimState);
 
-		Player::update(delta);
+		Player::update(delta, alpha);
 
 		
 	}
 
-	void PlayerControlled::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
+	void PlayerControlled::render(vk::CommandBuffer cmd, float alpha, eg::Renderer::RenderStage stage)
 	{
-		Player::render(cmd, stage);
+		Player::render(cmd, alpha, stage);
 	}
 }

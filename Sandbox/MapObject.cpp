@@ -8,7 +8,7 @@
 
 namespace sndbx
 {
-	void MapObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
+	void MapObject::render(vk::CommandBuffer cmd, float alpha, eg::Renderer::RenderStage stage)
 	{
 		JPH::BodyInterface* bodyInterface = eg::Physics::getBodyInterface();
 		JPH::Mat44 matrix = bodyInterface->GetCenterOfMassTransform(mBody.mBodyID);

@@ -44,6 +44,7 @@ namespace eg::Renderer
 		vk::Fence renderFence;
 		vk::CommandBuffer commandBuffer;
 		uint32_t swapchainIndex = 0;
+		float alpha;
 	};
 	static Components::Camera gDummyCamera;
 	static const Components::Camera* gCamera = &gDummyCamera;
@@ -63,7 +64,7 @@ namespace eg::Renderer
 	static vma::Allocator gAllocator;
 
 	static vk::Queue gMainQueue;
-	static vk::PresentModeKHR gPresentMode = vk::PresentModeKHR::eFifoRelaxed;
+	static vk::PresentModeKHR gPresentMode = vk::PresentModeKHR::eImmediate;
 	static vk::SurfaceFormatKHR gSurfaceFormat = vk::SurfaceFormatKHR{ vk::Format::eR16G16B16A16Sfloat, vk::ColorSpaceKHR::eSrgbNonlinear };
 	static vk::SwapchainKHR gSwapchain;
 	static std::vector<vk::Image> gSwapchainImages;
@@ -88,7 +89,7 @@ namespace eg::Renderer
 
 
 	//Render functions
-	static RenderFn dummyRenderFn = [](vk::CommandBuffer cmd) {
+	static RenderFn dummyRenderFn = [](vk::CommandBuffer cmd, float ) {
 		//This is a dummy render function that does nothing
 	};
 
@@ -301,7 +302,7 @@ namespace eg::Renderer
 				.setPInheritanceInfo(&cmdInheritanceInfo);
 			cmd.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
 			cmd.begin(cmdBeginInfo);
-			gShadowRenderFn(cmd);
+			gShadowRenderFn(cmd, gFrameData[gCurrentFrame].alpha);
 			cmd.end();
 
 			//Notify main thread that gShadow commands are ready
@@ -360,7 +361,7 @@ namespace eg::Renderer
 				.setPInheritanceInfo(&cmdInheritanceInfo);
 			cmd.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
 			cmd.begin(cmdBeginInfo);
-			gBufferRenderFn(cmd);
+			gBufferRenderFn(cmd, gFrameData[gCurrentFrame].alpha);
 			cmd.end();
 
 			//Notify main thread that gShadow commands are ready
@@ -727,7 +728,9 @@ namespace eg::Renderer
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+		
 		ImGui::StyleColorsDark();
+		ImGui::GetStyle().Colors[ImGuiCol_WindowBg].w = 1.0f;
 		ImGui_ImplGlfw_InitForVulkan(Window::getHandle(), true);
 		ImGui_ImplVulkan_InitInfo init_info = {};
 		init_info.Instance = gInstance;
@@ -773,11 +776,12 @@ namespace eg::Renderer
 	}
 
 
-	void render()
+	void render(float alpha, float delta)
 	{	
 		auto cmd = begin();
 		auto& frameData = gFrameData[gCurrentFrame];
-		gDebugRenderFn(cmd);
+		frameData.alpha = alpha;
+		gDebugRenderFn(cmd, frameData.alpha);
 		Data::DebugRenderer::updateVertexBuffers();
 		Data::ParticleRenderer::updateBuffers();
 
@@ -814,11 +818,11 @@ namespace eg::Renderer
 		DefaultRenderPass::begin(cmd); // subpass 0
 		cmd.executeCommands(gBufferCmdBuffers[gCurrentFrame]);
 		cmd.nextSubpass(vk::SubpassContents::eInline); //Subpass 1
-		Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
 		Atmosphere::renderAmbientLight(cmd);
 		Atmosphere::renderDirectionalLight(cmd);
 		Data::LightRenderer::beginPointLight(cmd);
-		gLightRenderFn(cmd);
+		Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
+		gLightRenderFn(cmd, frameData.alpha);
 		Data::ParticleRenderer::render(cmd);
 		
 
@@ -838,6 +842,7 @@ namespace eg::Renderer
 		ImGui::Render();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 		cmd.endRenderPass();
+		Postprocessing::processLuminance(cmd, delta);
 
 		//Copy the post processing image to the swapchain image
 		{
@@ -861,7 +866,7 @@ namespace eg::Renderer
 				.setDstOffset({ 0, 0, 0 })
 				.setExtent({ static_cast<uint32_t>(gScreenWidth->value), static_cast<uint32_t>(gScreenHeight->value), 1 });
 
-			cmd.copyImage(Postprocessing::getDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
+			cmd.copyImage(Postprocessing::getFinalDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
 				gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { blitRegion });
 
 			//Blit image with renderscale

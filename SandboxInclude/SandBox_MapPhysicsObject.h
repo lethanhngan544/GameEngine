@@ -15,9 +15,10 @@ namespace sndbx
 		MapPhysicsObject() = default;
 		~MapPhysicsObject();
 
-		void update(float delta) override;
+		void update(float delta, float alpha) override;
+		void prePhysicsUpdate(float delta) override;
 		void fixedUpdate(float delta) override;
-		void render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage) override;
+		void render(vk::CommandBuffer cmd, float alpha, eg::Renderer::RenderStage stage) override;
 
 		const char* getType() const override { return "MapPhysicsObject"; }
 

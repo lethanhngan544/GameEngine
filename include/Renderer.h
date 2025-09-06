@@ -24,7 +24,7 @@ namespace eg::Renderer
 	static constexpr uint8_t MESH_STENCIL_VALUE = 0x01;
 
 
-	using RenderFn = std::function<void(vk::CommandBuffer cmd)>;
+	using RenderFn = std::function<void(vk::CommandBuffer cmd, float alpha)>;
 
 	//Global functions
 	std::vector<uint32_t> compileShaderFromFile(const std::string& filePath, uint32_t kind, 
@@ -35,7 +35,7 @@ namespace eg::Renderer
 	void create(uint32_t width, uint32_t height, uint32_t shadowMapRes);
 	void setCamera(const Components::Camera* camera);
 	const Components::Camera& getMainCamera();
-	void render();
+	void render(float alpha, float delta);
 	void waitIdle();
 	void destory();
 
@@ -144,6 +144,8 @@ namespace eg::Renderer
 	public:
 		Image2D(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspectFlags,
 			void* data = nullptr, size_t sizeInBytes = 0);
+		Image2D(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspectFlags,
+			uint32_t miplevels);
 		~Image2D();
 
 
@@ -272,6 +274,7 @@ namespace eg::Renderer
 		void generateBloomBlur(const vk::CommandBuffer& cmd, bool vertical);
 		void compose(const vk::CommandBuffer& cmd);
 		void begin(const vk::CommandBuffer& cmd);
+		void processLuminance(const vk::CommandBuffer& cmd, float delta);
 		void resize(uint32_t width, uint32_t height);
 
 
@@ -280,6 +283,7 @@ namespace eg::Renderer
 		vk::DescriptorSet getDescriptorSet();
 		vk::RenderPass getRenderPass();
 		vk::Framebuffer getFramebuffer();
+		Image2D& getFinalDrawImage();
 		Image2D& getDrawImage();
 		Image2D& getBloomImage();
 		Image2D& getBloomBlurImage();

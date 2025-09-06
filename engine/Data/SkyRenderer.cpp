@@ -188,7 +188,7 @@ namespace eg::Data::SkyRenderer
 				vk::ColorComponentFlagBits::eG |
 				vk::ColorComponentFlagBits::eB |
 				vk::ColorComponentFlagBits::eA)
-			.setBlendEnable(true)
+			.setBlendEnable(false)
 			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
 			.setDstColorBlendFactor(vk::BlendFactor::eOne)
 			.setColorBlendOp(vk::BlendOp::eAdd)
@@ -215,7 +215,7 @@ namespace eg::Data::SkyRenderer
 		vk::PipelineDepthStencilStateCreateInfo depthStencilStateCI{};
 		depthStencilStateCI.setDepthTestEnable(false)
 			.setDepthWriteEnable(false)
-			.setDepthCompareOp(vk::CompareOp::eLess)
+			.setDepthCompareOp(vk::CompareOp::eEqual)
 			.setDepthBoundsTestEnable(false)
 			.setStencilTestEnable(true)
 			.setFront(stencilOpState)

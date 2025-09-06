@@ -6,13 +6,9 @@
 
 namespace sndbx
 {
-
-
 	class Player : public eg::World::IGameObject
 	{
 	protected:
-
-		eg::Components::PointLight mLight;
 		std::shared_ptr<eg::Components::AnimatedModel> mModel = nullptr;
 		std::unique_ptr<eg::Components::Animator2DBlend> mAnimator;
 		eg::Components::RigidBody mBody;
@@ -45,9 +41,10 @@ namespace sndbx
 		Player(bool visible = true);
 		~Player();
 
-		void update(float delta) override;
+		void update(float delta, float alpha) override;
+		void prePhysicsUpdate(float delta) override;
 		void fixedUpdate(float delta) override;
-		void render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage) override;
+		void render(vk::CommandBuffer cmd, float alpha, eg::Renderer::RenderStage stage) override;
 
 		const char* getType() const override { return "Player"; }
 

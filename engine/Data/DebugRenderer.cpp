@@ -257,8 +257,8 @@ namespace eg::Data::DebugRenderer
 
 			cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, gLinePipeline);
 
-			float scaledWidth = static_cast<float>(mWidthCVar->value * mRenderScaleCVar->value);
-			float scaledHeight = static_cast<float>(mHeightCVar->value * mRenderScaleCVar->value);
+			float scaledWidth = static_cast<float>(mWidthCVar->value);
+			float scaledHeight = static_cast<float>(mHeightCVar->value);
 
 			cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, scaledWidth, scaledHeight,
 				0.0f, 1.0f } });

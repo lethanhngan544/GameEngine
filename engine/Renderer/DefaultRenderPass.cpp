@@ -136,7 +136,7 @@ namespace eg::Renderer::DefaultRenderPass
 		{
 			vk::AttachmentReference(4, vk::ImageLayout::eColorAttachmentOptimal),
 		};
-		vk::AttachmentReference pass1OutputDepthStencilAttachmentRef = vk::AttachmentReference(3, vk::ImageLayout::eDepthStencilAttachmentOptimal); //Depth;
+		vk::AttachmentReference pass1OutputDepthStencilAttachmentRef = vk::AttachmentReference(3, vk::ImageLayout::eDepthStencilReadOnlyOptimal); //Depth;
 
 
 		vk::SubpassDescription subpasses[] = {
@@ -149,15 +149,15 @@ namespace eg::Renderer::DefaultRenderPass
 				&pass0OutputDepthStencilAttachmentRef,
 				0, nullptr//Preserve
 			),
-				//Subpass 1
-				vk::SubpassDescription((vk::SubpassDescriptionFlags)0,
-					vk::PipelineBindPoint::eGraphics,
-					sizeof(pass1InputAttachmentRef) / sizeof(pass1InputAttachmentRef[0]), pass1InputAttachmentRef, // Input
-					sizeof(pass1OutputAttachmentRef) / sizeof(pass1OutputAttachmentRef[0]), pass1OutputAttachmentRef, //Output
-					nullptr, //Resolve
-					&pass1OutputDepthStencilAttachmentRef, //Depth
-					0, nullptr//Preserve
-				),
+			//Subpass 1
+			vk::SubpassDescription((vk::SubpassDescriptionFlags)0,
+				vk::PipelineBindPoint::eGraphics,
+				sizeof(pass1InputAttachmentRef) / sizeof(pass1InputAttachmentRef[0]), pass1InputAttachmentRef, // Input
+				sizeof(pass1OutputAttachmentRef) / sizeof(pass1OutputAttachmentRef[0]), pass1OutputAttachmentRef, //Output
+				nullptr, //Resolve
+				&pass1OutputDepthStencilAttachmentRef, //Depth
+				0, nullptr//Preserve
+			),
 
 
 		};

@@ -106,26 +106,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 					return nullptr;
 				};
 			Renderer::setDebugRenderFunction(
-				[&](vk::CommandBuffer cmd)
+				[&](vk::CommandBuffer cmd, float alpha)
 				{
 					debugger.drawPhysicsDebuggerDialog();
 					debugger.drawRendererSettingsDialog();
 					debugger.drawWorldDebuggerDialog(gameObjManager, jsonDispatcher);
 				});
 			Renderer::setShadowRenderFunction(
-				[&](vk::CommandBuffer cmd)
+				[&](vk::CommandBuffer cmd, float alpha)
 				{
-					gameObjManager.render(cmd, Renderer::RenderStage::SHADOW);
+					gameObjManager.render(cmd, alpha,Renderer::RenderStage::SHADOW);
 				});
 			Renderer::setGBufferRenderFunction(
-				[&](vk::CommandBuffer cmd)
+				[&](vk::CommandBuffer cmd, float alpha)
 				{
-					gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS0_GBUFFER);
+					gameObjManager.render(cmd, alpha, Renderer::RenderStage::SUBPASS0_GBUFFER);
 				});
 			Renderer::setLightRenderFunction(
-				[&](vk::CommandBuffer cmd)
+				[&](vk::CommandBuffer cmd, float alpha)
 				{
-					gameObjManager.render(cmd, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
+					gameObjManager.render(cmd, alpha, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
 				});
 
 			
@@ -133,9 +133,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			using Clock = std::chrono::high_resolution_clock;
 			using TimePoint = std::chrono::time_point<Clock>;
 
-			constexpr double MAX_FPS = 120.0;
+			constexpr double MAX_FPS = 900.0;
 			constexpr double FRAME_TIME = 1.0 / MAX_FPS;
-			constexpr double TICK_RATE = 60.0;
+			constexpr double TICK_RATE = 15.0;
 			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
 			TimePoint lastTime = Clock::now();
 			double accumulator = 0.0;
@@ -148,20 +148,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				deltaTime = std::min(deltaTime, 0.25);
 				accumulator += deltaTime;
 				while (accumulator >= TICK_INTERVAL) {
-
+					gameObjManager.prePhysicsUpdate(TICK_INTERVAL);
 					Physics::update(TICK_INTERVAL);
 					gameObjManager.fixedUpdate(TICK_INTERVAL);
 					accumulator -= TICK_INTERVAL;
 				}
 
 				//Update
+				float alpha = static_cast<float>(accumulator / TICK_INTERVAL);
 				debugger.checkKeyboardInput();
-				gameObjManager.update(deltaTime);
+				gameObjManager.update(deltaTime, alpha);
 				Input::Keyboard::update();
 				Input::Mouse::update();
 
 				//Render
-				Renderer::render();
+				Renderer::render(alpha, deltaTime);
 				Window::poll();
 
 				// Frame pacing

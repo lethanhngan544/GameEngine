@@ -7,6 +7,13 @@ layout (input_attachment_index = 1, set = 1, binding = 1) uniform subpassInput u
 
 layout (location = 0) out vec4 outColor;
 
+//Push constant
+layout (push_constant) uniform PushConstants {
+    float exposure;
+    float saturation;
+    float gamma;
+} ps;
+
 void main()
 {
     // Load from input attachments
@@ -16,16 +23,18 @@ void main()
     // Simple additive blending
     vec3 result = sceneColor + bloomColor; // bloom intensity
 
+    
+
     // Tone mapping (Reinhard)
-    const float exposure = 0.7;
-    const float saturation = 1.5;
-  
     // exposure tone mapping
-    vec3 mapped = vec3(1.0) - exp(-result * exposure);
+    vec3 mapped = vec3(1.0) - exp(-result * ps.exposure);
+    //Gamma correction
+    mapped = pow(mapped, vec3(1.0 / ps.gamma));
     //Saturation
     float grey = dot(mapped, vec3(0.299, 0.587, 0.114));
-    mapped = mix(vec3(grey), mapped, saturation);
-
+    mapped = mix(vec3(grey), mapped, ps.saturation);
+   
+    // Output final color
     
     outColor = vec4(mapped, 1.0);
 }

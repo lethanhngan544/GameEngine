@@ -4,6 +4,43 @@
 namespace eg::Renderer
 {
 	Image2D::Image2D(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspectFlags,
+		uint32_t miplevels)
+	{
+		vk::ImageCreateInfo imageCI{};
+		imageCI.setImageType(vk::ImageType::e2D)
+			.setExtent({ width, height, 1 })
+			.setMipLevels(miplevels)
+			.setArrayLayers(1)
+			.setFormat(format)
+			.setTiling(vk::ImageTiling::eOptimal)
+			.setInitialLayout(vk::ImageLayout::eUndefined)
+			.setUsage(usage)
+			.setSharingMode(vk::SharingMode::eExclusive)
+			.setSamples(vk::SampleCountFlagBits::e1)
+			.setFlags(vk::ImageCreateFlags{});
+		vma::AllocationCreateInfo allocCI{};
+		allocCI.setUsage(vma::MemoryUsage::eAutoPreferDevice);
+		auto [image, allocation] = getAllocator().createImage(imageCI, allocCI);
+		this->mImage = image;
+		this->mAllocation = allocation;
+
+		vk::ImageSubresourceRange subresourceRange{};
+		subresourceRange.setAspectMask(aspectFlags)
+			.setBaseMipLevel(0)
+			.setLevelCount(miplevels)
+			.setBaseArrayLayer(0)
+			.setLayerCount(1);
+
+		vk::ImageViewCreateInfo imageViewCI{};
+		imageViewCI.setImage(this->mImage)
+			.setViewType(vk::ImageViewType::e2D)
+			.setFormat(format)
+			.setComponents(vk::ComponentMapping{})
+			.setSubresourceRange(subresourceRange);
+		this->mImageView = getDevice().createImageView(imageViewCI);
+
+	}
+	Image2D::Image2D(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspectFlags,
 		void* data, size_t sizeInBytes)
 	{
 		//Calculate mip levels
@@ -24,7 +61,7 @@ namespace eg::Renderer
 			.setSamples(vk::SampleCountFlagBits::e1)
 			.setFlags(vk::ImageCreateFlags{});
 		vma::AllocationCreateInfo allocCI{};
-		allocCI.setUsage(vma::MemoryUsage::eGpuOnly);
+		allocCI.setUsage(vma::MemoryUsage::eAutoPreferDevice);
 		auto [image, allocation] = getAllocator().createImage(imageCI, allocCI);
 		this->mImage = image;
 		this->mAllocation = allocation;

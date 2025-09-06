@@ -65,7 +65,12 @@ namespace sndbx
 		}
 	}
 
-	void MapPhysicsObject::update(float delta)
+	void MapPhysicsObject::prePhysicsUpdate(float delta)
+	{
+		mBody.updatePrevState();
+	}
+
+	void MapPhysicsObject::update(float delta, float alpha)
 	{
 		
 		
@@ -75,9 +80,9 @@ namespace sndbx
 
 	}
 
-	void MapPhysicsObject::render(vk::CommandBuffer cmd, eg::Renderer::RenderStage stage)
+	void MapPhysicsObject::render(vk::CommandBuffer cmd, float alpha, eg::Renderer::RenderStage stage)
 	{
-		glm::mat4x4 mat = mBody.getBodyMatrix();
+		glm::mat4x4 mat = mBody.getBodyMatrix(alpha);
 		eg::Command::Var* widthCVar = eg::Command::findVar("eg::Renderer::ScreenWidth");
 		eg::Command::Var* heightCVar = eg::Command::findVar("eg::Renderer::ScreenHeight");
 

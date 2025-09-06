@@ -115,6 +115,34 @@ namespace sndbx
 			bloomThresholdCVar->value = static_cast<double>(threshold);
 		}
 
+		//Exposure
+		{
+			static eg::Command::Var* exposureCVar = eg::Command::findVar("eg::Renderer::Postprocessing::Exposure");
+			float exposure = static_cast<float>(exposureCVar->value);
+			if (ImGui::DragFloat("Exposure", &exposure, 0.1f, 0.0f, 20.0f))
+			{
+				exposureCVar->value = static_cast<double>(exposure);
+			}
+		}
+		//Saturation
+		{
+			static eg::Command::Var* saturationCVar = eg::Command::findVar("eg::Renderer::Postprocessing::Saturation");
+			float saturation = static_cast<float>(saturationCVar->value);
+			if (ImGui::DragFloat("Saturation", &saturation, 0.1f, 0.0f, 5.0f))
+			{
+				saturationCVar->value = static_cast<double>(saturation);
+			}
+		}
+		//Gamma
+		{
+			static eg::Command::Var* gammaCVar = eg::Command::findVar("eg::Renderer::Postprocessing::Gamma");
+			float gamma = static_cast<float>(gammaCVar->value);
+			if (ImGui::DragFloat("Gamma", &gamma, 0.1f, 0.1f, 5.0f))
+			{
+				gammaCVar->value = static_cast<double>(gamma);
+			}
+		}
+
 
 		ImGui::End();
 	}
@@ -160,6 +188,34 @@ namespace sndbx
 		if (ImGui::Button("Save File"))
 		{
 			ImGuiFileDialog::Instance()->OpenDialog("SaveFileDlg", "Choose File to Save", ".json,.txt");
+		}
+
+		if(ImGui::Button("Spawn A Dynamic Object"))
+		{
+			auto& camera = eg::Renderer::getMainCamera();
+			auto obj = std::make_unique<eg::World::DynamicWorldObject>();
+			nlohmann::json json = {
+				{"model", { {"path", "models/box.glb"} } },
+				{"body", {
+					{"position", {camera.mPosition.x, camera.mPosition.y, camera.mPosition.z} }
+				} }
+			};
+			obj->fromJson(json);
+			gameObjManager.addGameObject(std::move(obj));
+		}
+
+		if (ImGui::Button("Spawn B Dynamic Object"))
+		{
+			auto& camera = eg::Renderer::getMainCamera();
+			auto obj = std::make_unique<eg::World::DynamicWorldObject>();
+			nlohmann::json json = {
+				{"model", { {"path", "models/DamagedHelmet.glb"} } },
+				{"body", {
+					{"position", {camera.mPosition.x, camera.mPosition.y, camera.mPosition.z} }
+				} }
+			};
+			obj->fromJson(json);
+			gameObjManager.addGameObject(std::move(obj));
 		}
 
 		// Handle Load File dialog

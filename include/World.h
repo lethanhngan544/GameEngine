@@ -7,6 +7,7 @@
 
 #include <MyVulkan.h>
 #include <RenderStages.h>
+#include <Components.h>
 
 namespace eg::World
 {
@@ -16,12 +17,31 @@ namespace eg::World
 		IGameObject() = default;
 		virtual ~IGameObject() = default;
 
-		virtual void update(float delta) = 0;
+		virtual void update(float delta, float alpha) = 0;
+		virtual void prePhysicsUpdate(float delta) = 0;
 		virtual void fixedUpdate(float delta) = 0;
-		virtual void render(vk::CommandBuffer cmd, Renderer::RenderStage stage) = 0;
+		virtual void render(vk::CommandBuffer cmd, float alpha, Renderer::RenderStage stage) = 0;
 		virtual nlohmann::json toJson() const = 0;
 		virtual void fromJson(const nlohmann::json& json) = 0;
 		virtual const char* getType() const = 0;
+	};
+
+	class DynamicWorldObject final : public IGameObject
+	{
+	private:
+		std::shared_ptr<Components::StaticModel> mModel = nullptr;
+		eg::Components::RigidBody mBody;
+	public:
+		DynamicWorldObject() = default;
+		virtual ~DynamicWorldObject();
+
+		virtual void update(float delta, float alpha) final;
+		virtual void prePhysicsUpdate(float delta) final { mBody.updatePrevState(); }
+		virtual void fixedUpdate(float delta) final;
+		virtual void render(vk::CommandBuffer cmd, float alpha, Renderer::RenderStage stage) final;
+		virtual nlohmann::json toJson() const final { return {}; }
+		virtual void fromJson(const nlohmann::json& json) final;
+		virtual const char* getType() const final { return "DynamicWorldObject"; }
 	};
 
 
@@ -37,7 +57,8 @@ namespace eg::World
 		mutable std::string mMessageCache;
 	public:
 		JsonToIGameObjectException(const std::string& type, const std::string& message)
-			: mType(type), mMessage(message) {}
+			: mType(type), mMessage(message) {
+		}
 
 		const char* what() const noexcept override {
 			mMessageCache = "Game object type: " + mType + ". " + mMessage;
@@ -59,9 +80,10 @@ namespace eg::World
 		void addGameObject(std::unique_ptr<IGameObject> gameobject);
 		void removeGameObject(const IGameObject* gameObject);
 
-		void update(float delta);
+		void update(float delta, float alpha);
+		void prePhysicsUpdate(float delta);
 		void fixedUpdate(float delta);
-		void render(vk::CommandBuffer cmd, Renderer::RenderStage stage);
+		void render(vk::CommandBuffer cmd, float alpha, Renderer::RenderStage stage);
 
 		void save(const std::string& filename) const;
 		void load(const std::string& filename, JsonToIGameObjectDispatcher dispatcher);
@@ -74,7 +96,4 @@ namespace eg::World
 		}
 	};
 
-
-
-	
 }

@@ -13,9 +13,12 @@ namespace eg::Renderer::Postprocessing
 
 	vk::RenderPass mRenderPass;
 	vk::Framebuffer mFramebuffer;
-	std::optional<Image2D> mDrawImage, mBloomImage, mBloomBlurImage;
+	std::optional<Image2D> mFinalDrawImage, mDrawImage, mBloomImage, mBloomBlurImage, mLuminance;
 	vk::Format mDrawImageFormat;
-
+	uint32_t mLuminanceMipLevels = 1;
+	vk::ImageView mLuminanceFramebufferView;
+	std::optional<CPUBuffer> mLuminanceBuffer;
+	float mLuminanceValue;
 	vk::Sampler mSampler;
 
 	//Bloom pipeline
@@ -36,9 +39,15 @@ namespace eg::Renderer::Postprocessing
 	vk::Pipeline mBloomBlurHorizontalPipeline, mBloomBlurVerticalPipeline;
 	vk::PipelineLayout mBloomBlurLayout;
 	vk::DescriptorSetLayout mBloomBlurDescLayout;
-	vk::DescriptorSet mBloomBlurSet;
+	vk::DescriptorSet mBloomBlurHorizontalSet, mBloomBlurVerticalSet;
 
-	//Compose pipeline
+	//Compose
+	struct ComposePS
+	{
+		float exposure;
+		float saturation;
+		float gamma;
+	};
 	std::string mComposeFragShaderPath = "shaders/postprocess_compose.glsl";
 	vk::Pipeline mComposePipeline;
 	vk::PipelineLayout mComposeLayout;
@@ -51,6 +60,9 @@ namespace eg::Renderer::Postprocessing
 	Command::Var* mBloomRadiusCVar;
 	Command::Var* mBloomThresholdCVar;
 	Command::Var* mBloomKneeCvar;
+	Command::Var* mExposureCVar;
+	Command::Var* mSaturationCVar;
+	Command::Var* mGammaCVar;
 
 	void createRenderPass();
 	void createBloomPipeline();
@@ -78,8 +90,18 @@ namespace eg::Renderer::Postprocessing
 		mBloomThresholdCVar->value = 1.0f;
 		mBloomKneeCvar = Command::findVar("eg::Renderer::Postprocessing::BloomKnee");
 		mBloomKneeCvar->value = 0.5f;
+		mExposureCVar = Command::findVar("eg::Renderer::Postprocessing::Exposure");
+		mExposureCVar->value = 1.6f;
+		mSaturationCVar = Command::findVar("eg::Renderer::Postprocessing::Saturation");
+		mSaturationCVar->value = 1.8f;
+		mGammaCVar = Command::findVar("eg::Renderer::Postprocessing::Gamma");
+		mGammaCVar->value = 1.0f;
+
 
 		mDrawImageFormat = format;
+		mFinalDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), format,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageAspectFlagBits::eColor);
 		mDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), format,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
@@ -89,6 +111,19 @@ namespace eg::Renderer::Postprocessing
 		mBloomBlurImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), format,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);	
+		mLuminanceMipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(mWidthCVar->value, mHeightCVar->value)))) + 1;
+		mLuminance.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), vk::Format::eR16Sfloat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment |
+			vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,
+			vk::ImageAspectFlagBits::eColor, mLuminanceMipLevels);
+		vk::ImageViewCreateInfo mipViewCI{};
+		mipViewCI.setImage(mLuminance->getImage())
+			.setViewType(vk::ImageViewType::e2D)
+			.setFormat(vk::Format::eR16Sfloat)
+			.setComponents(vk::ComponentMapping{})
+			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
+		mLuminanceFramebufferView = Renderer::getDevice().createImageView(mipViewCI);
+		mLuminanceBuffer.emplace(nullptr, sizeof(uint16_t), vk::BufferUsageFlagBits::eTransferDst);
 
 		vk::SamplerCreateInfo samplerCI{};
 		samplerCI.setMagFilter(vk::Filter::eLinear)
@@ -116,7 +151,7 @@ namespace eg::Renderer::Postprocessing
 	{
 		vk::AttachmentDescription attachments[] =
 		{
-			//Draw image, id = 0
+			//Final Draw image, id = 0
 			vk::AttachmentDescription(
 				(vk::AttachmentDescriptionFlags)0,
 				mDrawImageFormat,
@@ -128,7 +163,19 @@ namespace eg::Renderer::Postprocessing
 				vk::ImageLayout::eUndefined,
 				vk::ImageLayout::eTransferSrcOptimal // For copying to swapchain image
 			),
-			//Bloom image, id = 1
+			//Draw image, id = 1
+			vk::AttachmentDescription(
+				(vk::AttachmentDescriptionFlags)0,
+				mDrawImageFormat,
+				vk::SampleCountFlagBits::e1,
+				vk::AttachmentLoadOp::eClear,
+				vk::AttachmentStoreOp::eStore,
+				vk::AttachmentLoadOp::eDontCare,
+				vk::AttachmentStoreOp::eDontCare,
+				vk::ImageLayout::eUndefined,
+				vk::ImageLayout::eTransferSrcOptimal // For copying to swapchain image
+			),
+			//Bloom image, id = 2
 			vk::AttachmentDescription(
 				(vk::AttachmentDescriptionFlags)0,
 				mDrawImageFormat,
@@ -141,10 +188,22 @@ namespace eg::Renderer::Postprocessing
 				vk::ImageLayout::eTransferSrcOptimal
 			),
 
-			//Bloom blur, id = 2
+			//Bloom blur, id = 3
 			vk::AttachmentDescription(
 				(vk::AttachmentDescriptionFlags)0,
 				mDrawImageFormat,
+				vk::SampleCountFlagBits::e1,
+				vk::AttachmentLoadOp::eClear,
+				vk::AttachmentStoreOp::eStore,
+				vk::AttachmentLoadOp::eDontCare,
+				vk::AttachmentStoreOp::eDontCare,
+				vk::ImageLayout::eUndefined,
+				vk::ImageLayout::eTransferSrcOptimal
+			),
+			//Luminance, id = 4
+			vk::AttachmentDescription(
+				(vk::AttachmentDescriptionFlags)0,
+				vk::Format::eR16Sfloat,
 				vk::SampleCountFlagBits::e1,
 				vk::AttachmentLoadOp::eClear,
 				vk::AttachmentStoreOp::eStore,
@@ -158,36 +217,35 @@ namespace eg::Renderer::Postprocessing
 
 		vk::AttachmentReference pass0OutputAttachmentRef[] =
 		{
-			vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
-			vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal),
+			vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal), //Draw
+			vk::AttachmentReference(2, vk::ImageLayout::eColorAttachmentOptimal), //Bloom
+			vk::AttachmentReference(4, vk::ImageLayout::eColorAttachmentOptimal), //Luminance
 		};
 
-	/*	vk::AttachmentReference pass1InputAttachmentRef[] =
+		vk::AttachmentReference pass1InputAttachmentRef[] =
 		{
-			vk::AttachmentReference(1, vk::ImageLayout::eShaderReadOnlyOptimal), 
-		};*/
+			vk::AttachmentReference(2, vk::ImageLayout::eShaderReadOnlyOptimal), //Bloom
+		};
 
 		vk::AttachmentReference pass1OutputAttachmentRef[] =
+		{
+			vk::AttachmentReference(3, vk::ImageLayout::eColorAttachmentOptimal), //Bloom blur
+		};
+
+		vk::AttachmentReference pass2InputAttachmentRef[] =
+		{
+			vk::AttachmentReference(3, vk::ImageLayout::eShaderReadOnlyOptimal),
+		};
+
+		vk::AttachmentReference pass2OutputAttachmentRef[] =
 		{
 			vk::AttachmentReference(2, vk::ImageLayout::eColorAttachmentOptimal),
 		};
 
-
-
-		/*vk::AttachmentReference pass2InputAttachmentRef[] =
-		{
-			vk::AttachmentReference(2, vk::ImageLayout::eShaderReadOnlyOptimal),
-		};*/
-
-		vk::AttachmentReference pass2OutputAttachmentRef[] =
-		{
-			vk::AttachmentReference(1, vk::ImageLayout::eColorAttachmentOptimal),
-		};
-
 		vk::AttachmentReference pass3InputAttachmentRef[] =
 		{
-			vk::AttachmentReference(0, vk::ImageLayout::eShaderReadOnlyOptimal),
 			vk::AttachmentReference(1, vk::ImageLayout::eShaderReadOnlyOptimal),
+			vk::AttachmentReference(2, vk::ImageLayout::eShaderReadOnlyOptimal),
 		};
 
 		vk::AttachmentReference pass3OutputAttachmentRef[] =
@@ -195,6 +253,8 @@ namespace eg::Renderer::Postprocessing
 			vk::AttachmentReference(0, vk::ImageLayout::eColorAttachmentOptimal),
 		};
 
+		uint32_t pass1Preserve[] = { 1, 4 }; // preserve scene (1) and luminance (4) while doing blur
+		uint32_t pass2Preserve[] = { 1, 4 }; // preserve scene and luminance while doing second blur
 
 		vk::SubpassDescription subpasses[] = {
 			//Subpass 0, bloom generation
@@ -210,21 +270,21 @@ namespace eg::Renderer::Postprocessing
 			//Subpass 1, Blur horizontal
 			vk::SubpassDescription((vk::SubpassDescriptionFlags)0,
 				vk::PipelineBindPoint::eGraphics,
-				0, nullptr, // Input
+				sizeof(pass1InputAttachmentRef) / sizeof(pass1InputAttachmentRef[0]), pass1InputAttachmentRef, // Input
 				sizeof(pass1OutputAttachmentRef) / sizeof(pass1OutputAttachmentRef[0]), pass1OutputAttachmentRef, //Output
 				nullptr, //Resolve
 				nullptr, //Depth
-				0, nullptr//Preserve
+				sizeof(pass1Preserve) / sizeof(pass1Preserve[0]), pass1Preserve
 			),
 
 			//Subpass 2, Blur vertical
 			vk::SubpassDescription((vk::SubpassDescriptionFlags)0,
 				vk::PipelineBindPoint::eGraphics,
-				0, nullptr, // Input
+				sizeof(pass2InputAttachmentRef) / sizeof(pass2InputAttachmentRef[0]), pass2InputAttachmentRef, // Input
 				sizeof(pass2OutputAttachmentRef) / sizeof(pass2OutputAttachmentRef[0]), pass2OutputAttachmentRef, //Output
 				nullptr, //Resolve
 				nullptr, //Depth
-				0, nullptr//Preserve
+				sizeof(pass2Preserve) / sizeof(pass2Preserve[0]), pass2Preserve
 			),
 
 			//Subpass 3, Composite
@@ -239,55 +299,55 @@ namespace eg::Renderer::Postprocessing
 		};
 
 		vk::SubpassDependency dependencies[] = {
-			// External -> Subpass 0 (scene + bloom gen)
-			vk::SubpassDependency(
-				VK_SUBPASS_EXTERNAL, 0,
-				vk::PipelineStageFlagBits::eBottomOfPipe,   // wait for everything before
-				vk::PipelineStageFlagBits::eColorAttachmentOutput,
-				vk::AccessFlagBits::eMemoryRead,
-				vk::AccessFlagBits::eColorAttachmentWrite,
-				vk::DependencyFlagBits::eByRegion
-			),
+			// External -> Subpass 0 : ensure prior external work is finished before writing attachments
+		   vk::SubpassDependency(
+			   VK_SUBPASS_EXTERNAL, 0,
+			   vk::PipelineStageFlagBits::eColorAttachmentOutput,
+			   vk::PipelineStageFlagBits::eColorAttachmentOutput,
+			   (vk::AccessFlagBits)0,
+			   vk::AccessFlagBits::eColorAttachmentWrite,
+			   vk::DependencyFlagBits::eByRegion
+		   ),
 
-			// Subpass 0 (writes bloom image[1]) -> Subpass 1 (reads bloom image[1])
-			vk::SubpassDependency(
-				0, 1,
-				vk::PipelineStageFlagBits::eColorAttachmentOutput,
-				vk::PipelineStageFlagBits::eFragmentShader,
-				vk::AccessFlagBits::eColorAttachmentWrite,
-				vk::AccessFlagBits::eInputAttachmentRead,
-				vk::DependencyFlagBits::eByRegion
-			),
+		   // 0 -> 1 : bloom written -> read for blur
+		   vk::SubpassDependency(
+			   0, 1,
+			   vk::PipelineStageFlagBits::eColorAttachmentOutput,
+			   vk::PipelineStageFlagBits::eFragmentShader,
+			   vk::AccessFlagBits::eColorAttachmentWrite,
+			   vk::AccessFlagBits::eInputAttachmentRead,
+			   vk::DependencyFlagBits::eByRegion
+		   ),
 
-			// Subpass 1 (writes blur image[2]) -> Subpass 2 (reads blur image[2])
-			vk::SubpassDependency(
-				1, 2,
-				vk::PipelineStageFlagBits::eColorAttachmentOutput,
-				vk::PipelineStageFlagBits::eFragmentShader,
-				vk::AccessFlagBits::eColorAttachmentWrite,
-				vk::AccessFlagBits::eInputAttachmentRead,
-				vk::DependencyFlagBits::eByRegion
-			),
+		   // 1 -> 2 : horizontal blur write -> vertical blur read
+		   vk::SubpassDependency(
+			   1, 2,
+			   vk::PipelineStageFlagBits::eColorAttachmentOutput,
+			   vk::PipelineStageFlagBits::eFragmentShader,
+			   vk::AccessFlagBits::eColorAttachmentWrite,
+			   vk::AccessFlagBits::eInputAttachmentRead,
+			   vk::DependencyFlagBits::eByRegion
+		   ),
 
-			// Subpass 2 (writes bloom image[1] again) -> Subpass 3 (composite reads image[0] + bloom[1])
-			vk::SubpassDependency(
-				2, 3,
-				vk::PipelineStageFlagBits::eColorAttachmentOutput,
-				vk::PipelineStageFlagBits::eFragmentShader,
-				vk::AccessFlagBits::eColorAttachmentWrite,
-				vk::AccessFlagBits::eInputAttachmentRead,
-				vk::DependencyFlagBits::eByRegion
-			),
+		   // 2 -> 3 : blurred bloom written -> composite read
+		   vk::SubpassDependency(
+			   2, 3,
+			   vk::PipelineStageFlagBits::eColorAttachmentOutput,
+			   vk::PipelineStageFlagBits::eFragmentShader,
+			   vk::AccessFlagBits::eColorAttachmentWrite,
+			   vk::AccessFlagBits::eInputAttachmentRead,
+			   vk::DependencyFlagBits::eByRegion
+		   ),
 
-			// Subpass 3 -> External (final render target ready)
-			vk::SubpassDependency(
-				3, VK_SUBPASS_EXTERNAL,
-				vk::PipelineStageFlagBits::eColorAttachmentOutput,
-				vk::PipelineStageFlagBits::eBottomOfPipe,
-				vk::AccessFlagBits::eColorAttachmentWrite,
-				vk::AccessFlagBits::eMemoryRead,
-				vk::DependencyFlagBits::eByRegion
-			),
+		   // Subpass 3 -> External : ensure writes are finished before external ops (present/copy)
+		   vk::SubpassDependency(
+			   3, VK_SUBPASS_EXTERNAL,
+			   vk::PipelineStageFlagBits::eColorAttachmentOutput,
+			   vk::PipelineStageFlagBits::eBottomOfPipe,
+			   vk::AccessFlagBits::eColorAttachmentWrite,
+			   (vk::AccessFlagBits)0,
+			   vk::DependencyFlagBits::eByRegion
+		   )
 		};
 
 		vk::RenderPassCreateInfo renderPassCI{};
@@ -300,9 +360,11 @@ namespace eg::Renderer::Postprocessing
 
 		vk::ImageView frameBufferAttachments[] =
 		{
+			mFinalDrawImage->getImageView(),
 			mDrawImage->getImageView(),
 			mBloomImage->getImageView(),
-			mBloomBlurImage->getImageView(),
+			mBloomBlurImage->getImageView(),    
+			mLuminanceFramebufferView,
 		};
 		vk::FramebufferCreateInfo framebufferCI{};
 		framebufferCI.setRenderPass(mRenderPass)
@@ -320,7 +382,7 @@ namespace eg::Renderer::Postprocessing
 		//Define shader layout
 		vk::DescriptorSetLayoutBinding descLayoutBindings[] =
 		{
-			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 4, vk::ShaderStageFlagBits::eFragment, {}),
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, {}),
 		};
 		vk::DescriptorSetLayoutCreateInfo descLayoutCI{};
 		descLayoutCI.setBindings(descLayoutBindings);
@@ -332,19 +394,23 @@ namespace eg::Renderer::Postprocessing
 		ai.setDescriptorPool(Renderer::getDescriptorPool())
 			.setDescriptorSetCount(1)
 			.setSetLayouts(mBloomBlurDescLayout);
-		mBloomBlurSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
+		mBloomBlurHorizontalSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
+		mBloomBlurVerticalSet = Renderer::getDevice().allocateDescriptorSets(ai).at(0);
 
-		vk::DescriptorImageInfo imageInfos[] = {
-			vk::DescriptorImageInfo(mSampler, mBloomImage->getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal),
-			vk::DescriptorImageInfo(mSampler, mBloomBlurImage->getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal)
-		};
-
-
+		vk::DescriptorImageInfo imageInfo[1];
+		imageInfo[0] = vk::DescriptorImageInfo(mSampler, mBloomBlurImage->getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal);
 		Renderer::getDevice().updateDescriptorSets({
-			vk::WriteDescriptorSet(mBloomBlurSet, 0, 0,
-				2,
+			vk::WriteDescriptorSet(mBloomBlurHorizontalSet, 0, 0,
+				1,
 				vk::DescriptorType::eCombinedImageSampler,
-				imageInfos),
+				imageInfo),
+			}, {});
+		imageInfo[0] = vk::DescriptorImageInfo(mSampler, mBloomImage->getImageView(), vk::ImageLayout::eShaderReadOnlyOptimal);
+		Renderer::getDevice().updateDescriptorSets({
+			vk::WriteDescriptorSet(mBloomBlurVerticalSet, 0, 0,
+				1,
+				vk::DescriptorType::eCombinedImageSampler,
+				imageInfo),
 			}, {});
 
 
@@ -380,6 +446,7 @@ namespace eg::Renderer::Postprocessing
 			.setSetLayouts(setLayouts)
 			.setPushConstantRanges(pushConstantRange);
 		mBloomBlurLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
+
 
 		//Create graphics pipeline
 		vk::PipelineShaderStageCreateInfo shaderStages[] =
@@ -513,6 +580,8 @@ namespace eg::Renderer::Postprocessing
 		mBloomBlurVerticalPipeline = pipeLineResult.value;
 
 
+
+
 		//Destroy shader modules
 		Renderer::getDevice().destroyShaderModule(vertexShaderModule);
 		Renderer::getDevice().destroyShaderModule(fragmentShaderModule);
@@ -581,11 +650,15 @@ namespace eg::Renderer::Postprocessing
 		};
 
 		//Setup push constant range
-
+		vk::PushConstantRange pushConstantRange{};
+		pushConstantRange.setOffset(0)
+			.setSize(sizeof(ComposePS))
+			.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
 		vk::PipelineLayoutCreateInfo pipelineLayoutCI{};
 		pipelineLayoutCI.setFlags(vk::PipelineLayoutCreateFlags{})
-			.setSetLayouts(setLayouts);
+			.setSetLayouts(setLayouts)
+			.setPushConstantRanges(pushConstantRange);
 		mComposeLayout = Renderer::getDevice().createPipelineLayout(pipelineLayoutCI);
 
 		//Create graphics pipeline
@@ -857,6 +930,12 @@ namespace eg::Renderer::Postprocessing
 				vk::BlendFactor::eOne, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
 				vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
 			),
+			vk::PipelineColorBlendAttachmentState( // for bloom image
+				true,
+				vk::BlendFactor::eOne, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+				vk::BlendFactor::eOne, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+				vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
+			),
 		};
 
 
@@ -936,6 +1015,12 @@ namespace eg::Renderer::Postprocessing
 		float height = static_cast<float>(mHeightCVar->value);
 		float renderScale = static_cast<float>(mRenderScaleCVar->value);
 
+		ComposePS pushConstant{};
+		pushConstant.exposure = 0.1f / (mLuminanceValue + 1e-4f) + static_cast<float>(mExposureCVar->value);
+		pushConstant.saturation = static_cast<float>(mSaturationCVar->value);
+		pushConstant.gamma = static_cast<float>(mGammaCVar->value);
+
+		cmd.pushConstants(mComposeLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(ComposePS), &pushConstant);
 		cmd.setViewport(0, { vk::Viewport{ 0.0f, 0.0f, width, height,
 			0.0f, 1.0f } });
 		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }));
@@ -956,8 +1041,8 @@ namespace eg::Renderer::Postprocessing
 		getDevice().destroyPipeline(mBloomBlurVerticalPipeline);
 		getDevice().destroyPipelineLayout(mBloomBlurLayout);
 		getDevice().destroyDescriptorSetLayout(mBloomBlurDescLayout);
-		getDevice().freeDescriptorSets(getDescriptorPool(), mBloomBlurSet);
-
+		getDevice().freeDescriptorSets(getDescriptorPool(), mBloomBlurHorizontalSet);
+		getDevice().freeDescriptorSets(getDescriptorPool(), mBloomBlurVerticalSet);
 		//Destroy compose pipeline
 		getDevice().destroyPipeline(mComposePipeline);
 		getDevice().destroyPipelineLayout(mComposeLayout);
@@ -971,7 +1056,7 @@ namespace eg::Renderer::Postprocessing
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 			mBloomBlurLayout,
 			0,
-			{ Renderer::getCurrentFrameGUBODescSet(), mBloomBlurSet },
+			{ Renderer::getCurrentFrameGUBODescSet(), vertical ? mBloomBlurVerticalSet : mBloomBlurHorizontalSet },
 			{}
 		);
 		float width = static_cast<float>(mWidthCVar->value);
@@ -983,8 +1068,8 @@ namespace eg::Renderer::Postprocessing
 		cmd.pushConstants(mLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(FragmentPushConstants), &mPushConstants);*/
 
 		BloomBlurPushConstant pushConstant{};
-		pushConstant.direction.x = vertical ? 0 : 1;
-		pushConstant.direction.y = vertical ? 1 : 0;
+		pushConstant.direction.x = vertical ? 0.0f : 1.0f;
+		pushConstant.direction.y = vertical ? 1.0f : 0.0f;
 		pushConstant.pass = vertical ? 0 : 1;
 		pushConstant.radius = static_cast<float>(mBloomRadiusCVar->value);
 
@@ -1011,8 +1096,8 @@ namespace eg::Renderer::Postprocessing
 
 
 		BloomPS pushConstant{};
-		pushConstant.threshold = mBloomThresholdCVar->value;
-		pushConstant.knee = mBloomKneeCvar->value;
+		pushConstant.threshold = static_cast<float>(mBloomThresholdCVar->value);
+		pushConstant.knee = static_cast<float>(mBloomKneeCvar->value);
 		pushConstant.rendersScale = static_cast<float>(mRenderScaleCVar->value);
 		/*mPushConstants.renderScale = renderScale;
 		mPushConstants.scaledWidth = static_cast<int>(width * renderScale);
@@ -1035,10 +1120,13 @@ namespace eg::Renderer::Postprocessing
 		destroyPipeline();
 		//Free sampler
 		Renderer::getDevice().destroySampler(mSampler);
-
+		Renderer::getDevice().destroyImageView(mLuminanceFramebufferView);
+		mFinalDrawImage.reset();
+		mLuminanceBuffer.reset();
 		mDrawImage.reset();
 		mBloomImage.reset();
 		mBloomBlurImage.reset();
+		mLuminance.reset();
 		getDevice().destroyFramebuffer(mFramebuffer);
 		getDevice().destroyRenderPass(mRenderPass);
 	}
@@ -1047,11 +1135,17 @@ namespace eg::Renderer::Postprocessing
 	{
 		//Destroy framebuffer, images
 		getDevice().destroyFramebuffer(mFramebuffer);
+		mFinalDrawImage.reset();
 		mDrawImage.reset();
 		mBloomImage.reset();
 		mBloomBlurImage.reset();
+		mLuminance.reset();
 		//Recreate images
 
+
+		mFinalDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageAspectFlagBits::eColor);
 		mDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
@@ -1061,12 +1155,27 @@ namespace eg::Renderer::Postprocessing
 		mBloomBlurImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment,
 			vk::ImageAspectFlagBits::eColor);
+		mLuminanceMipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+		mLuminance.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), vk::Format::eR16Sfloat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment |
+			vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,
+			vk::ImageAspectFlagBits::eColor,
+			mLuminanceMipLevels);
+		vk::ImageViewCreateInfo mipViewCI{};
+		mipViewCI.setImage(mLuminance->getImage())
+			.setViewType(vk::ImageViewType::e2D)
+			.setFormat(vk::Format::eR16Sfloat)
+			.setComponents(vk::ComponentMapping{})
+			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
+		mLuminanceFramebufferView = Renderer::getDevice().createImageView(mipViewCI);
 
 		vk::ImageView frameBufferAttachments[] =
 		{
+			mFinalDrawImage->getImageView(),
 			mDrawImage->getImageView(),
 			mBloomImage->getImageView(),
 			mBloomBlurImage->getImageView(),
+			mLuminanceFramebufferView,
 		};
 		vk::FramebufferCreateInfo framebufferCI{};
 		framebufferCI.setRenderPass(mRenderPass)
@@ -1088,7 +1197,8 @@ namespace eg::Renderer::Postprocessing
 			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
 			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
 			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
-
+			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
+			vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 0.0f}),
 		};
 
 		uint32_t width = static_cast<uint32_t>(mWidthCVar->value);
@@ -1104,8 +1214,121 @@ namespace eg::Renderer::Postprocessing
 		cmd.beginRenderPass(renderPassBI, vk::SubpassContents::eInline);
 	}
 
+	void processLuminance(const vk::CommandBuffer& cmd, float delta)
+	{
+		// Transition luminance image other mip to transfer dst
+		vk::ImageMemoryBarrier otherMipsBarrier(
+			{}, vk::AccessFlagBits::eTransferWrite,
+			vk::ImageLayout::eUndefined,
+			vk::ImageLayout::eTransferDstOptimal,
+			VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+			mLuminance->getImage(),
+			{ vk::ImageAspectFlagBits::eColor, 1, mLuminanceMipLevels - 1, 0, 1 }
+		);
+
+		cmd.pipelineBarrier(
+			vk::PipelineStageFlagBits::eTopOfPipe,
+			vk::PipelineStageFlagBits::eTransfer,
+			{}, nullptr, nullptr, otherMipsBarrier
+		);
+
+		//Downsample to first mip level
+		int32_t mipWidth = static_cast<int32_t>(mWidthCVar->value);
+		int32_t mipHeight = static_cast<int32_t>(mHeightCVar->value);
+		
+		for (uint32_t i = 1; i < mLuminanceMipLevels; i++)
+		{
+			vk::ImageBlit blit{};
+			blit.setSrcSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, static_cast<uint32_t>(i - 1), 0, 1 })
+				.setSrcOffsets({ vk::Offset3D{0, 0, 0},
+					vk::Offset3D{ static_cast<int32_t>(mipWidth), static_cast<int32_t>(mipHeight), 1 } });
+			mipWidth = std::max(1, mipWidth / 2);
+			mipHeight = std::max(1, mipHeight / 2);
+			blit.setDstSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, static_cast<uint32_t>(i), 0, 1 })
+				.setDstOffsets({ vk::Offset3D{0, 0, 0},
+					vk::Offset3D{ static_cast<int32_t>(mipWidth), static_cast<int32_t>(mipHeight), 1 } });
+			cmd.blitImage(
+				mLuminance->getImage(), vk::ImageLayout::eTransferSrcOptimal,
+				mLuminance->getImage(), vk::ImageLayout::eTransferDstOptimal,
+				{ blit },
+				vk::Filter::eLinear
+			);
+
+			// Transition previous mip to src layout for the next blit
+			vk::ImageMemoryBarrier mipBarrier(
+				vk::AccessFlagBits::eTransferWrite,
+				vk::AccessFlagBits::eTransferRead,
+				vk::ImageLayout::eTransferDstOptimal,
+				vk::ImageLayout::eTransferSrcOptimal,
+				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+				mLuminance->getImage(),
+				{ vk::ImageAspectFlagBits::eColor, i, 1, 0, 1 }
+			);
+
+			cmd.pipelineBarrier(
+				vk::PipelineStageFlagBits::eTransfer,
+				vk::PipelineStageFlagBits::eTransfer,
+				{}, nullptr, nullptr, mipBarrier
+			);
+		}
+		vk::BufferImageCopy copyRegion{};
+		copyRegion.bufferOffset = 0;
+		copyRegion.bufferRowLength = 0; // tightly packed
+		copyRegion.bufferImageHeight = 0;
+		copyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+		copyRegion.imageSubresource.mipLevel = mLuminanceMipLevels - 1;
+		copyRegion.imageSubresource.baseArrayLayer = 0;
+		copyRegion.imageSubresource.layerCount = 1;
+		copyRegion.imageOffset = vk::Offset3D{ 0, 0, 0 };
+		copyRegion.imageExtent = vk::Extent3D{ 1, 1, 1 };
+
+		cmd.copyImageToBuffer(
+			mLuminance->getImage(),
+			vk::ImageLayout::eTransferSrcOptimal,
+			mLuminanceBuffer->getBuffer(),
+			copyRegion
+		);
+
+		auto* data = reinterpret_cast<uint16_t*>(mLuminanceBuffer->getInfo().pMappedData);
+		auto halfToFloat = [](uint16_t h) {
+			uint32_t sign = (h & 0x8000) << 16;
+			uint32_t exponent = (h >> 10) & 0x1F;
+			uint32_t mantissa = h & 0x3FF;
+
+			uint32_t bits;
+			if (exponent == 0) {
+				if (mantissa == 0) {
+					bits = sign; // Zero
+				}
+				else {
+					// Subnormal -> normalize
+					exponent = 1;
+					while ((mantissa & 0x400) == 0) {
+						mantissa <<= 1;
+						exponent--;
+					}
+					mantissa &= 0x3FF;
+					bits = sign | ((exponent + 112) << 23) | (mantissa << 13);
+				}
+			}
+			else if (exponent == 31) {
+				bits = sign | 0x7F800000 | (mantissa << 13); // Inf/NaN
+			}
+			else {
+				bits = sign | ((exponent + 112) << 23) | (mantissa << 13);
+			}
+
+			float f;
+			std::memcpy(&f, &bits, sizeof(f));
+			return f;
+		};
+		auto value = halfToFloat(*data);
+		mLuminanceValue = glm::mix(mLuminanceValue, value, delta * 5.0f); // smooth
+	}
+
 	vk::RenderPass getRenderPass() { return mRenderPass; }
 	vk::Framebuffer getFramebuffer() { return mFramebuffer; }
+	Image2D& getFinalDrawImage() { return *mFinalDrawImage; }
 	Image2D& getDrawImage() { return *mDrawImage; }
 	Image2D& getBloomImage() { return *mBloomImage; }
 	Image2D& getBloomBlurImage() { return *mBloomBlurImage; }

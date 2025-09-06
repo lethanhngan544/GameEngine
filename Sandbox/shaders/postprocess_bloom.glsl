@@ -7,7 +7,7 @@ layout(location = 0) in vec2 fsUv;
 // Outputs
 layout(location = 0) out vec4 outScene;   // attachment 0
 layout(location = 1) out vec4 outBloom;   // attachment 1
-
+layout(location = 2) out float outLuminance; // attachment 3
 
 //Push constants
 layout(push_constant) uniform BloomPS {
@@ -30,4 +30,8 @@ void main() {
 
     vec3 bloomColor = color * (t / max(lum, 1e-6));
     outBloom = vec4(bloomColor, 1.0);
+
+
+    color = texture(uSceneTex, gl_FragCoord.xy / vec2(textureSize(uSceneTex, 0))).rgb;
+    outLuminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
 }

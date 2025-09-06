@@ -23,12 +23,14 @@ namespace eg::Components
 		float mMass;
 		float mFriction;
 		float mRestitution;
-
+		mutable glm::mat4x4 mCurrentMatrix = glm::mat4x4(1.0f);
+		glm::mat4x4 mPreviousMatrix = glm::mat4x4(1.0f);
 	public:
 		RigidBody() = default;
 		~RigidBody() = default;
 
-		glm::mat4x4 getBodyMatrix() const;
+		void updatePrevState();
+		glm::mat4x4 getBodyMatrix(float alpha) const;
 
 		nlohmann::json toJson() const;
 	};

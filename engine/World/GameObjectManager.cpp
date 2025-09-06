@@ -21,11 +21,19 @@ namespace eg::World
 	{
 		//TODO
 	}
-	void GameObjectManager::update(float delta)
+	void GameObjectManager::update(float delta, float alpha)
 	{
 		for (const auto& gameObject : mGameObjects)
 		{
-			gameObject->update(delta);
+			gameObject->update(delta, alpha);
+		}
+	}
+
+	void GameObjectManager::prePhysicsUpdate(float delta)
+	{
+		for (const auto& gameObject : mGameObjects)
+		{
+			gameObject->prePhysicsUpdate(delta);
 		}
 	}
 
@@ -36,11 +44,11 @@ namespace eg::World
 			gameObject->fixedUpdate(delta);
 		}
 	}
-	void GameObjectManager::render(vk::CommandBuffer cmd, Renderer::RenderStage stage)
+	void GameObjectManager::render(vk::CommandBuffer cmd, float alpha, Renderer::RenderStage stage)
 	{
 		for (const auto& gameObject : mGameObjects)
 		{
-			gameObject->render(cmd, stage);
+			gameObject->render(cmd, alpha, stage);
 		}
 	}
 
