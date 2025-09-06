@@ -46,14 +46,14 @@ void main() {
 
     float viewSpaceDepth = abs(viewSpace.z);
     //Select layer based on depth
-    int layer = MAX_CSM_COUNT - 1;
-    for (int i = 0; i < MAX_CSM_COUNT - 1; ++i) {
-        if (viewSpaceDepth < (ubo.ubo.csmPlanes[i] - 2.0f)) {
+    int layer = 0;
+    for (int i = 0; i < MAX_CSM_COUNT; i++) {
+        if (viewSpaceDepth < (ubo.ubo.csmPlanes[i] - 2)) {
             layer = i;
             break;
         }
     }
-
+   
 
     vec4 fragPosLightSpace = ubo.ubo.csmMatrices[layer] * vec4(fragPos, 1.0);
     vec3 shadowCoord = fragPosLightSpace.xyz / fragPosLightSpace.w;

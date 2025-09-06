@@ -144,7 +144,7 @@ namespace eg::Renderer::Atmosphere
 					nearPlane,
 					farPlane
 				);
-				cameraProjection[1][1] *= -1;
+				//cameraProjection[1][1] *= -1;
 				glm::mat4 inv = glm::inverse(cameraProjection * viewMatrix);
 				std::array<glm::vec4, 8> frustumCorners;
 				size_t i = 0;
@@ -207,11 +207,12 @@ namespace eg::Renderer::Atmosphere
 				return lightProj * lightView;
 			};
 
-
-		for(size_t i = 0; i < MAX_CSM_COUNT; ++i)
+		mDirectionalLightUniformBuffer.csmMatrices[0] =
+			generateMat(0.1f, mDirectionalLightUniformBuffer.csmPlanes[0].x);
+		for(size_t i = 1; i < MAX_CSM_COUNT; ++i)
 		{
 			mDirectionalLightUniformBuffer.csmMatrices[i] =
-				generateMat(0.1f, mDirectionalLightUniformBuffer.csmPlanes[i]);
+				generateMat(mDirectionalLightUniformBuffer.csmPlanes[i - 1].x, mDirectionalLightUniformBuffer.csmPlanes[i].x);
 		}
 	}
 
@@ -345,14 +346,27 @@ namespace eg::Renderer::Atmosphere
 	void Atmosphere::generateCSMPlanes(float maxDistance)
 	{
 		//Generate CSM planes using linear distribution
-		float nearPlane = 5.0f;
-		float farPlane = 100.0f;
-		float step = 10.0f;
+		/*float nearPlane = 5.0f;
+		float farPlane = 200.0f;
+		float step = 20.0f;
 		for (size_t i = 0; i < MAX_CSM_COUNT; ++i)
 		{
-			float plane = nearPlane + step * i;
+			float plane = nearPlane + step * i * i;
 			mDirectionalLightUniformBuffer.csmPlanes[i] = plane;
-		}
+		}*/
+		//Generate CSM planes using exponential distribution
+		mDirectionalLightUniformBuffer.csmPlanes[0].x = 5.0f;
+		mDirectionalLightUniformBuffer.csmPlanes[1].x = 20.0f;
+		mDirectionalLightUniformBuffer.csmPlanes[2].x = 50.0f;
+		mDirectionalLightUniformBuffer.csmPlanes[3].x = 100.0f;
+		mDirectionalLightUniformBuffer.csmPlanes[3].x = 500.0f;
+		/*for(size_t i = 0; i < MAX_CSM_COUNT; ++i)
+		{
+			float lambda = 0.5f;
+			float idm = static_cast<float>(i) / static_cast<float>(MAX_CSM_COUNT);
+			float logPlane = nearPlane * std::pow((farPlane / nearPlane), std::pow(idm, lambda));
+			mDirectionalLightUniformBuffer.csmPlanes[i] = logPlane;
+		}*/
 	}
 
 

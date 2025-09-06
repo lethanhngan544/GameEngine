@@ -221,7 +221,7 @@ namespace eg::Renderer
 
 	namespace Atmosphere
 	{
-		static constexpr size_t MAX_CSM_COUNT = 4;
+		static constexpr size_t MAX_CSM_COUNT = 5;
 		static constexpr size_t SSAO_KERNEL_SIZE = 64;
 
 		struct DirectionalLightUniformBuffer
@@ -230,7 +230,7 @@ namespace eg::Renderer
 			float intensity = 1.0f;
 			glm::vec4 color = { 1, 1, 1, 1 };
 			glm::mat4x4 csmMatrices[MAX_CSM_COUNT] = { glm::mat4x4(1.0f) };
-			float csmPlanes[MAX_CSM_COUNT] = { 0 };
+			glm::vec4 csmPlanes[MAX_CSM_COUNT] = {};
 		};
 		 
 

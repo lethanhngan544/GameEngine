@@ -65,7 +65,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
-		Renderer::create(1600, 900, 4096);
+		Renderer::create(1600, 900, 2048);
 		Data::LightRenderer::create();
 		Data::SkyRenderer::create();
 		Data::DebugRenderer::create();
