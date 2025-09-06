@@ -71,12 +71,12 @@ namespace eg::World
 		{
 		case Renderer::RenderStage::SHADOW:
 		{
-			Data::StaticModelRenderer::renderShadow(cmd, *mModel, mat);
+			mModel->renderShadow(cmd, mat);
 			break;
 		}
 		case Renderer::RenderStage::SUBPASS0_GBUFFER:
 		{
-			Data::StaticModelRenderer::render(cmd, *mModel, mat);
+			mModel->render(cmd,  mat);
 			break;
 		}
 

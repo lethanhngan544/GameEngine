@@ -22,63 +22,7 @@ namespace eg::Data
 		const unsigned char* bytes, int size, void* user_data);
 	//Systems
 
-	namespace StaticModelRenderer
-	{
-		
-
-		struct VertexPushConstant
-		{
-			glm::mat4x4 model;
-		};
-
-		void create();
-		void destroy();
-
-
-		void begin(vk::CommandBuffer cmd);
-
-		void render(vk::CommandBuffer cmd,
-			const Components::StaticModel& model, 
-			glm::mat4x4 worldTransform);
-
-
-		void beginShadow(vk::CommandBuffer cmd);
-
-		void renderShadow(vk::CommandBuffer cmd,
-			const Components::StaticModel& model,
-			glm::mat4x4 worldTransform);
-
-
-		vk::DescriptorSetLayout getMaterialSetLayout();
-
-	}
-
-	namespace AnimatedModelRenderer
-	{
-
-		struct VertexPushConstant
-		{
-			glm::mat4x4 model;
-		};
-
-		void create();
-		void destroy();
-
-
-		void render(vk::CommandBuffer cmd,
-			const Components::AnimatedModel& model, const Components::Animator& animator,
-			glm::mat4x4 worldTransform);
-
-
-		void renderShadow(vk::CommandBuffer cmd,
-			const Components::AnimatedModel& model, const Components::Animator& animator,
-			glm::mat4x4 worldTransform);
-
-
-		vk::DescriptorSetLayout getMaterialSetLayout();
-		vk::DescriptorSetLayout getBoneSetLayout();
-
-	}
+	
 
 	namespace LightRenderer
 	{

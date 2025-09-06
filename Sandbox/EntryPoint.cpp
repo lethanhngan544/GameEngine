@@ -61,17 +61,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
 	{
+		Physics::create();
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
 		Renderer::create(1600, 900, 4096);
-		Data::StaticModelRenderer::create();
-		Data::AnimatedModelRenderer::create();
 		Data::LightRenderer::create();
 		Data::SkyRenderer::create();
 		Data::DebugRenderer::create();
 		Data::ParticleRenderer::create();
-		Physics::create();
+		Components::StaticModel::create();
+		Components::AnimatedModel::create();
+	
 
 		{
 			
@@ -135,7 +136,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			constexpr double MAX_FPS = 900.0;
 			constexpr double FRAME_TIME = 1.0 / MAX_FPS;
-			constexpr double TICK_RATE = 15.0;
+			constexpr double TICK_RATE = 66.0;
 			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
 			TimePoint lastTime = Clock::now();
 			double accumulator = 0.0;
@@ -191,12 +192,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		MessageBox(nullptr, "TODO", "Unknown exception", MB_ICONEXCLAMATION);
 	}
 
+	Components::AnimatedModel::destroy();
+	Components::StaticModel::destroy();
 	Data::DebugRenderer::destroy();
 	Data::ParticleRenderer::destroy();
 	Data::SkyRenderer::destroy();
 	Data::LightRenderer::destroy();
-	Data::StaticModelRenderer::destroy();
-	Data::AnimatedModelRenderer::destroy();
 	
 	Renderer::destory();
 	Window::destroy();

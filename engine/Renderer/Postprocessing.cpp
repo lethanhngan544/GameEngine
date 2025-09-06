@@ -69,7 +69,8 @@ namespace eg::Renderer::Postprocessing
 	void createBloomBlurPipeline();
 	void createComposePipeline();
 	void destroyPipeline();
-
+	void createImages();
+	void createFrameBuffer();
 
 	void create(vk::Format format)
 	{
@@ -96,35 +97,8 @@ namespace eg::Renderer::Postprocessing
 		mSaturationCVar->value = 1.8f;
 		mGammaCVar = Command::findVar("eg::Renderer::Postprocessing::Gamma");
 		mGammaCVar->value = 1.0f;
-
-
 		mDrawImageFormat = format;
-		mFinalDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), format,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor);
-		mDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), format,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor);
-		mBloomImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), format,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor);
-		mBloomBlurImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), format,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor);	
-		mLuminanceMipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(mWidthCVar->value, mHeightCVar->value)))) + 1;
-		mLuminance.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), vk::Format::eR16Sfloat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment |
-			vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,
-			vk::ImageAspectFlagBits::eColor, mLuminanceMipLevels);
-		vk::ImageViewCreateInfo mipViewCI{};
-		mipViewCI.setImage(mLuminance->getImage())
-			.setViewType(vk::ImageViewType::e2D)
-			.setFormat(vk::Format::eR16Sfloat)
-			.setComponents(vk::ComponentMapping{})
-			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-		mLuminanceFramebufferView = Renderer::getDevice().createImageView(mipViewCI);
-		mLuminanceBuffer.emplace(nullptr, sizeof(uint16_t), vk::BufferUsageFlagBits::eTransferDst);
-
+	
 		vk::SamplerCreateInfo samplerCI{};
 		samplerCI.setMagFilter(vk::Filter::eLinear)
 			.setMinFilter(vk::Filter::eLinear)
@@ -141,7 +115,9 @@ namespace eg::Renderer::Postprocessing
 			.setCompareOp(vk::CompareOp::eAlways);
 		mSampler = Renderer::getDevice().createSampler(samplerCI);
 
+		createImages();
 		createRenderPass();
+		createFrameBuffer();
 		createBloomPipeline();
 		createBloomBlurPipeline();
 		createComposePipeline();
@@ -358,23 +334,7 @@ namespace eg::Renderer::Postprocessing
 
 		mRenderPass = getDevice().createRenderPass(renderPassCI);
 
-		vk::ImageView frameBufferAttachments[] =
-		{
-			mFinalDrawImage->getImageView(),
-			mDrawImage->getImageView(),
-			mBloomImage->getImageView(),
-			mBloomBlurImage->getImageView(),    
-			mLuminanceFramebufferView,
-		};
-		vk::FramebufferCreateInfo framebufferCI{};
-		framebufferCI.setRenderPass(mRenderPass)
-			.setAttachments(frameBufferAttachments)
-			.setWidth(static_cast<uint32_t>(mWidthCVar->value))
-			.setHeight(static_cast<uint32_t>(mHeightCVar->value))
-			.setLayers(1);
-
-
-		mFramebuffer = getDevice().createFramebuffer(framebufferCI);
+	
 	}
 
 	void createBloomBlurPipeline()
@@ -1050,6 +1010,54 @@ namespace eg::Renderer::Postprocessing
 		getDevice().freeDescriptorSets(getDescriptorPool(), mComposeSet);
 
 	}
+	void createImages()
+	{
+		mFinalDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageAspectFlagBits::eColor);
+		mDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageAspectFlagBits::eColor);
+		mBloomImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageAspectFlagBits::eColor);
+		mBloomBlurImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment,
+			vk::ImageAspectFlagBits::eColor);
+		mLuminanceMipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(mWidthCVar->value, mHeightCVar->value)))) + 1;
+		mLuminance.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), vk::Format::eR16Sfloat,
+			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment |
+			vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,
+			vk::ImageAspectFlagBits::eColor, mLuminanceMipLevels);
+		vk::ImageViewCreateInfo mipViewCI{};
+		mipViewCI.setImage(mLuminance->getImage())
+			.setViewType(vk::ImageViewType::e2D)
+			.setFormat(vk::Format::eR16Sfloat)
+			.setComponents(vk::ComponentMapping{})
+			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
+		mLuminanceFramebufferView = Renderer::getDevice().createImageView(mipViewCI);
+		mLuminanceBuffer.emplace(nullptr, sizeof(uint16_t), vk::BufferUsageFlagBits::eTransferDst);
+	}
+	void createFrameBuffer()
+	{
+		vk::ImageView frameBufferAttachments[] =
+		{
+			mFinalDrawImage->getImageView(),
+			mDrawImage->getImageView(),
+			mBloomImage->getImageView(),
+			mBloomBlurImage->getImageView(),
+			mLuminanceFramebufferView,
+		};
+		vk::FramebufferCreateInfo framebufferCI{};
+		framebufferCI.setRenderPass(mRenderPass)
+			.setAttachments(frameBufferAttachments)
+			.setWidth(static_cast<uint32_t>(mWidthCVar->value))
+			.setHeight(static_cast<uint32_t>(mHeightCVar->value))
+			.setLayers(1);
+
+
+		mFramebuffer = getDevice().createFramebuffer(framebufferCI);
+	}
 	void generateBloomBlur(const vk::CommandBuffer& cmd, bool vertical)
 	{
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, vertical ?  mBloomBlurVerticalPipeline : mBloomBlurHorizontalPipeline);
@@ -1135,57 +1143,10 @@ namespace eg::Renderer::Postprocessing
 	{
 		//Destroy framebuffer, images
 		getDevice().destroyFramebuffer(mFramebuffer);
-		mFinalDrawImage.reset();
-		mDrawImage.reset();
-		mBloomImage.reset();
-		mBloomBlurImage.reset();
-		mLuminance.reset();
+		getDevice().destroyImageView(mLuminanceFramebufferView);
 		//Recreate images
-
-
-		mFinalDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor);
-		mDrawImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor);
-		mBloomImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor);
-		mBloomBlurImage.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), mDrawImageFormat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment,
-			vk::ImageAspectFlagBits::eColor);
-		mLuminanceMipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
-		mLuminance.emplace(static_cast<uint32_t>(mWidthCVar->value), static_cast<uint32_t>(mHeightCVar->value), vk::Format::eR16Sfloat,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eInputAttachment |
-			vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,
-			vk::ImageAspectFlagBits::eColor,
-			mLuminanceMipLevels);
-		vk::ImageViewCreateInfo mipViewCI{};
-		mipViewCI.setImage(mLuminance->getImage())
-			.setViewType(vk::ImageViewType::e2D)
-			.setFormat(vk::Format::eR16Sfloat)
-			.setComponents(vk::ComponentMapping{})
-			.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-		mLuminanceFramebufferView = Renderer::getDevice().createImageView(mipViewCI);
-
-		vk::ImageView frameBufferAttachments[] =
-		{
-			mFinalDrawImage->getImageView(),
-			mDrawImage->getImageView(),
-			mBloomImage->getImageView(),
-			mBloomBlurImage->getImageView(),
-			mLuminanceFramebufferView,
-		};
-		vk::FramebufferCreateInfo framebufferCI{};
-		framebufferCI.setRenderPass(mRenderPass)
-			.setAttachments(frameBufferAttachments)
-			.setWidth(width)
-			.setHeight(height)
-			.setLayers(1);
-
-
-		mFramebuffer = getDevice().createFramebuffer(framebufferCI);
+		createImages();
+		createFrameBuffer();	
 	}
 
 
@@ -1323,6 +1284,9 @@ namespace eg::Renderer::Postprocessing
 			return f;
 		};
 		auto value = halfToFloat(*data);
+		if(std::isnan(mLuminanceValue) || std::isinf(mLuminanceValue))
+			mLuminanceValue = 0.0f;
+
 		mLuminanceValue = glm::mix(mLuminanceValue, value, delta * 5.0f); // smooth
 	}
 

@@ -93,14 +93,14 @@ namespace sndbx
 		{
 		case eg::Renderer::RenderStage::SHADOW:
 		{
-			eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, mat);
+			mModel->renderShadow(cmd, mat);
 			break;
 		}
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 		{
 			if (mCuller->isSphereInFrustum(mat[3], 2.0f))
 			{
-				eg::Data::StaticModelRenderer::render(cmd, *mModel, mat);
+				mModel->render(cmd, mat);
 			}
 			
 			break;

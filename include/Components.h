@@ -11,6 +11,7 @@
 #include <Jolt/Physics/Body/BodyID.h>
 
 #include <Renderer.h>
+#include <Core.h>
 
 
 namespace eg::Components
@@ -175,6 +176,32 @@ namespace eg::Components
 
 	class StaticModel
 	{
+	//Static field
+	public:
+		struct VertexPushConstant
+		{
+			glm::mat4x4 model;
+		};
+
+		static void create();
+		static void destroy();
+	private:
+		static void createStaticModelPipeline();
+		static void createStaticModelShadowPipeline();
+	private:
+		static vk::Pipeline sPipeline;
+		static vk::PipelineLayout sPipelineLayout;
+		static vk::DescriptorSetLayout sDescriptorLayout;
+
+		static vk::Pipeline sShadowPipeline;
+		static vk::PipelineLayout sShadowPipelineLayout;
+
+		static Command::Var* sRenderScaleCVar;
+		static Command::Var* sWidthCVar;
+		static Command::Var* sHeightCVar;
+
+	//Per instance field
+
 	protected:
 		struct RawMesh
 		{
@@ -216,6 +243,11 @@ namespace eg::Components
 		StaticModel(const std::string& filePath);
 		StaticModel(const std::string& filePath, const tinygltf::Model& model);
 		virtual ~StaticModel();
+
+		void render(vk::CommandBuffer cmd,
+			glm::mat4x4 worldTransform);
+		void renderShadow(vk::CommandBuffer cmd,
+			glm::mat4x4 worldTransform);
 
 		const std::vector<RawMesh>& getRawMeshes() const { return mRawMeshes; }
 		const std::vector<Material>& getMaterials() const { return mMaterials; }
@@ -276,6 +308,25 @@ namespace eg::Components
 
 	class AnimatedModel : public StaticModel
 	{
+	//Static field
+	public:
+		static void create();
+		static void destroy();
+		static void createPipeline();
+		static void createShadowPipeline();
+
+		inline static vk::DescriptorSetLayout getBoneLayout() { return sBoneLayout; }
+	private:
+		static vk::Pipeline sPipeline;
+		static vk::PipelineLayout sPipelineLayout;
+		static vk::DescriptorSetLayout sMaterialLayout;
+		static vk::DescriptorSetLayout sBoneLayout;
+		 
+		static vk::Pipeline sShadowPipeline;
+		static vk::PipelineLayout sShadowPipelineLayout;
+		static Command::Var* sRenderScaleCVar;
+		static Command::Var* sWidthCVar;
+		static Command::Var* sHeightCVar;
 	private:
 		friend class Animator;
 		struct AnimatedRawMesh
@@ -320,6 +371,13 @@ namespace eg::Components
 		AnimatedModel() = delete;
 		AnimatedModel(const std::string& filePath);
 		virtual ~AnimatedModel();
+
+		void render(vk::CommandBuffer cmd,
+			const Animator& animator,
+			glm::mat4x4 worldTransform);
+		void renderShadow(vk::CommandBuffer cmd,
+			const Animator& animator,
+			glm::mat4x4 worldTransform);
 
 
 		inline const std::vector<AnimatedRawMesh>& getAnimatedRawMehses() const { return mAnimatedRawMeshes; }

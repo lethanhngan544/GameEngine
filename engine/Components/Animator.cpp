@@ -40,7 +40,7 @@ namespace eg::Components
 		//Allocate descriptor set
 		vk::DescriptorSetLayout setLayouts[] =
 		{
-			Data::AnimatedModelRenderer::getBoneSetLayout()
+			AnimatedModel::getBoneLayout()
 		};
 		vk::DescriptorSetAllocateInfo ai{};
 		ai.setDescriptorPool(Renderer::getDescriptorPool())

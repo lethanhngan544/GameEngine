@@ -20,13 +20,13 @@ namespace sndbx
 		case eg::Renderer::RenderStage::SHADOW:
 			if (mModel)
 			{
-				eg::Data::StaticModelRenderer::renderShadow(cmd, *mModel, glmMatrix);
+				mModel->renderShadow(cmd, glmMatrix);
 			}
 			break;
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 			if (mModel)
 			{
-				eg::Data::StaticModelRenderer::render(cmd, *mModel, glmMatrix);
+				mModel->render(cmd, glmMatrix);
 			}
 
 			break;

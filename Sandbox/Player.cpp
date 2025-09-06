@@ -138,14 +138,14 @@ namespace sndbx
 
 		case eg::Renderer::RenderStage::SHADOW:
 		{
-			eg::Data::AnimatedModelRenderer::renderShadow(cmd, *mModel, *mAnimator, glmMatrix);
+			mModel->renderShadow(cmd, *mAnimator, glmMatrix);
 			break;
 		}
 		case eg::Renderer::RenderStage::SUBPASS0_GBUFFER:
 		{
 			if (mVisible)
 			{
-				eg::Data::AnimatedModelRenderer::render(cmd, *mModel, *mAnimator, glmMatrix);
+				mModel->render(cmd, *mAnimator, glmMatrix);
 			}
 			break;
 		}
