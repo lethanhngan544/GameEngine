@@ -1,7 +1,7 @@
 project(engine)
 
 
-add_library(engine STATIC "Window.cpp" "ImGuiFileDialog.cpp"  "Renderer/Renderer.cpp" "Loggers/Logger.cpp" "Loggers/FileLogger.cpp"  "Renderer/GPUBuffer.cpp"   "Renderer/Image.cpp" "Renderer/DefaultRenderPass.cpp" "Components/StaticModel.cpp" "Renderer/CPUBuffer.cpp" "Renderer/GlobalUniformBuffer.cpp" "Components/Camera.cpp"    "Components/PointLight.cpp"   "Data/LightRenderer.cpp"  "World/GameObjectManager.cpp" "Physics/Physics.cpp" "Input/Keyboard.cpp" "Input/Mouse.cpp" "Data/DebugRenderer.cpp" "Data/Data.cpp" "Data/ParticleRenderer.cpp" "Components/ParticleEmiter.cpp"  "Components/RigidBody.cpp" "Components/ModelCache.cpp" "Components/AnimatedModel.cpp" "Data/AnimatedModelRenderer.cpp" "Components/Animator.cpp" "Components/Animation.cpp" "Data/SkyRenderer.cpp" "Components/CameraFrustumCuller.cpp" "Components/Animator2DBlend.cpp"  "Renderer/Atmosphere.cpp" "Command.cpp" "Renderer/Postprocessing.cpp" "World/DynamicWorldObject.cpp")
+add_library(engine STATIC "Window.cpp" "ImGuiFileDialog.cpp"  "Renderer/Renderer.cpp" "Loggers/Logger.cpp" "Loggers/FileLogger.cpp"  "Renderer/GPUBuffer.cpp"   "Renderer/Image.cpp" "Renderer/DefaultRenderPass.cpp" "Components/StaticModel.cpp" "Renderer/CPUBuffer.cpp" "Renderer/GlobalUniformBuffer.cpp" "Components/Camera.cpp"    "Components/PointLight.cpp"   "Data/LightRenderer.cpp"   "Physics/Physics.cpp" "Input/Keyboard.cpp" "Input/Mouse.cpp" "Data/DebugRenderer.cpp" "Data/Data.cpp" "Data/ParticleRenderer.cpp" "Components/ParticleEmiter.cpp"  "Components/RigidBody.cpp" "Components/ModelCache.cpp" "Components/AnimatedModel.cpp" "Data/AnimatedModelRenderer.cpp" "Components/Animator.cpp" "Components/Animation.cpp" "Data/SkyRenderer.cpp" "Components/CameraFrustumCuller.cpp" "Components/Animator2DBlend.cpp"  "Renderer/Atmosphere.cpp" "Command.cpp" "Renderer/Postprocessing.cpp" "World/DynamicWorldObject.cpp" "Debug/Debug.cpp" "World/World.cpp")
 
 target_include_directories(engine PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
@@ -36,3 +36,6 @@ target_link_libraries(engine PRIVATE Jolt::Jolt)
 
 find_package(Stb REQUIRED)
 target_include_directories(engine PRIVATE ${Stb_INCLUDE_DIR})
+
+find_package(imguizmo CONFIG REQUIRED)
+target_link_libraries(engine PRIVATE imguizmo::imguizmo)

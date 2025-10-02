@@ -44,6 +44,12 @@ namespace eg::Renderer
 
 
 	vk::Instance getInstance();
+	vk::PhysicalDevice getPhysicalDevice();
+	vk::Queue getMainQueue();
+	uint32_t getMainQueueFamilyIndex();
+	vk::DescriptorPool getDescriptorPool();
+	vk::SurfaceCapabilitiesKHR getSurfaceCapabilities();
+	uint32_t getImageCount();
 	vk::Device getDevice();
 	vma::Allocator getAllocator();
 	vk::DescriptorPool getDescriptorPool();
@@ -141,11 +147,12 @@ namespace eg::Renderer
 		uint32_t mMipLevels;
 		vma::Allocation mAllocation;
 		vk::ImageView mImageView;
+		vk::Format mFormat;
 	public:
 		Image2D(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspectFlags,
-			void* data = nullptr, size_t sizeInBytes = 0);
-		Image2D(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspectFlags,
 			uint32_t miplevels);
+		Image2D(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspectFlags,
+			void* data = nullptr, size_t sizeInBytes = 0);
 		~Image2D();
 
 
@@ -178,6 +185,7 @@ namespace eg::Renderer
 		uint32_t getMipLevels() const { return mMipLevels; }
 		vk::Image getImage() const { return mImage; }
 		vk::ImageView getImageView() const { return mImageView; }
+		vk::Format getFormat() const { return mFormat; }
 	};
 
 

@@ -17,7 +17,7 @@ namespace sndbx
 		void prePhysicsUpdate(float delta) override {}
 		void fixedUpdate(float delta) override {}
 		void render(vk::CommandBuffer cmd, float alpha, eg::Renderer::RenderStage stage) override;
-
+		void onInspector() override {};
 		const char* getType() const override { return "MapObject"; }
 
 		nlohmann::json toJson() const override

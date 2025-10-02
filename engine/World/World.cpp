@@ -1,63 +1,73 @@
 #include <World.h>
-#include <Components.h>
-#include <Logger.h>
 #include <Physics.h>
-
-#include <fstream>
-
 
 namespace eg::World
 {
+	static std::string sWorldName = "Default";
+	static std::vector<std::unique_ptr<IGameObject>> sGameObjects;
+	static std::vector<JsonToIGameObjectDispatcher> sJsonToIGameObjectDispatchers;
 
-	GameObjectManager::~GameObjectManager()
+	void create()
 	{
+		
+	}
+	void destroy()
+	{
+		sGameObjects.clear();
 		cleanup();
 	}
-	void GameObjectManager::addGameObject(std::unique_ptr<IGameObject> gameobject)
+
+	void cleanup()
 	{
-		mGameObjects.push_back(std::move(gameobject));
-	}
-	void GameObjectManager::removeGameObject(const IGameObject* gameObject)
-	{
-		//TODO
-	}
-	void GameObjectManager::update(float delta, float alpha)
-	{
-		for (const auto& gameObject : mGameObjects)
-		{
-			gameObject->update(delta, alpha);
-		}
+		Renderer::waitIdle();
+		Components::ParticleEmitter::clearAtlasTextures();
+		Components::ModelCache::clearCache();
+		sGameObjects.clear();
+		Physics::reset();
 	}
 
-	void GameObjectManager::prePhysicsUpdate(float delta)
+	void addGameObject(std::unique_ptr<IGameObject> gameobject)
 	{
-		for (const auto& gameObject : mGameObjects)
-		{
-			gameObject->prePhysicsUpdate(delta);
-		}
+		sGameObjects.push_back(std::move(gameobject));
 	}
 
-	void GameObjectManager::fixedUpdate(float delta)
+	void removeGameObject(const IGameObject* gameObject)
 	{
-		for (const auto& gameObject : mGameObjects)
-		{
-			gameObject->fixedUpdate(delta);
-		}
-	}
-	void GameObjectManager::render(vk::CommandBuffer cmd, float alpha, Renderer::RenderStage stage)
-	{
-		for (const auto& gameObject : mGameObjects)
-		{
-			gameObject->render(cmd, alpha, stage);
-		}
+		//TODO: Implement
 	}
 
-	void GameObjectManager::save(const std::string& filename) const
+	std::vector<std::unique_ptr<IGameObject>>& getGameObjects()
+	{
+		return sGameObjects;
+	}
+
+	void update(float delta, float alpha)
+	{
+		for (auto& obj : sGameObjects)
+			obj->update(delta, alpha);
+	}
+	void prePhysicsUpdate(float delta)
+	{
+		for (auto& obj : sGameObjects)
+			obj->prePhysicsUpdate(delta);
+	}
+	void fixedUpdate(float delta)
+	{
+		for (auto& obj : sGameObjects)
+			obj->fixedUpdate(delta);
+	}
+	void render(vk::CommandBuffer cmd, float alpha, Renderer::RenderStage stage)
+	{
+		for (auto& obj : sGameObjects)
+			obj->render(cmd, alpha, stage);
+	}
+
+	void save(const std::string& filename)
 	{
 		nlohmann::json mainJson;
-		mainJson["worldName"] = mWorldName;
+		mainJson["worldName"] = sWorldName;
 		nlohmann::json gameObjectsJson = nlohmann::json::array();
-		for (const auto& gameObject : mGameObjects)
+		for (const auto& gameObject : sGameObjects)
 		{
 			nlohmann::json objJson = gameObject->toJson();
 			objJson["type"] = std::string(gameObject->getType()); // Ensure type is included
@@ -75,18 +85,7 @@ namespace eg::World
 			eg::Logger::gError("Failed to open file for saving game objects: " + filename);
 		}
 	}
-
-	void GameObjectManager::cleanup()
-	{
-		//Clean up 
-		Renderer::waitIdle();
-		Components::ParticleEmitter::clearAtlasTextures();
-		Components::ModelCache::clearCache();
-		mGameObjects.clear();
-		Physics::reset();
-	}
-
-	void GameObjectManager::load(const std::string& filename, JsonToIGameObjectDispatcher dispatcher)
+	void load(const std::string& filename, JsonToIGameObjectDispatcher dispatcher)
 	{
 		cleanup();
 		//Load json file
@@ -103,7 +102,7 @@ namespace eg::World
 		{
 			throw std::runtime_error("Invalid game object data in file: " + filename);
 		}
-		mWorldName = mainJson.at("worldName").get<std::string>();
+		sWorldName = mainJson.at("worldName").get<std::string>();
 		for (const auto& objJson : mainJson["gameObjects"])
 		{
 			if (!objJson.contains("type") || !objJson["type"].is_string())

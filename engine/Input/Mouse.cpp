@@ -1,4 +1,5 @@
 #include <Input.h>
+#include <Debug.h>
 
 #include <GLFW/glfw3.h>
 
@@ -28,10 +29,14 @@ namespace eg::Input::Mouse
 
 	float getDeltaX()
 	{
+		if(Debug::enabled())
+			return 0.0f;
 		return deltaX;
 	}
 	float getDeltaY()
 	{
+		if (Debug::enabled())
+			return 0.0f;
 		return deltaY;
 	}
 }

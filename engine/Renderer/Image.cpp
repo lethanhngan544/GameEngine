@@ -41,7 +41,8 @@ namespace eg::Renderer
 
 	}
 	Image2D::Image2D(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspectFlags,
-		void* data, size_t sizeInBytes)
+		void* data, size_t sizeInBytes) :
+		mFormat(format)
 	{
 		//Calculate mip levels
 		mMipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))) + 1);

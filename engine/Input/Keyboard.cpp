@@ -1,5 +1,6 @@
 #include <Input.h>
 #include <bitset>
+#include <Debug.h>
 
 #include <GLFW/glfw3.h>
 
@@ -36,10 +37,14 @@ namespace eg::Input::Keyboard
 
 	bool isKeyDown(int glfwKeyCode)
 	{
+		if (Debug::enabled())
+			return false;
 		return gKeys[glfwKeyCode];
 	}
 	bool isKeyDownOnce(int glfwKeyCode)
 	{
+		if (Debug::enabled())
+			return false;
 		return isKeyDown(glfwKeyCode) && !gPrevKeys[glfwKeyCode];
 	}
 }

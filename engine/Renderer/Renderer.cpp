@@ -2,6 +2,7 @@
 #include <Core.h>
 #include <Components.h>
 #include <Window.h>
+#include <Debug.h>
 #include <GLFW/glfw3.h>
 
 #include <limits>
@@ -58,6 +59,8 @@ namespace eg::Renderer
 	static vk::Instance gInstance;
 	static vk::DebugUtilsMessengerEXT gDbgMsg;
 	static vk::SurfaceKHR gSurface;
+	static vk::SurfaceCapabilitiesKHR gSurfaceCapabilities;
+	static uint32_t gImageCount;
 	static vk::PhysicalDevice gPhysicalDevice;
 	static uint32_t gGraphicsQueueFamilyIndex = std::numeric_limits<uint32_t>::max();
 	static vk::Device gDevice;
@@ -379,31 +382,31 @@ namespace eg::Renderer
 	}
 
 
-	static std::tuple<uint32_t, vk::SurfaceCapabilitiesKHR> createSwapchain(uint32_t width, uint32_t height)
+	static void createSwapchain(uint32_t width, uint32_t height)
 	{
 		//Create swapchain
-		vk::SurfaceCapabilitiesKHR surfaceCapabilities = gPhysicalDevice.getSurfaceCapabilitiesKHR(gSurface);
-		uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
-		if (surfaceCapabilities.maxImageCount > 0 && imageCount > surfaceCapabilities.maxImageCount)
+		gSurfaceCapabilities = gPhysicalDevice.getSurfaceCapabilitiesKHR(gSurface);
+		gImageCount = gSurfaceCapabilities.minImageCount + 1;
+		if (gSurfaceCapabilities.maxImageCount > 0 && gImageCount > gSurfaceCapabilities.maxImageCount)
 		{
-			imageCount = surfaceCapabilities.maxImageCount;
+			gImageCount = gSurfaceCapabilities.maxImageCount;
 		}
 
 		vk::SwapchainCreateInfoKHR swapchainCI{};
 		swapchainCI.setSurface(gSurface)
-			.setMinImageCount(imageCount)
+			.setMinImageCount(gImageCount)
 			.setImageFormat(gSurfaceFormat.format)
 			.setImageColorSpace(gSurfaceFormat.colorSpace)
 			.setImageExtent(vk::Extent2D(width, height))
 			.setImageArrayLayers(1)
 			.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst)
 			.setImageSharingMode(vk::SharingMode::eExclusive)
-			.setPreTransform(surfaceCapabilities.currentTransform)
+			.setPreTransform(gSurfaceCapabilities.currentTransform)
 			.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
 			.setPresentMode(gPresentMode)
 			.setClipped(true)
 			.setQueueFamilyIndices({ gGraphicsQueueFamilyIndex })
-			.setPreTransform(surfaceCapabilities.currentTransform)
+			.setPreTransform(gSurfaceCapabilities.currentTransform)
 			.setClipped(true)
 			.setOldSwapchain(nullptr);
 		gSwapchain = gDevice.createSwapchainKHR(swapchainCI);
@@ -427,7 +430,6 @@ namespace eg::Renderer
 			gSwapchainImageViews.push_back(gDevice.createImageView(imageViewCI));
 		}
 
-		return { imageCount, surfaceCapabilities };
 	}
 
 	void waitIdle()
@@ -645,7 +647,7 @@ namespace eg::Renderer
 
 		gAllocator = vma::createAllocator(allocatorCI);
 
-		const auto[imageCount, surfaceCapabilities] = createSwapchain(width, height);
+		createSwapchain(width, height);
 
 		//Create command pool
 		vk::CommandPoolCreateInfo commandPoolCI{};
@@ -721,36 +723,36 @@ namespace eg::Renderer
 		Postprocessing::create(gSurfaceFormat.format);
 		Atmosphere::create(shadowMapRes);
 
-		//Init imgui
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
-		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
-		
-		ImGui::StyleColorsDark();
-		ImGui::GetStyle().Colors[ImGuiCol_WindowBg].w = 1.0f;
-		ImGui_ImplGlfw_InitForVulkan(Window::getHandle(), true);
-		ImGui_ImplVulkan_InitInfo init_info = {};
-		init_info.Instance = gInstance;
-		init_info.PhysicalDevice = gPhysicalDevice;
-		init_info.Device = gDevice;
-		init_info.QueueFamily = gGraphicsQueueFamilyIndex;
-		init_info.Queue = gMainQueue;
-		init_info.PipelineCache = VK_NULL_HANDLE;
-		init_info.DescriptorPool = gDescriptorPool;
-		init_info.RenderPass = Postprocessing::getRenderPass();
-		init_info.Subpass = 3;
-		init_info.MinImageCount = surfaceCapabilities.minImageCount;
-		init_info.ImageCount = imageCount;
-		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-		init_info.CheckVkResultFn =
-			[](VkResult result) {
-			if (result != 0)
-				Logger::gError("[vulkan] Error: VkResult = %d\n");
-			};
-		ImGui_ImplVulkan_Init(&init_info);
+		////Init imgui
+		//IMGUI_CHECKVERSION();
+		//ImGui::CreateContext();
+		//ImGuiIO& io = ImGui::GetIO(); (void)io;
+		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+		//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+		//
+		//ImGui::StyleColorsDark();
+		//ImGui::GetStyle().Colors[ImGuiCol_WindowBg].w = 1.0f;
+		//ImGui_ImplGlfw_InitForVulkan(Window::getHandle(), true);
+		//ImGui_ImplVulkan_InitInfo init_info = {};
+		//init_info.Instance = gInstance;
+		//init_info.PhysicalDevice = gPhysicalDevice;
+		//init_info.Device = gDevice;
+		//init_info.QueueFamily = gGraphicsQueueFamilyIndex;
+		//init_info.Queue = gMainQueue;
+		//init_info.PipelineCache = VK_NULL_HANDLE;
+		//init_info.DescriptorPool = gDescriptorPool;
+		//init_info.RenderPass = Postprocessing::getRenderPass();
+		//init_info.Subpass = 3;
+		//init_info.MinImageCount = surfaceCapabilities.minImageCount;
+		//init_info.ImageCount = imageCount;
+		//init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+		//init_info.CheckVkResultFn =
+		//	[](VkResult result) {
+		//	if (result != 0)
+		//		Logger::gError("[vulkan] Error: VkResult = %d\n");
+		//	};
+		//ImGui_ImplVulkan_Init(&init_info);
 
 
 		//Launch threads
@@ -781,7 +783,7 @@ namespace eg::Renderer
 		auto cmd = begin();
 		auto& frameData = gFrameData[gCurrentFrame];
 		frameData.alpha = alpha;
-		gDebugRenderFn(cmd, frameData.alpha);
+		//gDebugRenderFn(cmd, frameData.alpha);
 		Data::DebugRenderer::updateVertexBuffers();
 		Data::ParticleRenderer::updateBuffers();
 
@@ -821,7 +823,7 @@ namespace eg::Renderer
 		Atmosphere::renderAmbientLight(cmd);
 		Atmosphere::renderDirectionalLight(cmd);
 		Data::LightRenderer::beginPointLight(cmd);
-		Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
+		//Data::SkyRenderer::render(cmd, Data::SkyRenderer::SkySettings{});
 		gLightRenderFn(cmd, frameData.alpha);
 		Data::ParticleRenderer::render(cmd);
 		
@@ -839,10 +841,12 @@ namespace eg::Renderer
 		Postprocessing::compose(cmd);
 
 		Data::DebugRenderer::render(cmd);
-		ImGui::Render();
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+		/*ImGui::Render();
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);*/
 		cmd.endRenderPass();
 		Postprocessing::processLuminance(cmd, delta);
+
+		Debug::render(cmd);
 
 		//Copy the post processing image to the swapchain image
 		{
@@ -866,7 +870,8 @@ namespace eg::Renderer
 				.setDstOffset({ 0, 0, 0 })
 				.setExtent({ static_cast<uint32_t>(gScreenWidth->value), static_cast<uint32_t>(gScreenHeight->value), 1 });
 
-			cmd.copyImage(Postprocessing::getFinalDrawImage().getImage(), vk::ImageLayout::eTransferSrcOptimal,
+			cmd.copyImage(Debug::enabled() ? Debug::getImage().getImage() : Postprocessing::getFinalDrawImage().getImage(),
+				vk::ImageLayout::eTransferSrcOptimal,
 				gSwapchainImages[frameData.swapchainIndex], vk::ImageLayout::eTransferDstOptimal, { blitRegion });
 
 			//Blit image with renderscale
@@ -919,9 +924,7 @@ namespace eg::Renderer
 		gDefaultWhiteImage.reset();
 		gDefaultCheckerboardImage.reset();
 
-		ImGui_ImplVulkan_Shutdown();
-		ImGui_ImplGlfw_Shutdown();
-		ImGui::DestroyContext();
+		
 		gAllocator.destroy();
 		gDevice.destroyDescriptorPool(gDescriptorPool);
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -970,10 +973,10 @@ namespace eg::Renderer
 		frameData.swapchainIndex = gDevice.acquireNextImageKHR(gSwapchain, 1000000000, frameData.presentSemaphore, nullptr).value;
 
 		//draw imgui
-		ImGui_ImplVulkan_NewFrame();
+		/*ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		ImGui::DockSpaceOverViewport(0, 0, ImGuiDockNodeFlags_PassthruCentralNode);
+		ImGui::DockSpaceOverViewport(0, 0, ImGuiDockNodeFlags_PassthruCentralNode);*/
 
 		//Update global uniform buffer
 		GlobalUniformBuffer::Data GlobalUBOData;
@@ -1039,7 +1042,12 @@ namespace eg::Renderer
 	{
 		return gInstance;
 	}
-
+	vk::PhysicalDevice getPhysicalDevice() { return gPhysicalDevice;  }
+	vk::Queue getMainQueue() { return gMainQueue; }
+	uint32_t getMainQueueFamilyIndex() { return gGraphicsQueueFamilyIndex; }
+	vk::DescriptorPool getDescriptorPool() { return gDescriptorPool; }
+	vk::SurfaceCapabilitiesKHR getSurfaceCapabilities() { return gSurfaceCapabilities; }
+	uint32_t getImageCount() { return static_cast<uint32_t>(gSwapchainImages.size()); }
 	vk::Device getDevice()
 	{
 		return gDevice;
@@ -1050,10 +1058,6 @@ namespace eg::Renderer
 		return gAllocator;
 	}
 
-	vk::DescriptorPool getDescriptorPool()
-	{
-		return gDescriptorPool;
-	}
 
 	vk::DescriptorSet getCurrentFrameGUBODescSet()
 	{

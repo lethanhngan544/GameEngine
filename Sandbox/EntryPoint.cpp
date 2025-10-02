@@ -6,8 +6,6 @@
 
 #define VMA_IMPLEMENTATION
 
-#include <imgui.h>
-
 #include <vector>
 #include <memory>
 
@@ -15,13 +13,13 @@
 #include <SandBox_PlayerControlled.h>
 #include <SandBox_MapObject.h>
 #include <SandBox_MapPhysicsObject.h>
-#include <SandBox_Debugger.h>
 #include <Physics.h>
 #include <Network.h>
 #include <Window.h>
 #include <Data.h>
 #include <Input.h>
 #include <World.h>
+#include <Debug.h>
 #include <Core.h>
 #include <chrono>
 #include <thread>
@@ -56,28 +54,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 {
 	using namespace eg;
 
-
-
 	Logger::create(std::make_unique<VisualStudioLogger>());
 	try
 	{
+		Command::Var* maxFPSCvar = Command::findVar("eg::MaxFPS");
+		maxFPSCvar->value = 120.0;
+		Command::Var* maxTPSCvar = Command::findVar("eg::MaxTPS");
+		maxTPSCvar->value = 60.0;
+
 		Physics::create();
 		Window::create(1600, 900, "Sandbox");
 		Input::Keyboard::create(Window::getHandle());
 		Input::Mouse::create(Window::getHandle());
 		Renderer::create(1600, 900, 2048);
+		Debug::create();
 		Data::LightRenderer::create();
 		Data::SkyRenderer::create();
 		Data::DebugRenderer::create();
 		Data::ParticleRenderer::create();
 		Components::StaticModel::create();
 		Components::AnimatedModel::create();
-	
+		World::create();
 
 		{
-			
-			sndbx::Debugger debugger;
-			World::GameObjectManager gameObjManager;
 
 			World::JsonToIGameObjectDispatcher jsonDispatcher =
 				[](const nlohmann::json& jsonObj, const std::string& type) -> std::unique_ptr<World::IGameObject>
@@ -109,56 +108,54 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			Renderer::setDebugRenderFunction(
 				[&](vk::CommandBuffer cmd, float alpha)
 				{
-					debugger.drawPhysicsDebuggerDialog();
-					debugger.drawRendererSettingsDialog();
-					debugger.drawWorldDebuggerDialog(gameObjManager, jsonDispatcher);
+					
 				});
 			Renderer::setShadowRenderFunction(
 				[&](vk::CommandBuffer cmd, float alpha)
 				{
-					gameObjManager.render(cmd, alpha,Renderer::RenderStage::SHADOW);
+					World::render(cmd, alpha,Renderer::RenderStage::SHADOW);
 				});
 			Renderer::setGBufferRenderFunction(
 				[&](vk::CommandBuffer cmd, float alpha)
 				{
-					gameObjManager.render(cmd, alpha, Renderer::RenderStage::SUBPASS0_GBUFFER);
+					World::render(cmd, alpha, Renderer::RenderStage::SUBPASS0_GBUFFER);
 				});
 			Renderer::setLightRenderFunction(
 				[&](vk::CommandBuffer cmd, float alpha)
 				{
-					gameObjManager.render(cmd, alpha, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
+					World::render(cmd, alpha, Renderer::RenderStage::SUBPASS1_POINTLIGHT);
 				});
 
-			
+			World::load("world.json", jsonDispatcher);
 
 			using Clock = std::chrono::high_resolution_clock;
 			using TimePoint = std::chrono::time_point<Clock>;
 
-			constexpr double MAX_FPS = 900.0;
-			constexpr double FRAME_TIME = 1.0 / MAX_FPS;
-			constexpr double TICK_RATE = 66.0;
-			constexpr double TICK_INTERVAL = 1.0 / TICK_RATE;
+		
 			TimePoint lastTime = Clock::now();
 			double accumulator = 0.0;
 
 			while (!Window::shouldClose())
 			{
+				double frameTime = 1.0 / maxFPSCvar->value;
+				double tickInterval = 1.0 / maxTPSCvar->value;
+
 				TimePoint now = Clock::now();
 				double deltaTime = std::chrono::duration<double>(now - lastTime).count();
 				lastTime = now;
 				deltaTime = std::min(deltaTime, 0.25);
 				accumulator += deltaTime;
-				while (accumulator >= TICK_INTERVAL) {
-					gameObjManager.prePhysicsUpdate(TICK_INTERVAL);
-					Physics::update(TICK_INTERVAL);
-					gameObjManager.fixedUpdate(TICK_INTERVAL);
-					accumulator -= TICK_INTERVAL;
+				while (accumulator >= tickInterval) {
+					World::prePhysicsUpdate(tickInterval);
+					Physics::update(tickInterval);
+					World::fixedUpdate(tickInterval);
+					accumulator -= tickInterval;
 				}
 
 				//Update
-				float alpha = static_cast<float>(accumulator / TICK_INTERVAL);
-				debugger.checkKeyboardInput();
-				gameObjManager.update(deltaTime, alpha);
+				float alpha = static_cast<float>(accumulator / tickInterval);
+				eg::Debug::checkForKeyboardInput();
+				World::update(deltaTime, alpha);
 				Input::Keyboard::update();
 				Input::Mouse::update();
 
@@ -168,9 +165,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 				// Frame pacing
 				TimePoint frameEnd = Clock::now();
-				double frameTime = std::chrono::duration<double>(frameEnd - now).count();
-				if (frameTime < FRAME_TIME) {
-					auto sleepDuration = std::chrono::duration<double>(FRAME_TIME - frameTime);
+				double currentTime = std::chrono::duration<double>(frameEnd - now).count();
+				if (currentTime < frameTime) {
+					auto sleepDuration = std::chrono::duration<double>(frameTime - currentTime);
 					std::this_thread::sleep_for(sleepDuration);
 				}
 
@@ -192,13 +189,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 		MessageBox(nullptr, "TODO", "Unknown exception", MB_ICONEXCLAMATION);
 	}
 
+	World::destroy();
 	Components::AnimatedModel::destroy();
 	Components::StaticModel::destroy();
 	Data::DebugRenderer::destroy();
 	Data::ParticleRenderer::destroy();
 	Data::SkyRenderer::destroy();
 	Data::LightRenderer::destroy();
-	
+	Debug::destroy();
 	Renderer::destory();
 	Window::destroy();
 	Physics::destroy();

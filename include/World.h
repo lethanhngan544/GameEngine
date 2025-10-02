@@ -24,6 +24,8 @@ namespace eg::World
 		virtual nlohmann::json toJson() const = 0;
 		virtual void fromJson(const nlohmann::json& json) = 0;
 		virtual const char* getType() const = 0;
+
+		virtual void onInspector() = 0;
 	};
 
 	class DynamicWorldObject final : public IGameObject
@@ -42,6 +44,7 @@ namespace eg::World
 		virtual nlohmann::json toJson() const final { return {}; }
 		virtual void fromJson(const nlohmann::json& json) final;
 		virtual const char* getType() const final { return "DynamicWorldObject"; }
+		virtual void onInspector() final {};
 	};
 
 
@@ -66,34 +69,20 @@ namespace eg::World
 		}
 	};
 
-	class GameObjectManager
-	{
-	private:
-		std::string mWorldName;
-		std::vector<std::unique_ptr<IGameObject>> mGameObjects;
-	public:
-		GameObjectManager() = default;
-		~GameObjectManager();
+	void create();
+	void destroy();
+	void cleanup();
+	void addGameObject(std::unique_ptr<IGameObject> gameobject);
+	void removeGameObject(const IGameObject* gameObject);
 
+	void update(float delta, float alpha);
+	void prePhysicsUpdate(float delta);
+	void fixedUpdate(float delta);
+	void render(vk::CommandBuffer cmd, float alpha, Renderer::RenderStage stage);
 
-		void cleanup();
-		void addGameObject(std::unique_ptr<IGameObject> gameobject);
-		void removeGameObject(const IGameObject* gameObject);
+	void save(const std::string& filename);
+	void load(const std::string& filename, JsonToIGameObjectDispatcher dispatcher);
+	std::vector<std::unique_ptr<IGameObject>>& getGameObjects();
 
-		void update(float delta, float alpha);
-		void prePhysicsUpdate(float delta);
-		void fixedUpdate(float delta);
-		void render(vk::CommandBuffer cmd, float alpha, Renderer::RenderStage stage);
-
-		void save(const std::string& filename) const;
-		void load(const std::string& filename, JsonToIGameObjectDispatcher dispatcher);
-
-		inline const std::string& getWorldName() const {
-			return mWorldName;
-		}
-		inline void setWorldName(const std::string& worldName) {
-			mWorldName = worldName;
-		}
-	};
 
 }
